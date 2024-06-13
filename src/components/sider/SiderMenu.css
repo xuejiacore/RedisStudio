@@ -1,0 +1,27 @@
+.sider-panel {
+    text-align: center;
+}
+
+.sider-logo {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.sider-menu {
+    width: 40px;
+    height: calc(100vh);
+    background-color: rgb(43, 45, 48);
+    float: left;
+}
+
+.sider-item {
+    padding: 4px 10px !important;
+}
+
+.sider-item.actived {
+    background-color: rgb(78, 81, 87);
+}
+
+.sider-item:hover {
+    background-color: rgb(57, 59, 63);
+}

@@ -1,0 +1,86 @@
+@window-title-bar-height: 32px;
+
+.window-title-bar {
+  width: 100%;
+  height: @window-title-bar-height;
+  line-height: @window-title-bar-height;
+  font-weight: bold;
+  text-align: center;
+}
+
+.window-title-bar-left-col {
+  background: linear-gradient(to right, rgba(67, 104, 250, 0.50), rgba(255, 255, 255, 0))
+}
+
+.project-selector {
+  margin-left: 74px;
+  height: @window-title-bar-height;
+
+  .project-icon {
+    top: 6px;
+    line-height: 22px;
+    width: 20px;
+    height: 22px;
+    background: #259EB9;
+    border-radius: 5px;
+    color: white;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .project-name {
+    font-size: 12px;
+    font-weight: bold;
+    color: #DFE1E5;
+  }
+
+  .down-arrow {
+    overflow: hidden;
+    zoom: 1;
+    width: 0.3rem;
+    height: 0.3rem;
+    text-indent: -99999px;
+    border-left: 0.05rem solid #b2b2b2;
+    border-top: 0.05rem solid #b2b2b2;
+    transform: rotate(225deg);
+  }
+
+  .project.database {
+    height: @window-title-bar-height;
+  }
+
+  .selector {
+    padding: 2px 6px;
+
+    .database-number-icon {
+      fill: #DFE1E5;
+    }
+
+    .database-number {
+      font-weight: bold;
+      margin-left: 2px;
+      color: #DFE1E5;
+    }
+
+    .db-key-len {
+      color: #97999b;
+      margin-left: 2px;
+    }
+  }
+
+  .selector:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+
+  .database-status {
+  }
+
+  .database-status.disconnected {
+    fill: rgba(255, 165, 0, 0.45);
+  }
+  .database-status.connected {
+    display: none;
+  }
+}
+

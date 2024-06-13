@@ -1,0 +1,44 @@
+{
+  "name": "redisstudio",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.2.6",
+    "@monaco-editor/react": "^4.6.0",
+    "@react-buddy/ide-toolbox": "^2.4.0",
+    "@react-buddy/palette-antd": "^5.3.0",
+    "@tauri-apps/api": ">=2.0.0-beta",
+    "@tauri-apps/plugin-clipboard-manager": ">=2.0.0-beta",
+    "@tauri-apps/plugin-global-shortcut": "^>=2.0.0-beta",
+    "@tauri-apps/plugin-shell": ">=2.0.0-beta",
+    "@tauri-apps/plugin-sql": ">=2.0.0-beta",
+    "@tauri-apps/plugin-store": "^2.0.0-beta.3",
+    "antd": "^5.12.5",
+    "eslint": "^8.56.0",
+    "i18next": "^23.10.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^14.1.0",
+    "react-infinite-scroll-component": "^6.1.0",
+    "react-monaco-editor": "0.47.0",
+    "react-redux": "^9.1.1",
+    "smooth-scrollbar": "^8.8.4",
+    "tauri-plugin-context-menu": "^0.7.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": ">=2.0.0-beta.0",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.2.1",
+    "less": "^4.2.0",
+    "typescript": "^5.0.2",
+    "vite": "^5.0.0"
+  }
+}

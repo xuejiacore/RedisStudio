@@ -1,0 +1,103 @@
+{
+  "redis": {
+    "key_tree": {
+      "search": {
+        "placeholder": "Filter keys"
+      },
+      "command_script": {
+        "name": "Command Query"
+      },
+      "sub_tree": {
+        "favor_count": "FAVORITE ({{count}})",
+        "keys_count": "KEYS ({{keyCount}} SCANNED)",
+        "keys_tree": {
+          "scan_more_result": "Scan More",
+          "scan_no_more_result": "No More Result",
+          "stop_scanning": "Cancel Scan"
+        }
+      }
+    },
+    "main": {
+      "right_panel": {
+        "tabs": {
+          "outline": {
+            "name": "Outline",
+            "divider": {
+              "basic": "Basic",
+              "custom_tags": "Custom Tags",
+              "recommend": "Recommend",
+              "tag_vars": "Tag Variables"
+            },
+            "basic": {
+              "memory": "Memory",
+              "ttl": "TTL",
+              "encoding": "Encoding",
+              "filed_count": "Data Count",
+              "snapshot_ts": "Last Updated"
+            },
+            "recommend": {
+              "empty_info": "No useful recommendation ",
+              "operation": "Create"
+            },
+            "automatic_tags": {
+              "empty_info": "No information available ",
+              "operation": "Generate"
+            }
+          },
+          "value": {
+            "name": "Value",
+            "update": "Update",
+            "new": "New Item",
+
+            "field_name_hash": "Field Name",
+            "content_hash": "Content",
+
+            "field_name_zset": "Score",
+            "content_zset": "Member",
+
+            "content_list": "Element",
+            "content_set": "Member"
+          },
+          "info": {
+            "name": "Info"
+          }
+        }
+      },
+      "hash": {
+        "main": {
+          "table": {
+            "field_col_name": "Field",
+            "content_col_name": "Content"
+          }
+        },
+        "footer": {
+          "search_placeholder": "Search"
+        }
+      },
+      "zset": {
+        "main": {
+          "table": {
+            "rank_col_name": "Rank",
+            "score_col_name": "Score",
+            "element_col_name": "Element"
+          }
+        }
+      },
+      "list": {
+        "main": {
+          "table": {
+            "idx_col_name": "Index",
+            "element_col_name": "Element"
+          }
+        }
+      },
+      "set": {
+        "main": {
+          "table": {
+            "member_col_name": "Member"
+          }
+        }
+      }
+    }
+  }
+}

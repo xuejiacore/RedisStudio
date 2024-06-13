@@ -1,0 +1,93 @@
+.logo.vite:hover {
+  filter: drop-shadow(0 0 2em #747bff);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafb);
+}
+
+.main.container {
+  background-color: red;
+}
+
+.workspace-panel {
+  height: calc(100vh);
+  overflow-y: hidden;
+}
+
+.ant-tree-treenode {
+  font-size: 12px;
+}
+
+.ant-tree .ant-tree-indent-unit {
+  display: inline-block;
+  width: 10px;
+}
+
+.ant-tree .ant-tree-treenode {
+  display: flex;
+  align-items: flex-start;
+  padding: 0 0 0px 0;
+  outline: none;
+}
+
+.ant-tree .ant-tree-node-content-wrapper,
+.ant-tree .ant-tree-checkbox + span {
+  position: relative;
+  z-index: auto;
+  min-height: 24px;
+  margin: 0;
+  padding: 0 0px;
+  color: inherit;
+  line-height: 24px;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s, border 0s, line-height 0s, box-shadow 0s;
+}
+
+/*
+tab list
+*/
+#mainTab > div.ant-tabs-nav > div.ant-tabs-nav-wrap > div {
+  background-color: #2B2D30;
+  height: calc(100vh);
+  border-right: 1px #1E1F226F solid;
+}
+
+#mainTab > div.ant-tabs-nav > div.ant-tabs-nav-wrap > div > div.ant-tabs-tab {
+  padding: 4px 8px !important;
+  width: 31px;
+}
+
+.ant-tabs-left > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane,
+.ant-tabs-left > div > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane {
+  padding-left: 0;
+}
+
+.ant-tabs-left > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab, .ant-tabs-right > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab,
+.ant-tabs-left > div > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab, .ant-tabs-right > div > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab {
+  margin: 0 0 0 0;
+}
+
+#mainTab > div.ant-tabs-nav > div.ant-tabs-nav-wrap > div {
+
+  div.ant-tabs-tab {
+  }
+
+  div.ant-tabs-tab.ant-tabs-tab-active {
+    background: #FFFFFF15 !important;
+  }
+
+  div.ant-tabs-tab.ant-tabs-tab-active:hover {
+    background: #FFFFFF40 !important;
+  }
+
+  div.ant-tabs-tab:hover {
+    background: #FFFFFF10 !important;
+  }
+}
+
+.ant-tabs-left > .ant-tabs-nav, .ant-tabs-right > .ant-tabs-nav, .ant-tabs-left > div > .ant-tabs-nav, .ant-tabs-right > div > .ant-tabs-nav {
+  min-width: 31px !important;
+}

@@ -1,0 +1,265 @@
+.right-watcher-panel-container {
+  //background: red;
+  height: calc(100vh);
+
+  .ant-tabs-top {
+    .ant-tabs-nav::before {
+      border-bottom: 1px solid #00000000;
+    }
+  }
+
+  .ant-tabs {
+    .ant-tabs-nav {
+
+      .ant-tabs-nav-list {
+        //background: red;
+      }
+
+      .ant-tabs-tab {
+        font-size: 12px;
+        border-top: none;
+        border-right: none;
+        border-left: none;
+        border-bottom: 2px solid #63646640;
+        padding: 4px 8px;
+        border-radius: 0 0 0 0 !important;
+
+        .ant-tabs-tab-btn {
+          color: #636466;
+
+          .ant-tabs-tab-icon {
+            margin-inline-end: 6px;
+          }
+        }
+      }
+
+      .ant-tabs-tab:hover {
+        background: #393B40;
+      }
+
+      .ant-tabs-tab-active {
+        border-color: #00000000;
+        border-bottom: 2px solid #3574F0;
+        background: #393B40;
+        padding: 4px 8px;
+
+        .ant-tabs-tab-btn {
+          color: #C7C9CD;
+
+          .ant-tabs-tab-icon {
+            .tab-tags {
+              color: orange;
+            }
+
+            .tab-info {
+              color: #0099cc;
+            }
+          }
+        }
+      }
+
+    }
+  }
+
+
+  .key-tags-container {
+    padding-left: 10px;
+    padding-right: 10px;
+    @font-color: #BCBEC4;
+
+    .label-space {
+      row-gap: 0;
+      color: @font-color;
+      padding-left: 10px;
+
+      .label-text {
+        font-size: 12px;
+      }
+
+      .label-time {
+        color: #BCBEC460;
+        font-size: 10px;
+      }
+
+      .label-memory-size {
+        color: #BCBEC460;
+        font-size: 10px;
+      }
+    }
+
+    .ttl-countdown {
+      .cd-days-part {
+        color: olivedrab;
+        margin-left: 5px;
+      }
+    }
+
+    .tag-variables-form {
+
+      .tag-variables-form-item {
+        margin-bottom: 0;
+
+        label {
+          color: @font-color;
+          overflow: hidden;
+        }
+
+        input {
+          background: #5C5C5E;
+          border: #3a3d3d;
+          color: @font-color;
+          font-size: 12px;
+          height: 18px;
+          line-height: 18px;
+          border-radius: 4px;
+        }
+      }
+    }
+
+    .tag-variables-submit-button {
+      background: #5C5C5E;
+      border: #3a3d3d;
+      color: @font-color;
+      font-size: 12px;
+      height: 18px;
+      line-height: 18px;
+      border-radius: 4px;
+      margin-top: 12px;
+    }
+
+    .key-tag:hover {
+      cursor: pointer;
+    }
+  }
+
+  @divider-color: #bebebe20;
+
+  .divider {
+    color: #bebebe;
+    font-size: 12px;
+  }
+
+  .divider.first-divider {
+    margin-top: 2px;
+  }
+
+  .ant-divider-horizontal.ant-divider-with-text::before {
+    border-block-start: 1px solid @divider-color;
+  }
+
+  .ant-divider-horizontal.ant-divider-with-text::after {
+    border-block-start: 1px solid @divider-color;
+  }
+
+  .value-viewer-container {
+    margin-left: 10px;
+    margin-right: 10px;
+
+    .field-input-area.invisible {
+      display: none;
+    }
+
+    .field-name {
+      margin: -5px 6px 10px;
+      padding: 1px 8px;
+      display: inline-block;
+
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 3px;
+      color: #BCBEC4;
+      background: #343539;
+      cursor: pointer;
+    }
+
+    .field-viewer {
+      border-radius: 3px;
+      display: flex;
+      flex-direction: column;
+      resize: none;
+      background: #1E1E1E;
+      color: #BCBEC4;
+      box-shadow: 0 0 1.5px #696C6C60;
+      border: none;
+    }
+
+    .value-viewer {
+      border-radius: 3px;
+      background: #1E1E1E;
+      color: #BCBEC4;
+      box-shadow: 0 0 1.5px #696C6C60;
+      border: none;
+    }
+
+    .toolbar-btn {
+      width: 10px;
+      border-radius: 4px;
+      padding: 3px 4px;
+      color: #6d6e70;
+      background: #393B40;
+    }
+
+    .toolbar-btn.delete-field:hover {
+      background: #61483f;
+      color: orangered;
+    }
+
+    .toolbar-btn:hover {
+      background: #54575e;
+      cursor: pointer;
+      color: #DFE0E0;
+    }
+  }
+
+  .value-viewer-footer-tools {
+    position: fixed;
+    width: 100%;
+    height: 30px;
+    bottom: 0;
+    border-top: 1px #3a3d3d solid;
+    background: #252526;
+  }
+
+  .footer-apply-button {
+    position: fixed;
+    bottom: 6px;
+    right: 10px;
+    background: #5C5C5E;
+    border: #3a3d3d;
+    color: #E6E7E7;
+    font-size: 12px;
+    font-weight: bold;
+    height: 18px;
+    line-height: 18px;
+    animation: showButton 2s ease-in-out forwards; /* 这里设置动画的持续时间，函数以及是否保留结束状态 */
+    opacity: 0; /* 初始透明度为0，即隐藏 */
+    animation-delay: 2s; /* 延迟2秒开始动画 */
+  }
+
+  .footer-apply-button:hover {
+    color: #c0c0c0 !important;
+    background: #54575e;
+  }
+
+  .footer-apply-button.visible {
+    opacity: 1; /* 当按钮变为可见时，设置透明度为1 */
+  }
+
+  .footer-apply-button.new {
+  }
+
+  .empty {
+    span {
+      color: #BCBEC460;
+      font-size: 10px;
+    }
+
+    a {
+      color: rgba(192, 194, 201, 0.52);
+    }
+
+    a:hover {
+      color: #c0c0c0;
+    }
+  }
+}

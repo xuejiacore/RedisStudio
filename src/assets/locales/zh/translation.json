@@ -1,0 +1,13 @@
+{
+  "redis": {
+    "main": {
+      "right_panel": {
+        "tabs": {
+          "outline": "标签",
+          "value": "字段|内容",
+          "info": "信息"
+        }
+      }
+    }
+  }
+}

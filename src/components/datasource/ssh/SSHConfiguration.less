@@ -1,0 +1,25 @@
+@ssh-config-disabled-color: #686C73;
+
+.ssh-config {
+  margin-left: 24px;
+  .parse-checkbox {
+    margin-left: 80px;
+    .ant-checkbox-wrapper-in-form-item {
+      span {
+        font-size: 12px;
+        font-family: JetBrainsMonoRegular, sans-serif;
+      }
+    }
+  }
+
+  span, label {
+    color: @ssh-config-disabled-color !important;
+    font-weight: normal !important;
+  }
+}
+
+.ssh-config.enabled {
+  span, label {
+    color: #D8DADE !important;
+  }
+}

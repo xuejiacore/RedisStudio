@@ -1,0 +1,192 @@
+.redis-toolbar {
+  background: #252628;
+
+  .key-copier {
+    color: #949598;
+    background: #393B40;
+    border-radius: 4px;
+
+    div > .ant-space-item > div {
+      max-width: 25vw;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+  }
+
+  .key-copier:hover {
+    color: #ffffff;
+    background: #54575e;
+    cursor: pointer;
+  }
+
+  .toolbar-key-name {
+    margin: 6px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .tips-info {
+    color: #35AA53;
+    font-weight: bold;
+  }
+
+  .tips-info.show {
+    opacity: 1;
+  }
+
+  .tips-info.hidden {
+    opacity: 0;
+    transition: opacity 1s ease-out;
+  }
+
+  .toolbar-key-name.hash {
+    background: #B162C925;
+  }
+
+  .toolbar-key-name.string {
+    background: #35AA5325;
+  }
+
+  .toolbar-key-name.zset {
+    background: #EB433425;
+  }
+
+  .toolbar-key-name.set {
+    background: #4586F325;
+  }
+
+  .toolbar-key-name.list {
+    background: #FBBD0625;
+  }
+
+  .toolbar-operator {
+    margin: 6px;
+    float: right;
+
+    .toolbar-btn {
+      width: 10px;
+      border-radius: 4px;
+      padding: 3px 4px;
+      //box-shadow: 0 0 3px #696C6C;
+      color: #6d6e70;
+      background: #393B40;
+    }
+
+    .toolbar-btn:hover {
+      background: #54575e;
+      cursor: pointer;
+      color: #DFE0E0;
+    }
+
+    .favor-btn:hover {
+      color: #da5959;
+    }
+
+    .favor-btn.selected {
+      color: #da5959;
+    }
+
+    .pushpin-btn:hover {
+      color: orange;
+    }
+
+    .pushpin-btn.selected {
+      color: orange;
+    }
+
+    .auto-refresh-btn:hover {
+      color: orangered;
+    }
+
+    .auto-refresh-btn.selected {
+      color: orangered;
+    }
+  }
+}
+
+// 在pin面板上的效果
+.redis-push-pin-main {
+
+  @keyframes blink {
+    0% {
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  .pin-attention {
+    width: 5px;
+    height: 5px;
+    border-radius: 5px;
+    animation: blink 350ms infinite ease-in-out;
+  }
+
+  .pin-attention.hash {
+    background: #B162C9;
+    box-shadow: 0 0 5px 1px #B162C9;
+  }
+
+  .pin-attention.string {
+    background: #35AA53;
+    box-shadow: 0 0 5px 1px #35AA53;
+  }
+
+  .pin-attention.zset {
+    background: #EB4334;
+    box-shadow: 0 0 5px 1px #EB4334;
+  }
+
+  .pin-attention.set {
+    background: #4586F3;
+    box-shadow: 0 0 5px 1px #4586F3;
+  }
+
+  .pin-attention.list {
+    background: #FBBD06;
+    box-shadow: 0 0 5px 1px #FBBD06;
+  }
+
+  .toolbar-key-name {
+    color: #b4c0cc;
+  }
+
+  .toolbar-key-name.hash {
+    background: #B162C980;
+  }
+
+  .toolbar-key-name.string {
+    background: #35AA5380;
+  }
+
+  .toolbar-key-name.zset {
+    background: #EB433480;
+  }
+
+  .toolbar-key-name.set {
+    background: #4586F380;
+  }
+
+  .toolbar-key-name.list {
+    background: #FBBD0680;
+  }
+
+  .redis-toolbar {
+    .key-copier {
+      div > .ant-space-item > div {
+        max-width: 50vw;
+      }
+    }
+  }
+
+}

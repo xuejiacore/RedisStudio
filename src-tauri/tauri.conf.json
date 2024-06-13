@@ -1,0 +1,75 @@
+{
+  "productName": "Redis Studio",
+  "version": "0.0.0",
+  "identifier": "org.nigel.redisstudio",
+  "build": {
+    "beforeDevCommand": "yarn dev",
+    "beforeBuildCommand": "yarn build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 690,
+        "hiddenTitle": true,
+        "resizable": true,
+        "title": "Byte Studio",
+        "transparent": false,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "width": 1200,
+        "theme": "Dark",
+        "label": "main"
+      },
+      {
+        "decorations": false,
+        "height": 156,
+        "hiddenTitle": true,
+        "label": "splashscreen",
+        "url": "windows/splashscreen.html",
+        "width": 400,
+        "theme": "Dark"
+      },
+      {
+        "label": "spotlight-search",
+        "shadow": true,
+        "fullscreen": false,
+        "hiddenTitle": true,
+        "maximizable": false,
+        "height": 200,
+        "width": 660,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "closable": true,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "decorations": false,
+        "visibleOnAllWorkspaces": true,
+        "url": "windows/spotlight-search.html"
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}

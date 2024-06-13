@@ -1,0 +1,118 @@
+.datasource-type-general {
+  @placeholder-color: #686C73;
+
+  label {
+    color: #D8DADE !important;
+    font-weight: bold;
+    font-family: JetBrainsMonoBold, sans-serif;
+  }
+
+  .ant-input {
+    font-family: JetBrainsMonoBold, sans-serif;
+    background-color: #2B2D30;
+    border: 1px solid #3a454b;
+    min-height: 23px;
+    height: 23px;
+    width: 400px;
+    border-radius: 2px;
+    color: #DCDFE2;
+  }
+
+  @divider-color: #2B2D30;
+
+  .divider {
+    color: #bebebe;
+    font-size: 12px;
+  }
+
+  .ant-divider {
+    border-block-start: 1px solid @divider-color !important;
+  }
+
+  .ant-checkbox .ant-checkbox-inner {
+    border-radius: 2px;
+    background: #3a454b !important;
+    border: 1px solid #3a454b;
+  }
+
+  .ant-input-affix-wrapper {
+    background-color: #2B2D30;
+    border: 1px solid #3a454b;
+    min-height: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 2px;
+    color: #DCDFE2;
+
+    input {
+      padding-left: 10px;
+    }
+  }
+
+  .ant-input-suffix > span > svg {
+    color: #DCDFE2;
+    padding-right: 6px;
+  }
+
+  .ant-select-single {
+    font-family: JetBrainsMonoBold, sans-serif;
+    min-height: 23px;
+    height: 23px;
+
+    .ant-select-selector {
+      border-radius: 2px;
+      color: #DCDFE2 !important;
+      background-color: #2B2D30;
+      border: 1px solid #3a454b !important;
+    }
+
+    .ant-select-arrow {
+      color: @placeholder-color;
+    }
+  }
+
+  .ant-select-single.ant-select-open .ant-select-selection-item {
+    color: @placeholder-color;
+  }
+
+
+  input::placeholder {
+    color: @placeholder-color !important;
+    font-size: 12px;
+  }
+
+  .ant-form-item {
+    margin-bottom: 5px;
+  }
+}
+
+.datasource-type-footer {
+  position: fixed;
+  bottom: 32px;
+  width: 71%;
+}
+
+.ant-select-dropdown {
+  background: #2B2D30 !important;
+  padding: 3px;
+  border-radius: 4px;
+  color: #DCDFE2 !important;
+  border: 1px solid #3a454b;
+
+  .ant-select-item {
+    color: #DCDFE2 !important;
+    min-height: 18px;
+    height: 18px;
+    line-height: 18px;
+    padding: 0 10px;
+    border-radius: 2px;
+
+    .ant-select-item-option-content {
+      font-family: JetBrainsMonoBold, sans-serif;
+    }
+  }
+
+  .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+    background: #686C73;
+  }
+}

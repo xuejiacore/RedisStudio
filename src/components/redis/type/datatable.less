@@ -1,0 +1,246 @@
+.redis-datatable:where(.ant-table-wrapper) {
+  @background: #1E1E1E;
+  @evn-background: #2728296F;
+  @font-color: white;
+  @font-size: 12px;
+  @margin-left: 3px;
+  @padding-left: 5px;
+  @row-radius: 4px;
+
+  .ant-table-placeholder {
+    display: none;
+  }
+
+  .ant-table {
+    border-radius: 0;
+
+    .table-row-data {
+      color: #D4D4D5 !important;
+      font-weight: 550;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ant-table-row {
+      .ant-table-cell-row-hover {
+        @row-hover-background: #393B4035 !important;
+        @row-hover-color: #FFFFFF !important;
+
+        background: @row-hover-background;
+        transition: background 0s;
+        color: @row-hover-color;
+
+        .table-row-data {
+          background: @row-hover-background;
+          color: @row-hover-color;
+        }
+
+        .field-toolkits {
+          background: @row-hover-background;
+          color: @row-hover-color;
+        }
+      }
+    }
+
+    .ant-table-row.ant-table-row-selected > .ant-table-cell {
+      @row-selection-background: #1f3256 !important;
+      @row-selection-color: #FFFFFF;
+      background: @row-selection-background;
+
+      .table-row-data {
+        background: @row-selection-background;
+      }
+
+      .field-toolkits {
+        background: @row-selection-background;
+      }
+    }
+  }
+
+  :where(tr) {
+    td {
+      .table-row-data {
+        padding-left: @padding-left;
+      }
+
+      :first-child {
+        .table-row-data {
+          margin-left: @margin-left;
+        }
+      }
+    }
+  }
+
+  :where(tr):nth-child(even) {
+    td {
+      .table-row-data {
+        background: @evn-background;
+      }
+
+      :nth-child(1) {
+        .table-row-data {
+          background: @evn-background;
+          margin-left: @margin-left;
+          padding-left: @padding-left;
+          border-bottom-left-radius: @row-radius;
+          border-top-left-radius: @row-radius;
+        }
+      }
+    }
+
+
+    .field-toolkits {
+      background: @evn-background;
+      border-bottom-left-radius: @row-radius;
+      border-top-left-radius: @row-radius;
+    }
+
+    td:nth-last-child(1) {
+      .table-row-data {
+        background: @evn-background;
+        margin-left: 0;
+        margin-right: @margin-left;
+        padding-right: @padding-left;
+        border-bottom-right-radius: @row-radius;
+        border-top-right-radius: @row-radius;
+      }
+    }
+  }
+
+  :where(.ant-table-cell-row-hover) {
+    // 表格鼠标悬浮颜色
+    background: rgba(255, 255, 255, 0) !important;
+  }
+
+  .ant-table-container {
+    background: @background;
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
+
+    :where(.ant-table-tbody) > tr {
+      td {
+        border-bottom: 0;
+      }
+    }
+
+    table > thead > tr:first-child > *:last-child {
+      border-start-end-radius: 0;
+    }
+
+    :where(.ant-table-thead) > tr {
+      th {
+        background: @background;
+        border-bottom: none;
+      }
+
+      th:not(.ant-table-selection-column):not(.ant-table-row-expand-icon-cell):not([colspan])::before {
+        background-color: #646464 !important;
+      }
+    }
+
+    // 表头
+    .ant-table-header {
+      border-radius: 0;
+
+      :where(.ant-table-cell) {
+        background: @background;
+        padding: 0 !important;
+        color: @font-color;
+        font-size: @font-size;
+        border: 0;
+      }
+
+      .ant-table-cell-scrollbar {
+        display: none;
+      }
+
+    }
+
+    :where(.ant-table-cell) {
+      padding: 0 0 0 0 !important;
+      color: @font-color;
+      font-size: @font-size;
+    }
+  }
+}
+
+.redis-datatable {
+  .table-header {
+    font-weight: 600;
+    line-height: 33px;
+    color: #FFFFFF;
+    padding: 0 5px;
+  }
+
+  .empty-data {
+    color: #646464;
+    font-size: 10px;
+    font-weight: bold;
+  }
+
+  .ant-table-cell-row-hover {
+    .empty-data {
+      color: #ababab;
+    }
+  }
+
+  .table-row-data {
+    color: #BBBDC2 !important;
+  }
+
+  .field-toolkits {
+    display: flex;
+    justify-content: flex-start;
+    line-height: 28px;
+    align-items: center;
+
+    .field-tool {
+      margin-left: auto;
+      margin-right: 12px;
+      opacity: 0;
+      transition: opacity 0.25s ease-out;
+    }
+
+    .field-tool.activated {
+      display: block;
+      opacity: 1;
+    }
+
+    .toolbar-btn {
+      width: 10px;
+      border-radius: 4px;
+      padding: 3px 4px 5px;
+      color: #6d6e70;
+      background: #393B4070;
+    }
+
+    .pushpin-btn:hover {
+      background: #393B40;
+      color: orange;
+      cursor: pointer;
+    }
+
+    .pushpin-btn.selected {
+      color: orange;
+    }
+  }
+
+  .ant-table-body::-webkit-scrollbar {
+    width: 3px; /* 设置滚动条宽度 */
+    background: transparent;
+  }
+
+  .ant-table-body::-webkit-scrollbar-thumb {
+    background-color: rgba(153, 153, 153, 0.5); /* 设置滑块颜色 */
+    border-radius: 4px; /* 设置滑块边界半径 */
+  }
+
+  .ant-table-body::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+
+.redis-datatable .pinned {
+  height: calc(100vh - 38px) !important;
+}

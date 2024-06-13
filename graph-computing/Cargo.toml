@@ -1,0 +1,25 @@
+[package]
+name = "graph-computing"
+version = "0.1.0"
+edition = "2021"
+authors = ["Xuejia•Zhan"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+petgraph = "0.6.3"
+serde = { version = "1.0" }
+serde_json = "1.0"
+serde_derive = { version = "1.0" }
+protobuf = "3.4.0"
+rlua = "0.19.4"
+calamine = "0.19.1"
+tokio = { version = "1.27.0", features = ["full"] }
+redis = "0.25.3"
+url = "2.5.0"
+
+[dev-dependencies]
+serde = { version = "1.0" }
+serde_json = "1.0"
+serde_derive = { version = "1.0" }

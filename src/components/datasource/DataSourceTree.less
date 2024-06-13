@@ -1,0 +1,81 @@
+.datasource-tree-panel {
+  background: #2b2d30;
+
+  .datasource-operators {
+    width: 100%;
+    margin-left: 10px;
+    margin-top: 5px;
+
+    span {
+      color: #a3a4a8;
+    }
+
+    span:hover {
+      color: white;
+      background: #0099cc;
+    }
+  }
+
+  .datasource-tree {
+
+    /* antd 树 START */
+    @tree-line-color: #4E5157;
+
+    .ant-tree-indent-unit {
+      left: 14px;
+    }
+
+    .ant-tree-indent-unit:before,
+    .ant-tree-switcher-leaf-line:before {
+      border-inline-end: 1px solid @tree-line-color;
+    }
+
+    .ant-tree-treenode-leaf-last .ant-tree-switcher-leaf-line:before {
+      height: 24px !important;
+    }
+
+    .ant-tree-switcher-leaf-line:after {
+      border-bottom: 1px solid @tree-line-color;
+      top: 12px;
+    }
+
+    .ant-tree-treenode-selected::before {
+      background: #2E436E !important;
+    }
+
+    /* antd 树 END */
+
+    .group-name-node {
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .datasource-tree-node {
+
+      .node-icon {
+        background: #9C54E0;
+        padding: 0 2px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .node-desc-area {
+        margin-left: 10px;
+
+        .project-name-text {
+          font-weight: bold;
+        }
+
+        .desc-text {
+          color: #5F6268;
+          font-size: 10px;
+          overflow: hidden;
+          width: calc(18vw);
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+  }
+}

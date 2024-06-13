@@ -1,0 +1,26 @@
+[workspace]
+members = [
+    "xstorage-redis",
+    "xstorage-core",
+    "xstorage-zookeeper"
+]
+
+[workspace.package]
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+keywords = ["storage", "database", "redis"]
+
+[package]
+name = "xstorage"
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+xstorage-core = { version = "=0.1.0", path = "xstorage-core" }
+xstorage-redis = { version = "=0.1.0", path = "xstorage-redis" }
+
+[dependencies]
+url = { version = "2.5.0", default-features = false }
+
+[features]
