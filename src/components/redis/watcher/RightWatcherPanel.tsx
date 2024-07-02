@@ -15,7 +15,7 @@ interface RightWatcherPanelProp {
 
 const VALUE_CHANGED_KEY = '2';
 
-const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props, context) => {
+const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
     const {t} = useTranslation();
     const [selectedTabKey, setSelectedTabKey] = useState('1');
     const [valueTabDisabled, setValueTabDisabled] = useState(false);
@@ -38,7 +38,7 @@ const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props, context) => {
                 activeKey={selectedTabKey}
                 type="card"
                 size={'small'}
-                onTabClick={(k, e) => {
+                onTabClick={(k) => {
                     setSelectedTabKey(k);
                 }}
                 items={[

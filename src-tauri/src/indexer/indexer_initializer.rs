@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use tantivy::directory::MmapDirectory;
 use tantivy::Index;
-use tantivy::schema::{IndexRecordOption, Schema, SchemaBuilder, STORED, TEXT, TextFieldIndexing, TextOptions};
+use tantivy::schema::{FAST, IndexRecordOption, Schema, SchemaBuilder, STORED, STRING, TEXT, TextFieldIndexing, TextOptions};
 use tantivy::tokenizer::NgramTokenizer;
 
 use crate::indexer::tantivy_indexer::TantivyIndexer;
@@ -36,14 +36,25 @@ impl TantivyIndexer {
         let text_field_indexing = TextFieldIndexing::default()
             .set_tokenizer("ngram3")
             .set_index_option(IndexRecordOption::WithFreqsAndPositions);
-        let text_options = TextOptions::default()
+        let text_options: TextOptions = TextOptions::default()
             .set_indexing_options(text_field_indexing)
             .set_stored();
 
-        key_pattern_schema_builder.add_text_field("pattern_origin", TEXT | STORED);
-        key_pattern_schema_builder.add_text_field("placeholder", TEXT | STORED);
-        key_pattern_schema_builder.add_text_field("pattern_keyword", TEXT);
-        key_pattern_schema_builder.add_text_field("pattern", text_options);
+        let custom_options: TextOptions = text_options;
+        let exactly_options = STRING | STORED | FAST;
+        key_pattern_schema_builder.add_text_field("pattern", TEXT | STORED);
+        key_pattern_schema_builder.add_text_field("pattern.keyword", exactly_options.clone());
+
+        key_pattern_schema_builder.add_text_field("desc", custom_options.clone());
+
+        key_pattern_schema_builder.add_text_field("categoryA.keyword", exactly_options.clone());
+        key_pattern_schema_builder.add_text_field("categoryB.keyword", exactly_options.clone());
+
+        key_pattern_schema_builder.add_text_field("datasource.keyword", exactly_options.clone());
+        key_pattern_schema_builder.add_u64_field("ts", FAST | STORED);
+
+        key_pattern_schema_builder.add_text_field("payload", STRING | STORED);
+        key_pattern_schema_builder.add_text_field("typical_sample", STRING | STORED);
 
         self.open_or_create_index("key_pattern", key_pattern_schema_builder).await;
 

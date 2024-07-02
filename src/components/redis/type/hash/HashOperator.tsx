@@ -147,11 +147,10 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         const addListenerAsync = async (data: DataType[]) => {
             return new Promise<UnlistenFn>(resolve => {
                 listen('redis/update-value', (event) => {
-                    // @ts-ignore
-                    const pl: UpdateRequest = event.payload;
+                    const pl = event.payload as UpdateRequest;
                     if (pl.type == 'hash' && pl.key == currentKey.current) {
                         let isNewItem = true;
-                        let newDs = data.map(v => {
+                        const newDs = data.map(v => {
                             if (v.key == pl.field) {
                                 v.content = pl.value;
                                 isNewItem = false;
@@ -167,7 +166,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
 
                             // 重新计算field宽度
                             let maxField: string | undefined = '';
-                            newDs.forEach(c => {
+                            newDs.forEach((c: DataType) => {
                                 if (c.field?.length! > maxField?.length!) {
                                     maxField = c.field;
                                 }

@@ -5,13 +5,10 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use tantivy::{
-    DocId, Document, Index, ReloadPolicy, Score, SegmentOrdinal, SegmentReader, TantivyDocument,
-    TantivyError,
-};
+use tantivy::{DocAddress, DocId, Document, Index, IndexWriter, Order, ReloadPolicy, Score, Searcher, SegmentOrdinal, SegmentReader, TantivyDocument, TantivyError, Term};
 use tantivy::collector::{Collector, SegmentCollector, TopDocs};
-use tantivy::query::QueryParser;
-use tantivy::schema::{Field, Schema};
+use tantivy::query::{Query, QueryParser};
+use tantivy::schema::{Field, FieldType, Schema};
 use thiserror::Error;
 use tokio::sync::Mutex;
 
@@ -65,6 +62,46 @@ pub struct SearchResult {
     documents: Vec<Value>,
 }
 
+impl SearchResult {
+    pub(crate) fn size(&self) -> usize {
+        self.hits
+    }
+}
+
+#[derive(Default)]
+pub struct SearchParams {
+    limit: Option<usize>,
+    offset: Option<usize>,
+    order_field: Option<String>,
+    order: Option<Order>,
+    query: Option<Box<dyn Query>>,
+    query_str: Option<String>,
+}
+
+impl SearchParams {
+    pub fn with(&mut self, order_field: &str, order: Order) -> &mut SearchParams {
+        self.order_field = Some(order_field.to_string());
+        self.order = Some(order);
+        self
+    }
+
+    pub fn with_limit_offset(&mut self, limit: usize, offset: usize) -> &mut SearchParams {
+        self.limit = Some(limit);
+        self.offset = Some(offset);
+        self
+    }
+
+    pub fn with_query(&mut self, query: Box<dyn Query>) -> &mut SearchParams {
+        self.query = Some(query);
+        self
+    }
+
+    pub fn with_query_str(&mut self, query_str: &str) -> &mut SearchParams {
+        self.query_str = Some(String::from(query_str));
+        self
+    }
+}
+
 impl fmt::Display for SearchResult {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let option = serde_json::to_string(self);
@@ -95,7 +132,16 @@ impl TantivyIndexer {
         res.insert(index_name, index);
     }
 
-    pub async fn search(&self, index_name: &str, query_str: &str, limit: usize, offset: usize) -> Result<SearchResult> {
+    pub async fn get_indexer(&self, index_name: &str) -> Result<Index> {
+        let res = self.indexes.lock().await;
+        match res.get(&index_name.to_string()) {
+            Some(index) => Ok(index.clone()),
+            None => Err(TantivyError::FieldNotFound(String::from("index not exists.")))
+        }
+    }
+
+    pub async fn search_with_params<F>(&self, index_name: &str, mut search_params_builder: F) -> Result<SearchResult>
+        where F: FnMut(&Index, &mut SearchParams) {
         let res = self.indexes.lock().await;
         match res.get(&index_name.to_string()) {
             Some(index) => {
@@ -110,19 +156,57 @@ impl TantivyIndexer {
                 let schema = index.schema();
                 let default_fields: Vec<Field> = schema
                     .fields()
+                    .filter(|&(field, entry)| {
+                        let mut search_enabled = false;
+                        if let FieldType::Str(ref text_options) = entry.field_type() {
+                            if text_options.get_indexing_options().is_some() {
+                                search_enabled = true;
+                            }
+                        }
+                        search_enabled
+                    })
                     .map(|(field, _)| field)
                     .collect();
 
+                let mut search_params = SearchParams::default();
                 // TODO: should be cached
-                let query_parser = QueryParser::for_index(&index, default_fields);
-                let query = query_parser.parse_query(query_str).unwrap();
-                let collector = &(TopDocs::with_limit(limit).and_offset(offset), Count);
-                let (top_docs, num_hits) = searcher.search(&query, collector).unwrap();
+
+                search_params_builder(index, &mut search_params);
+
+                let query = search_params.query.unwrap_or_else(|| {
+                    match search_params.query_str {
+                        None => panic!("one of `query` or `query_str` must specified"),
+                        Some(query_str) => {
+                            let query_parser = QueryParser::for_index(&index, default_fields);
+                            query_parser.parse_query(query_str.as_str()).unwrap()
+                        }
+                    }
+                });
+
+                let top_docs = TopDocs::with_limit(search_params.limit.unwrap_or(1))
+                    .and_offset(search_params.offset.unwrap_or(0));
+
                 let mut result: Vec<Value> = vec![];
-                for (_score, doc_address) in top_docs {
-                    let retrieved_doc: TantivyDocument = searcher.doc(doc_address).unwrap();
-                    result.push(serde_json::from_str(retrieved_doc.to_json(&schema).as_str())?);
+                let mut num_hits;
+                match search_params.order_field {
+                    None => {
+                        let collector = &(top_docs, Count);
+                        let (top_docs, hits) = searcher.search(&query, collector).unwrap();
+                        num_hits = hits;
+                        for (_score, doc_address) in top_docs {
+                            Self::extract_docs_as_json_result(&searcher, &schema, &mut result, doc_address)?;
+                        }
+                    }
+                    Some(order_field) => {
+                        let collector = &(top_docs.order_by_u64_field(order_field, search_params.order.unwrap_or(Order::Asc)), Count);
+                        let (top_docs, hits) = searcher.search(&query, collector).unwrap();
+                        num_hits = hits;
+                        for (_score, doc_address) in top_docs {
+                            Self::extract_docs_as_json_result(&searcher, &schema, &mut result, doc_address)?;
+                        }
+                    }
                 }
+
                 Ok(SearchResult {
                     hits: num_hits,
                     documents: result,
@@ -132,6 +216,18 @@ impl TantivyIndexer {
                 Err(TantivyError::FieldNotFound(String::from("index not exists.")))
             }
         }
+    }
+
+    fn extract_docs_as_json_result(searcher: &Searcher, schema: &Schema, result: &mut Vec<Value>, doc_address: DocAddress) -> std::result::Result<(), TantivyError> {
+        let retrieved_doc: TantivyDocument = searcher.doc(doc_address).unwrap();
+        result.push(serde_json::from_str(retrieved_doc.to_json(&schema).as_str())?);
+        Ok(())
+    }
+
+    pub async fn search(&self, index_name: &str, query_str: &str, limit: usize, offset: usize) -> Result<SearchResult> {
+        self.search_with_params(index_name, |index, top_docs| {
+            top_docs.with_limit_offset(limit, offset).with_query_str(query_str);
+        }).await
     }
 
     pub async fn write_json(&self, index_name: &str, document: Value) -> Result<()> {
@@ -152,6 +248,20 @@ impl TantivyIndexer {
                 Ok(())
             }
             None => Ok(()),
+        }
+    }
+
+    pub async fn delete(&self, index_name: &str, delete_term: Term) -> Result<bool> {
+        let res = self.indexes.lock().await;
+        match res.get(index_name) {
+            None => { Err(TantivyError::SystemError(String::from("index not exists."))) }
+            Some(index) => {
+                let schema = index.schema();
+                let mut writer: IndexWriter<TantivyDocument> = index.writer(15000000).unwrap();
+                writer.delete_term(delete_term);
+                writer.commit()?;
+                Ok(true)
+            }
         }
     }
 

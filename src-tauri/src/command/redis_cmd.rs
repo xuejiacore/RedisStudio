@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
+use std::fmt::Write;
 use std::str::from_utf8;
 use std::vec::Vec;
 
 use log::debug;
-use redis::{cmd, Cmd, Commands, Connection, FromRedisValue, RedisResult};
+use redis::{cmd, Cmd, Commands, Connection, FromRedisValue, RedisResult, RedisWrite};
 use regex::{Match, Regex};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -679,86 +680,153 @@ pub fn connect() -> String {
     return "[\"localhost\",\"asd\", \"ccc\"]".to_string();
 }
 
-pub fn parse_command(command: &str) -> Cmd {
+pub fn parse_command<'a>(command: &str) -> (String, Cmd) {
     let re_str = r#"(?:"(?<double_quote>(?:\\.|[^"\\])*)"|'(?<quote>(?:\\.|[^'\\])*)'|(?<default>[^\s'"]+))"#;
     let re = Regex::new(re_str).unwrap();
     let mut cmd = Cmd::new();
+    let mut origin = String::new();
+    let mut is_first_item = true;
     for cap in re.captures_iter(command) {
         match cap.name("default") {
             None => match cap.name("quote") {
                 None => match cap.name("double_quote") {
                     None => {}
                     Some(m3) => {
-                        cmd.arg(m3.as_str());
+                        let m3str = m3.as_str();
+                        origin.push_str(m3str);
+                        cmd.arg(m3str);
                     }
                 },
                 Some(m2) => {
-                    cmd.arg(m2.as_str());
+                    let m2str = m2.as_str();
+                    origin.push_str(m2str);
+                    cmd.arg(m2str);
                 }
             },
             Some(m1) => {
-                cmd.arg(m1.as_str());
+                let m1str = m1.as_str();
+                origin.push_str(m1str);
+                cmd.arg(m1str);
             }
         }
+        if is_first_item {
+            origin = origin.to_uppercase();
+            is_first_item = false;
+        }
+        origin.push_str(" ");
     }
-    return cmd;
+    let trimmed_origin = origin.trim_end();
+    return (trimmed_origin.to_string(), cmd);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 struct VisibleRedisResp {
-    val: String,
+    plain_text: Option<String>,
+    vec: Vec<String>,
+    origin_cmd: Option<String>,
+}
+
+impl VisibleRedisResp {
+    fn plain_text(&mut self, text: String) {
+        self.plain_text = Some(text);
+    }
+
+    fn vec(&mut self, vec: Vec<String>) {
+        self.vec = vec;
+    }
 }
 
 impl FromRedisValue for VisibleRedisResp {
     fn from_redis_value(v: &redis::Value) -> RedisResult<Self> {
+        let mut resp = VisibleRedisResp::default();
         match *v {
-            redis::Value::Data(ref bytes) => Ok(VisibleRedisResp {
-                val: from_utf8(bytes)?.to_string(),
-            }),
-            redis::Value::Okay => Ok(VisibleRedisResp {
-                val: "OK".to_string(),
-            }),
-            redis::Value::Status(ref val) => Ok(VisibleRedisResp {
-                val: val.to_string(),
-            }),
-            redis::Value::Bulk(ref val) => {
-                let t: Vec<_> = val
-                    .iter()
-                    .map(|item| Self::from_redis_value(item).unwrap().val)
-                    .collect();
-                Ok(VisibleRedisResp {
-                    val: format!("{:?}", t).to_string(),
-                })
+            redis::Value::Data(ref bytes) => {
+                resp.plain_text(from_utf8(bytes)?.to_string());
+                Ok(resp)
             }
-            redis::Value::Int(ref val) => Ok(VisibleRedisResp {
-                val: val.to_string(),
-            }),
-            redis::Value::Nil => Ok(VisibleRedisResp {
-                val: "nil".to_string(),
-            }),
+            redis::Value::Okay => {
+                resp.plain_text("OK".to_string());
+                Ok(resp)
+            }
+            redis::Value::Status(ref val) => {
+                resp.plain_text(val.to_string());
+                Ok(resp)
+            }
+            redis::Value::Bulk(ref val) => {
+                let t: Vec<String> = val
+                    .iter()
+                    .map(|item| Self::from_redis_value(item).unwrap().plain_text.unwrap())
+                    .collect();
+                let mut inner = VisibleRedisResp::default();
+                inner.vec(t);
+                Ok(inner)
+            }
+            redis::Value::Int(ref val) => {
+                resp.plain_text(val.to_string());
+                Ok(resp)
+            }
+            redis::Value::Nil => {
+                resp.plain_text("(nil)".to_string());
+                Ok(resp)
+            }
         }
     }
 }
 
-pub fn execute_and_resp_json(script: &str, connection: &mut Connection) -> String {
-    let cmd = parse_command(script);
-    let res = cmd.query::<VisibleRedisResp>(connection).unwrap();
-    println!("{:?}", res);
-    String::from("")
+fn run_redis_command(single_command: &str, connection: &mut Connection) -> VisibleRedisResp {
+    let parse_result = parse_command(single_command.trim());
+    let cmd_formatted = parse_result.0;
+    let cmd = parse_result.1;
+    let mut res = cmd.query::<VisibleRedisResp>(connection).unwrap();
+    res.origin_cmd = Some(cmd_formatted.to_string());
+    res
+}
+
+fn execute_batch_redis_command(script: &str, connection: &mut Connection) -> Vec<VisibleRedisResp> {
+    let each_command = script.split("\n");
+    let mut response_list = vec![];
+    for single_cmd in each_command {
+        if !single_cmd.trim().is_empty() {
+            let resp = run_redis_command(single_cmd, connection);
+            response_list.push(resp);
+        }
+    }
+    response_list
 }
 
 #[test]
 fn test_parse_redis_cmd() {
     let client = redis::Client::open("redis://127.0.0.1/").unwrap();
     let mut con = client.get_connection().unwrap();
-    execute_and_resp_json("hset key01 f vvvvvv", &mut con);
-    execute_and_resp_json("hget key01 f", &mut con);
-    execute_and_resp_json("hget   key01  blank", &mut con);
-    execute_and_resp_json("hget 'key01' f2", &mut con);
-    execute_and_resp_json("hget key01 value1", &mut con);
-    execute_and_resp_json("hget key01 'value2'", &mut con);
-    execute_and_resp_json("hgetall mnjt:unitedHero:preExp:750001170", &mut con);
-    // execute_and_resp_json("zrange 'ke\"y0\"1' 1 10");
-    // execute_and_resp_json(r#"zrange '{"user":"sdas","json":"{\"id\":\"sdd\", \"val\":\"\\\u0027\"}"}' 1 10"#);
-    // execute_and_resp_json(r#"zrange '{"user":"sdas","json":"{\"i           \td\":\"sdd\", \"val\":\"\\\u0027\"}"}' 1 10"#);
+    run_redis_command("hset key01 f vvvvvv", &mut con);
+    run_redis_command("hget key01 f", &mut con);
+    run_redis_command("hget   key01  blank", &mut con);
+    run_redis_command("hget 'key01' f2", &mut con);
+    run_redis_command("hget key01 value1", &mut con);
+    run_redis_command("hget key01 'value2'", &mut con);
+    run_redis_command("hgetall 120:GeneralCommodity:fs688", &mut con);
+    run_redis_command("zrange 'bytestudio:zset' 0 -1", &mut con);
+    run_redis_command("zrevrange 'bytestudio:zset' 0 -1", &mut con);
+    run_redis_command("smembers   bytestudio:set", &mut con);
+
+    println!("======================================================");
+
+    let result = execute_batch_redis_command(r#"
+    HSET key01 f vvvvvv f2 vvvvvv2
+    hget key01 f
+    hget   key01  blank
+    hget 'key01' f2
+    hget key01 value1
+    hget key01 'value2'
+    hgetall 120:GeneralCommodity:fs688
+    zrange 'bytestudio:zset' 0 -1
+    zrevrange 'bytestudio:zset' 0 -1
+    smembers   bytestudio:set
+    hdel key01 f
+    hdel key01 f3
+    expire key01 60
+    "#, &mut con);
+    for item in result {
+        println!("{:?}", item)
+    }
 }

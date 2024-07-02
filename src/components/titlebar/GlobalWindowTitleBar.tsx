@@ -5,6 +5,8 @@ import "./index.less";
 import {Col, Flex, Row, Space} from "antd";
 import DatabaseNumberIcon from "../icons/DatabaseNumberIcon.tsx";
 import DisconnectedIcon from "../icons/DisconnectedIcon.tsx";
+import SpotlightSearch from "./spotlight/SpotlightSearch.tsx";
+import {HistoryOutlined, QuestionCircleOutlined, SettingOutlined} from "@ant-design/icons";
 
 interface TitleBarProp {
 
@@ -35,8 +37,19 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                         </Flex>
                     </Flex>
                 </Col>
-                <Col span={10} offset={2}>
-                    <div className={'window-title-bar'} data-tauri-drag-region></div>
+                <Col span={12}>
+                    <div className={'window-title-bar'} data-tauri-drag-region>
+                        <SpotlightSearch/>
+                    </div>
+                </Col>
+                <Col span={6}>
+                    <div className={'window-title-bar'} data-tauri-drag-region>
+                        <Flex gap={2} className={'setting-tools'} align={'center'} justify={'end'}
+                              data-tauri-drag-region>
+                            <HistoryOutlined className={'tool-icon'}/>
+                            <SettingOutlined className={'tool-icon'}/>
+                        </Flex>
+                    </div>
                 </Col>
             </Row>
         </>

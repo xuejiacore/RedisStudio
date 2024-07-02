@@ -37,7 +37,7 @@ interface ScanItem {
 
 interface TreeDataParseContext {
     lv0LeafIndex: Map<number, number>,
-    cacheData: Map<String, CustomDataNode>,
+    cacheData: Map<string, CustomDataNode>,
     keyTotal: number
 }
 
@@ -70,8 +70,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const [version, setVersion] = useState('unknown');
     const [memoryUsage, setMemoryUsage] = useState('-');
     const [dbsize, setDbsize] = useState('0');
-    // @ts-ignore
-    const [databases, setDatabases] = useState([]);
+    const [databases, setDatabases] = useState<any[]>([]);
     const [selectedDBIndex, setSelectedDBIndex] = useState(0);
     const [dataSources, setDataSources] = useState([]);
     let set = new Set<string>();
@@ -104,7 +103,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     let cachedTreeData: CustomDataNode[] = [...treeData];
     let refreshTimer: any = undefined;
-    let treeDataContext = useMemo((): TreeDataParseContext => {
+    const treeDataContext = useMemo((): TreeDataParseContext => {
         return {
             lv0LeafIndex: new Map<number, number>(),
             cacheData: new Map<string, CustomDataNode>,
@@ -133,7 +132,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         const currPath = prePath.length > 0 ? prePath + splitSymbol + currentNodeTitle : array[0];
         if (array.length == 1) {
             // 叶子节点
-            let node: CustomDataNode = {
+            const node: CustomDataNode = {
                 title: currentNodeTitle,
                 key: currPath,
                 isLeaf: true,
@@ -148,7 +147,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     node.keyType = obj.type;
                 });
             }
-            let lv0LeafIdx = context.lv0LeafIndex.get(lv) ?? 0;
+            const lv0LeafIdx = context.lv0LeafIndex.get(lv) ?? 0;
             context.lv0LeafIndex.set(lv, lv0LeafIdx - 1);
             data.push(node);
             return 1;
@@ -196,30 +195,29 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
                 listen('redis_scan_event', (event) => {
                     if (removeListenerIdRef.current != ts) {
-                        let payload = event.payload;
-                        // @ts-ignore
+                        const payload: any = event.payload;
                         if (payload.finished) {
                             setScanning(false);
                             return;
                         }
 
-                        // @ts-ignore
-                        payload.keys.forEach(key => {
+                        payload.keys.forEach((key: any) => {
                             receiveDataQueue.push({
                                 key: key,
                                 keyType: 'hash'
                             });
                         })
-                        let copy: CustomDataNode[] = cleaned ? [] : [...cachedTreeData];
+                        const copy: CustomDataNode[] = cleaned ? [] : [...cachedTreeData];
                         if (cleaned) {
                             cleaned = false;
 
                             treeDataContext.cacheData.clear();
                         }
                         let dataItem: ScanItem | undefined;
+                        // eslint-disable-next-line no-cond-assign
                         while (dataItem = receiveDataQueue.shift()) {
                             if (dataItem) {
-                                let array = (dataItem.key as string).split(splitSymbol);
+                                const array = (dataItem.key as string).split(splitSymbol);
                                 treeDataContext.keyTotal += packageDataNode(copy, array, dataItem, '', 0, treeDataContext);
                             }
                         }
@@ -228,9 +226,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                         cachedTreeData = copy;
                         clearInterval(refreshTimer);
                         setScannedKeyCount(treeDataContext.keyTotal);
-                        // @ts-ignore
                         setCursor(payload.cursor);
-                        // @ts-ignore
                         if (payload.cursor == 0) {
                             setNoMoreData(true);
                         }
@@ -274,12 +270,11 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         const dbCount = result.database_count;
         // noinspection JSUnresolvedReference
         const keySpaceInfo = result.key_space_info;
-        // @ts-ignore
-        const keySpaceInfoMap = keySpaceInfo.reduce((acc, obj) => {
+        const keySpaceInfoMap = keySpaceInfo.reduce((acc: any, obj: any) => {
             acc[obj.index] = obj;
             return acc;
         }, {});
-        let keySpaceInfoData = [];
+        const keySpaceInfoData = [];
         const digitLen = (num: number) => Math.floor(Math.log10(num)) + 1;
         let maxLen = 0;
         for (let index = 0; index < dbCount; index++) {
@@ -304,7 +299,6 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         setDatabasePopupMatchSelectWidth(maxLen * 34);
 
         // const databases = result.map((item: any) => item.name);
-        // @ts-ignore
         setDatabases(keySpaceInfoData)
         // setSecondCity(keySpaceInfoData);
     }
@@ -350,8 +344,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 </>
             }
         }
-        // @ts-ignore
-        return data.title;
+        return <>${data.title}</>;
     }
 
     const onExpand = (expandedKeys: Key[], info: {
@@ -471,7 +464,6 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         </Empty>)
     }
 
-    // @ts-ignore
     return (
         <div className='redis-key-tree-panel'>
             {/* key 检索输入 */}

@@ -12,7 +12,7 @@ use redisstudio::Launcher;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
 
-// use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
+use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use crate::tray;
 
 /// setup
@@ -106,11 +106,11 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     });
 
-    // let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
-    //     let tantivy_indexer = TantivyIndexer::init(config_dir).init_indexer().await;
-    //     app_handler.manage(tantivy_indexer);
-    //     Ok(())
-    // });
+    let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
+        let tantivy_indexer = TantivyIndexer::init(config_dir).init_indexer().await;
+        app_handler.manage(tantivy_indexer);
+        Ok(())
+    });
 
     // we perform the initialization code on a new task so the app doesn't freeze
     tauri::async_runtime::spawn(async move {

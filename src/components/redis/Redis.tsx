@@ -1,4 +1,5 @@
 import {Col, Empty, Row} from "antd";
+import React from "react";
 import {Key, useEffect, useState} from "react";
 import "./index.less";
 import RedisKeyTree, {CustomDataNode} from "./RedisKeyTree";
@@ -119,7 +120,6 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     /* 选中某一个redis key后弹出对应不同数据结构的操作面板 */
     const onKeyNodeSelected = (keys: Key[], info: any) => {
         const node = info.node;
-        let subContent;
         if (node.children) {
             // 如果点击的是非叶子节点，不需要重新渲染操作面板
             return;

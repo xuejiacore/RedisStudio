@@ -1,6 +1,5 @@
-use tantivy::SegmentComponent::Positions;
-use tauri::{Manager, PhysicalPosition, Position, Runtime, Window};
-use tauri::menu::{ContextMenu, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::{Manager, PhysicalPosition, Runtime, Window};
+use tauri::menu::{ContextMenu, Menu, MenuItem, PredefinedMenuItem};
 
 #[tauri::command]
 pub fn show_content_editor_menu<R: Runtime>(handle: tauri::AppHandle<R>, window: Window, x: f64, y: f64) {
@@ -30,8 +29,7 @@ pub fn show_content_editor_menu<R: Runtime>(handle: tauri::AppHandle<R>, window:
             ).unwrap(),
         ],
     ).unwrap();
-
-    menu.popup_at(window, PhysicalPosition::new(x as i32, y as i32)).unwrap();
+    menu.popup(window).unwrap();
 }
 
 #[tauri::command]

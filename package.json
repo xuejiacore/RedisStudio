@@ -36,9 +36,17 @@
     "@tauri-apps/cli": ">=2.0.0-beta.0",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "eslint-plugin-react": "^7.34.2",
+    "eslint-plugin-react-hooks": "^4.6.2",
     "less": "^4.2.0",
     "typescript": "^5.0.2",
     "vite": "^5.0.0"
-  }
+  },
+  "main": "index.js",
+  "repository": "git@github.com:xuejiacore/RedisStudio.git",
+  "author": "溪谷 <zhanxuejia@021.com>",
+  "license": "MIT"
 }
