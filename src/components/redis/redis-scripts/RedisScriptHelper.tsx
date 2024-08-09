@@ -64,7 +64,6 @@ const redisScriptEditorOptions = {
 };
 
 function redisCompletionFunction(model: any, position: any, monaco: any) {
-    console.log("执行了候选词~~~~~~~~");
     return {
         suggestions: [
             {label: 'get', kind: monaco.languages.CompletionItemKind.Keyword, insertText: 'get ', detail: 'get {key}', documentation: "# 标题11\nasdddd"},

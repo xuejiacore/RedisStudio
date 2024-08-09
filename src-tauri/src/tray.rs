@@ -5,7 +5,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder},
+    tray::TrayIconBuilder,
     Manager, Runtime, WebviewUrl,
 };
 

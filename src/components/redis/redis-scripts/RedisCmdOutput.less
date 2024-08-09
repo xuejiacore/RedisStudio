@@ -1,0 +1,28 @@
+.scrollbar-container {
+  width: 100%;
+  max-height: calc(30vh); /* 设置最大高度，超过这个高度将出现滚动条 */
+  overflow: hidden; /* 隐藏溢出内容，Smooth Scrollbar 将处理滚动 */
+
+  .scrollbar-track {
+    background: transparent;
+
+    .scrollbar-thumb {
+      background: rgba(153, 153, 153, 0.5) !important;
+      width: 3px;
+    }
+  }
+  /* 垂直滚动条宽度 */
+  .scrollbar-track.scrollbar-track-y {
+    width: 3px; /* 修改宽度 */
+  }
+}
+
+.scroll-content {
+  height: auto; /* 自动高度 */
+  overflow-x: hidden;
+}
+
+/* Smooth Scrollbar 样式 */
+.scroll-content .scroll-content {
+  height: auto;
+}

@@ -20,22 +20,32 @@ pub enum IndexError {
 
 type Result<T> = std::result::Result<T, IndexError>;
 
-pub async fn match_pattern(datasource: &str, pattern: &str, tantivy_indexer: &TantivyIndexer) -> Result<SearchResult> {
+pub async fn match_pattern(
+    datasource: &str,
+    pattern: &str,
+    tantivy_indexer: &TantivyIndexer,
+) -> Result<SearchResult> {
     let knife = pattern.split(":");
-    let x = tantivy_indexer.search_with_params(INDEX_NAME, |index, params| {
-        let schema = index.schema();
-        let pattern_field = schema.get_field("pattern").unwrap();
-        let term = Term::from_field_text(pattern_field, pattern);
-        let query = FuzzyTermQuery::new(term, 2, true);
-        params.with_limit_offset(5, 0).with_query(Box::new(query));
-    }).await;
+    let x = tantivy_indexer
+        .search_with_params(INDEX_NAME, |index, params| {
+            let schema = index.schema();
+            let pattern_field = schema.get_field("pattern").unwrap();
+            let term = Term::from_field_text(pattern_field, pattern);
+            let query = FuzzyTermQuery::new(term, 2, true);
+            params.with_limit_offset(5, 0).with_query(Box::new(query));
+        })
+        .await;
     match x {
         Ok(result) => Ok(result),
-        Err(err) => Err(IndexError::SystemErr(err.to_string()))
+        Err(err) => Err(IndexError::SystemErr(err.to_string())),
     }
 }
 
-pub async fn index_or_update(datasource: &str, pattern: &str, tantivy_indexer: &TantivyIndexer) -> Result<()> {
+pub async fn index_or_update(
+    datasource: &str,
+    pattern: &str,
+    tantivy_indexer: &TantivyIndexer,
+) -> Result<()> {
     // TODO: 分析key的组成结构，如按照 ":" 进行分割
     let now = Utc::now();
     let timestamp_millis = now.timestamp_millis();
@@ -47,13 +57,17 @@ pub async fn index_or_update(datasource: &str, pattern: &str, tantivy_indexer: &
     });
 
     // check exists document by `pattern.keyword`
-    let query_exists_result = tantivy_indexer.search_with_params(INDEX_NAME, |index, mut search_params| {
-        let schema = index.schema();
-        let keyword_pattern = schema.get_field("pattern.keyword").unwrap();
-        let term = Term::from_field_text(keyword_pattern, pattern);
-        let query = TermQuery::new(term, IndexRecordOption::Basic);
-        search_params.with_limit_offset(1, 0).with_query(Box::new(query));
-    }).await;
+    let query_exists_result = tantivy_indexer
+        .search_with_params(INDEX_NAME, |index, mut search_params| {
+            let schema = index.schema();
+            let keyword_pattern = schema.get_field("pattern.keyword").unwrap();
+            let term = Term::from_field_text(keyword_pattern, pattern);
+            let query = TermQuery::new(term, IndexRecordOption::Basic);
+            search_params
+                .with_limit_offset(1, 0)
+                .with_query(Box::new(query));
+        })
+        .await;
 
     match query_exists_result {
         Ok(result) => {
@@ -62,8 +76,14 @@ pub async fn index_or_update(datasource: &str, pattern: &str, tantivy_indexer: &
                 let schema = indexer.schema();
                 let pattern_keyword = schema.get_field("pattern.keyword").unwrap();
                 let delete_term = Term::from_field_text(pattern_keyword, pattern);
-                if !tantivy_indexer.delete(INDEX_NAME, delete_term).await.unwrap() {
-                    return Err(IndexError::SystemErr(String::from("fail to delete old document.")));
+                if !tantivy_indexer
+                    .delete(INDEX_NAME, delete_term)
+                    .await
+                    .unwrap()
+                {
+                    return Err(IndexError::SystemErr(String::from(
+                        "fail to delete old document.",
+                    )));
                 }
             }
             match tantivy_indexer.write_json(INDEX_NAME, doc).await {
@@ -71,7 +91,7 @@ pub async fn index_or_update(datasource: &str, pattern: &str, tantivy_indexer: &
                 Err(err) => Err(IndexError::Unknown(String::from(""))),
             }
         }
-        Err(err) => Err(IndexError::Unknown(err.to_string()))
+        Err(err) => Err(IndexError::Unknown(err.to_string())),
     }
 }
 
@@ -92,9 +112,13 @@ pub async fn index(datasource: &str, key: &str, tantivy_indexer: &TantivyIndexer
     query_str.push_str(key);
     query_str.push_str("\"");
 
-    let check_exists_result = tantivy_indexer.search_with_params(INDEX_NAME, |index, mut search_params| {
-        search_params.with_limit_offset(1, 0).with_query_str(query_str.as_str());
-    }).await;
+    let check_exists_result = tantivy_indexer
+        .search_with_params(INDEX_NAME, |index, mut search_params| {
+            search_params
+                .with_limit_offset(1, 0)
+                .with_query_str(query_str.as_str());
+        })
+        .await;
 
     match check_exists_result {
         Ok(result) => {
@@ -106,6 +130,6 @@ pub async fn index(datasource: &str, key: &str, tantivy_indexer: &TantivyIndexer
                 Err(err) => Err(IndexError::Unknown(String::from(""))),
             }
         }
-        Err(err) => Err(IndexError::Unknown(String::from("tantivy error")))
+        Err(err) => Err(IndexError::Unknown(String::from("tantivy error"))),
     }
 }

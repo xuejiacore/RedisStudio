@@ -1,3 +1,4 @@
+import React, {useMemo} from "react";
 import {useEffect, useState} from "react";
 import "./App.less";
 import {Tabs} from "antd";
@@ -54,6 +55,7 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
             return deactivatedColor;
         }
     }
+
     return (<>
         <Tabs
             id='mainTab'
@@ -66,7 +68,11 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
                 {
                     label: <><RedisIcon style={{width: '15px', color: colorFn(activityKey, 'redis')}}/></>,
                     key: 'redis',
-                    children: <><Redis dataSourceId={"localhost"}/></>
+                    children: <>{
+                        useMemo(() => {
+                            return (<Redis dataSourceId={"localhost"}/>)
+                        }, [])
+                    }</>
                 },
                 {
                     label: <><DatasourceIcon style={{width: '15px', color: colorFn(activityKey, 'datasource')}}/></>,

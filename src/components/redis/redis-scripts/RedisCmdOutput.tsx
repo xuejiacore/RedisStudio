@@ -1,53 +1,82 @@
-import React, {FC, useRef} from "react";
-import Editor, {BeforeMount, OnChange, OnMount, OnValidate} from "@monaco-editor/react";
-import {redisCompletionFunction, redisScriptEditorOptions} from "./RedisScriptHelper.tsx";
+import React, {forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
+import {CmdResultItem} from "./RedisCmdEditor.tsx";
+import "./RedisCmdOutput.less";
+import RedisResp from "./RedisResp.tsx";
+import useSmoothScrollbar from "../../../utils/SmoothScrollbar.tsx";
+import Scrollbar from "smooth-scrollbar";
+import SmoothScrollbar from "smooth-scrollbar";
 
-interface RedisCmdOutputProp {
-
+export interface CmdOutputChannel {
+    onOutput: (output: CmdResultItem[]) => void;
 }
 
-const RedisCmdOutput: FC<RedisCmdOutputProp> = (props, context) => {
-    const editorRef = useRef(null);
-    const handleEditorDidMount: OnMount = (editor, monaco) => {
-        editorRef.current = editor;
-    }
+export interface RedisCmdOutputProp {
+    channel: CmdOutputChannel;
+}
 
-    const handleEditorWillMount: BeforeMount = (monaco) => {
-        monaco.editor.defineTheme("redis-output-theme", {
-            base: "vs-dark", // can also be vs-dark or hc-black
-            inherit: true, // can also be false to completely replace the builtin rules
-            rules: [
-                {
-                    token: "keyword",
-                    foreground: "#BC77B1",
-                },
-                {
-                    token: "comment",
+const RedisCmdOutput = forwardRef<RedisCmdOutputProp | undefined>((props, ref) => {
+    const [outputItems, setOutputItems] = useState<CmdResultItem[]>([]);
+    const [content, setContent] = useState(<></>);
+    const scrollbarRef = useRef<Scrollbar>();
+
+
+    // 使用 useImperativeHandle 来自定义暴露给父组件的实例值
+    useImperativeHandle(ref, () => ({
+        channel: {
+            onOutput: item => {
+                setOutputItems(item);
+            }
+        }
+    }));
+
+    useEffect(() => {
+        setContent(asPrettyPlainText(outputItems));
+        if (scrollbarRef.current) {
+            setTimeout(() => {
+                if (scrollbarRef.current) {
+                    scrollbarRef.current.scrollTo(0, scrollbarRef.current.limit.y, 300); // 1000 是滚动动画的时间
                 }
-            ],
-            colors: {
-                // "editor.background": "#000000",
-            },
-        });
-    }
+            }, 200);
+        }
+        return () => {
+        }
+    }, [outputItems]);
+
+
+    const asPrettyPlainText = (content: CmdResultItem[]) => {
+        return (<>
+            {content.map((item, idx) => {
+                return <RedisResp key={item.key} index={idx} resp={item}/>;
+            })}
+        </>);
+    };
+
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (containerRef.current) {
+            scrollbarRef.current = Scrollbar.init(containerRef.current, {
+                damping: 0.1, // 设置滚动的阻尼大小
+                thumbMinSize: 10, // 设置滚动条的最小大小
+                alwaysShowTracks: true
+            });
+
+            // 在组件销毁时销毁 Smooth Scrollbar
+            return () => {
+                if (scrollbarRef.current) {
+                    scrollbarRef.current.destroy();
+                }
+            };
+        }
+    }, []); // 空数组作为依赖，确保只初始化一次
 
     return <>
-        <Editor
-            height="100vh"
-            defaultLanguage="text"
-            theme={"redis-theme"}
-            defaultValue="dbsize3"
-            onMount={handleEditorDidMount}
-            beforeMount={handleEditorWillMount}
-            options={{
-                "readOnly": true,
-                "lineNumbers": "off",
-                "minimap": {
-                    enabled: false
-                },
-            }}
-        />
+        <div ref={containerRef} className="scrollbar-container">
+            <div className="scroll-content">
+                {content}
+            </div>
+        </div>
     </>
-}
-
+});
+RedisCmdOutput.displayName = 'RedisCmdOutput';
 export default RedisCmdOutput;

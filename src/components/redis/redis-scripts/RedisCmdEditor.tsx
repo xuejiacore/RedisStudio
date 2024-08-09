@@ -1,13 +1,85 @@
-import React, {FC, useRef} from "react";
+import React, {
+    FC,
+    forwardRef,
+    ForwardRefRenderFunction,
+    MutableRefObject,
+    useEffect,
+    useImperativeHandle,
+    useRef
+} from "react";
 import Editor, {BeforeMount, OnChange, OnMount, OnValidate} from "@monaco-editor/react";
 import {redisCompletionFunction, redisScriptEditorOptions} from "./RedisScriptHelper.tsx";
+import {rust_invoke} from "../../../utils/RustIteractor.tsx";
+import {listen} from "@tauri-apps/api/event";
+import {CmdOutputChannel} from "./RedisCmdOutput.tsx";
 
-interface RedisCmdEditorProp {
-
+export interface CmdResultItem {
+    key: string;
+    cmd: string;
+    index: number;
+    origin_cmd: string;
+    plain_text: string;
+    vec: string[];
+    success: boolean;
+    msg: string;
+    type?: string;
 }
 
-const RedisCmdEditor: FC<RedisCmdEditorProp> = (props, context) => {
-    const editorRef = useRef(null);
+interface CmdExecuteResult {
+    success: boolean;
+    data: CmdResultItem[];
+}
+
+interface RedisCmdEditorProp {
+    channel?: CmdOutputChannel;
+    onMultiLineSelected?: (startLine: number, endLine: number) => void;
+}
+
+export interface RedisCmdEditorRef {
+    commitQuery: () => void;
+}
+
+const RedisCmdEditor = forwardRef<RedisCmdEditorRef, RedisCmdEditorProp>((props, ref) => {
+    const editorRef = useRef<any>(null);
+
+    const doCommit = () => {
+        const selection = editorRef.current.getSelection();
+        const model = editorRef.current.getModel();
+        let scripts;
+        if (model && selection) {
+            scripts = model.getValueInRange(selection);
+            if (!scripts) {
+                const position = selection.getStartPosition();
+                scripts = model.getLineContent(position.lineNumber);
+            } else {
+                const startLineNumber = selection.startLineNumber; // 行号从0开始
+                const endLineNumber = selection.endLineNumber;
+                let selectedLinesContent = '';
+
+                for (let lineNumber = startLineNumber; lineNumber <= endLineNumber; lineNumber++) {
+                    const lineContent = model.getLineContent(lineNumber);
+                    selectedLinesContent += lineContent + '\n';
+                }
+
+                scripts = selectedLinesContent.trim(); // 移除最后的换行符
+            }
+        }
+        rust_invoke('run_redis_command', {'script': scripts}).then(r => {
+            const resp: CmdExecuteResult = JSON.parse(r as string);
+            if (resp.success) {
+                let idx = 0;
+                for (const item of resp.data) {
+                    item.key = `cmd-${idx++}-${Math.random() * (999999999 - 100000000) + 100000000}`;
+                }
+                props.channel?.onOutput(resp.data);
+            } else {
+                console.error('execute fail');
+            }
+        });
+    }
+    useImperativeHandle(ref, () => ({
+        commitQuery: () => doCommit()
+    }));
 
     const handleEditorChange: OnChange = (value, ev) => {
         // 内容变更回调
@@ -21,45 +93,44 @@ const RedisCmdEditor: FC<RedisCmdEditorProp> = (props, context) => {
         console.log('onMount: the editor instance:', editor, editor.addAction);
         editorRef.current = editor;
 
-
         const action = {
             id: 'commitContent',
             label: 'commitContent',
             precondition: 'true',
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-            run: () => {
-                const selection = editor.getSelection();
-                const model = editor.getModel();
-                let scripts;
-                if (model && selection) {
-                    scripts = model.getValueInRange(selection);
-                    if (!scripts) {
-                        const position = selection.getStartPosition();
-                        scripts = model.getLineContent(position.lineNumber);
-                    } else {
-                        const startLineNumber = selection.startLineNumber; // 行号从0开始
-                        const endLineNumber = selection.endLineNumber;
-                        let selectedLinesContent = '';
-
-                        for (let lineNumber = startLineNumber; lineNumber <= endLineNumber; lineNumber++) {
-                            const lineContent = model.getLineContent(lineNumber);
-                            selectedLinesContent += lineContent + '\n';
-                        }
-
-                        scripts = selectedLinesContent.trim(); // 移除最后的换行符
-                    }
-                }
-                // TODO: CMD+Enter 提交文本内容
-                console.log('chrome: cmd + k: ', scripts, selection);
-            },
+            run: () => doCommit(),
         };
         editor.addAction(action);
+        const selectAll = {
+            id: 'selectAll',
+            label: 'SelectAll',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA],
+            run: (ed: any) => {
+                ed.setSelection(new monaco.Range(
+                    1,
+                    1,
+                    ed.getModel().getLineCount(),
+                    ed.getModel().getLineMaxColumn(ed.getModel().getLineCount())
+                ));
+                return null;
+            }
+        }
+        editor.addAction(selectAll);
 
         console.log('onMount: the monaco instance:', monaco);
 
         monaco.languages.registerCompletionItemProvider('redis', {
             provideCompletionItems: (model: any, position: any) => redisCompletionFunction(model, position, monaco),
             triggerCharacters: [".", "", " "]
+        });
+
+        editor.onDidChangeCursorSelection((event: any) => {
+            const selection = editor.getSelection();
+            const startLine = selection.startLineNumber;
+            const endLine = selection.endLineNumber;
+            if (props.onMultiLineSelected) {
+                props.onMultiLineSelected(startLine, endLine);
+            }
         });
     }
 
@@ -101,8 +172,9 @@ const RedisCmdEditor: FC<RedisCmdEditorProp> = (props, context) => {
             options={redisScriptEditorOptions}
         />
     </>
-}
+});
 
+RedisCmdEditor.displayName = 'RedisCmdEditor';
 export default RedisCmdEditor;
 
 

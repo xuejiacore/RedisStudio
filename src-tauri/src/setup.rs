@@ -2,18 +2,18 @@ use std::process;
 
 use log::{debug, info};
 use sqlx::{Connection, Pool};
-use tauri::{App, Manager, PhysicalPosition, Window, WindowEvent, Wry};
 use tauri::async_runtime::set;
+use tauri::{App, Manager, PhysicalPosition, Window, WindowEvent, Wry};
 use tauri_plugin_sql::Error;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 use window_vibrancy::{self, NSVisualEffectMaterial, NSVisualEffectState};
 
-use redisstudio::Launcher;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
+use redisstudio::Launcher;
 
-use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use crate::tray;
+use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 
 /// setup
 pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
@@ -84,7 +84,8 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         NSVisualEffectMaterial::FullScreenUI,
         Some(NSVisualEffectState::FollowsWindowActiveState),
         Some(0.5),
-    ).expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+    )
+    .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
     // 仅在 windows 下执行
     #[cfg(target_os = "windows")]
@@ -131,10 +132,10 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         //     Err(err) => {}
         // };
     });
-
-    #[cfg(desktop)]
-    app.handle()
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())?;
+    //
+    // #[cfg(desktop)]
+    // app.handle()
+    //     .plugin(tauri_plugin_global_shortcut::Builder::new().build())?;
 
     Ok(())
 }

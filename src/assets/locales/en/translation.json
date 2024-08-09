@@ -5,7 +5,14 @@
         "placeholder": "Filter keys"
       },
       "command_script": {
-        "name": "Command Query"
+        "name": "Command Query",
+        "script": {
+          "selected_lines": "{{count}} command selected",
+          "execute_button": "Execute Selected ⌘⏎"
+        },
+        "error": {
+          "wrong_kind_of_value": "Operation against a key which type `{{type}}` holding the wrong kind of value."
+        }
       },
       "sub_tree": {
         "favor_count": "FAVORITE ({{count}})",
@@ -48,13 +55,10 @@
             "name": "Value",
             "update": "Update",
             "new": "New Item",
-
             "field_name_hash": "Field Name",
             "content_hash": "Content",
-
             "field_name_zset": "Score",
             "content_zset": "Member",
-
             "content_list": "Element",
             "content_set": "Member"
           },

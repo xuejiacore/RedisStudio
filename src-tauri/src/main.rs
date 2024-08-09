@@ -11,8 +11,8 @@ use tauri::{Manager, Runtime, State, Wry};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 use redisstudio::command::index_search;
-use redisstudio::command::window_controller;
 use redisstudio::command::menu_controller;
+use redisstudio::command::window_controller;
 use redisstudio::command::zookeeper_cmd;
 use redisstudio::log::project_logger;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
@@ -84,6 +84,7 @@ fn main() {
     project_logger::init_logger();
     tauri::Builder::default()
         .setup(setup::init)
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_sql::Builder::default().build())

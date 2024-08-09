@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
 use tantivy::directory::MmapDirectory;
-use tantivy::Index;
-use tantivy::schema::{FAST, IndexRecordOption, Schema, SchemaBuilder, STORED, STRING, TEXT, TextFieldIndexing, TextOptions};
+use tantivy::schema::{
+    IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, FAST, STORED, STRING,
+    TEXT,
+};
 use tantivy::tokenizer::NgramTokenizer;
+use tantivy::Index;
 
 use crate::indexer::tantivy_indexer::TantivyIndexer;
 
@@ -56,7 +59,8 @@ impl TantivyIndexer {
         key_pattern_schema_builder.add_text_field("payload", STRING | STORED);
         key_pattern_schema_builder.add_text_field("typical_sample", STRING | STORED);
 
-        self.open_or_create_index("key_pattern", key_pattern_schema_builder).await;
+        self.open_or_create_index("key_pattern", key_pattern_schema_builder)
+            .await;
 
         self
     }

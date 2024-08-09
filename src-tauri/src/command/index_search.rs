@@ -1,10 +1,10 @@
+use crate::CmdError;
 use serde::{Serialize, Serializer};
 use serde_json::json;
 use tantivy::TantivyError;
-use tauri::{Runtime, State, Wry};
 use tauri::ipc::InvokeError;
+use tauri::{Runtime, State, Wry};
 use tauri_plugin_sql::Error;
-use crate::CmdError;
 
 use crate::indexer::tantivy_indexer::TantivyIndexer;
 
@@ -24,7 +24,7 @@ pub async fn search<R: Runtime>(
     println!("search index: {}, query: {}", index_name, query);
     match indexer.search(index_name, query, limit, offset).await {
         Ok(result) => Ok(serde_json::to_string(&result).unwrap()),
-        Err(err) => Err(CmdError::Unknown(String::from("sdd")))
+        Err(err) => Err(CmdError::Unknown(String::from("sdd"))),
     }
 }
 
@@ -39,6 +39,6 @@ pub async fn write_index<R: Runtime>(
 ) -> Result<String> {
     match indexer.write(index_name, document).await {
         Ok(_) => Ok(json!({"success": true}).to_string()),
-        Err(err) => Err(CmdError::Unknown(String::from("sdd")))
+        Err(err) => Err(CmdError::Unknown(String::from("sdd"))),
     }
 }

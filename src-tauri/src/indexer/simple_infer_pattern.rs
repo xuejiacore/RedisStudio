@@ -14,12 +14,14 @@ pub struct PatternInferenceEngine {
 impl PatternInferenceEngine {
     pub fn new() -> Self {
         PatternInferenceEngine {
-            known_patterns: vec![]
+            known_patterns: vec![],
         }
     }
 
     pub fn load_known_pattern(&mut self, known_patterns: Vec<&str>) {
-        self.known_patterns = known_patterns.iter().map(|t| Regex::new(t))
+        self.known_patterns = known_patterns
+            .iter()
+            .map(|t| Regex::new(t))
             .filter(|p| p.is_ok())
             .map(|p| p.unwrap())
             .collect();
@@ -51,16 +53,31 @@ impl PatternInferenceEngine {
 
             if unique_parts.len() == 1 {
                 contain_exactly_words = true;
-                regex_parts.push(format!("{}", regex::escape(unique_parts.iter().next().unwrap())));
+                regex_parts.push(format!(
+                    "{}",
+                    regex::escape(unique_parts.iter().next().unwrap())
+                ));
             } else if unique_parts.iter().all(|x| YYYY_MM_DD_PATTERN.is_match(x)) {
                 regex_parts.push(r"^\d{4}(-?)\d{2}\1\d{2}$".to_string())
-            } else if unique_parts.iter().all(|&x| x.chars().all(char::is_numeric)) {
+            } else if unique_parts
+                .iter()
+                .all(|&x| x.chars().all(char::is_numeric))
+            {
                 regex_parts.push(r"\d+".to_string());
-            } else if unique_parts.iter().all(|&x| x.chars().all(char::is_alphabetic)) {
+            } else if unique_parts
+                .iter()
+                .all(|&x| x.chars().all(char::is_alphabetic))
+            {
                 regex_parts.push("[a-zA-Z]+".to_string());
-            } else if unique_parts.iter().all(|&x| NUMERIC_ALPHABETIC_PATTERN.is_match(x)) {
+            } else if unique_parts
+                .iter()
+                .all(|&x| NUMERIC_ALPHABETIC_PATTERN.is_match(x))
+            {
                 regex_parts.push("[a-zA-Z0-9]+".to_string())
-            } else if unique_parts.iter().all(|&x| NUM_ALPHA_UNDERLINE_PATTERN.is_match(x)) {
+            } else if unique_parts
+                .iter()
+                .all(|&x| NUM_ALPHA_UNDERLINE_PATTERN.is_match(x))
+            {
                 regex_parts.push("[a-zA-Z0-9_-]+".to_string())
             } else {
                 regex_parts.push("[^:]+".to_string());
@@ -74,4 +91,3 @@ impl PatternInferenceEngine {
         }
     }
 }
-

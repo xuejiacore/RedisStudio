@@ -1,0 +1,110 @@
+.redis-output-item {
+  -webkit-user-select: auto;
+  font-family: JetBrainsMonoBold, sans-serif;
+
+  .command-symbol {
+    font-weight: 900;
+    color: #4A87B2;
+  }
+
+  .command-symbol.error {
+    color: #EA836B;
+  }
+
+  .error-message {
+    color: #EA836B;
+    font-size: 12px;
+    background: #4A3532;
+  }
+
+  .redis-execute-time {
+    color: #43454A;
+    margin-left: 4px;
+    font-family: JetBrainsMonoLight, sans-serif;
+  }
+
+  .redis-resp-key-name, .redis-output-cmd {
+    font-weight: 700;
+    font-size: 12px;
+    height: 16px;
+    padding: 0 4px;
+    line-height: 16px;
+    border-radius: 2px;
+  }
+  .redis-resp-key-name:hover {
+    cursor: pointer;
+  }
+
+  .redis-resp-key-name.unknown, .redis-output-cmd.unknown {
+    color: #B1B1B1;
+    background: #43454A;
+  }
+
+  .redis-resp-key-name.hash, .redis-output-cmd.hash {
+    color: #B162C9af;
+    background: #B162C925;
+  }
+
+  .redis-output-cmd.zset {
+    color: #EB4334af;
+    background: #EB433425;
+  }
+
+  .redis-resp-key-name.string, .redis-output-cmd.string {
+    color: #35AA53af;
+    background: #35AA5325;
+  }
+
+  .redis-output-cmd.set {
+    color: #4586F3af;
+    background: #4586F325;
+  }
+
+  .redis-output-cmd.list {
+    color: #FBBD06af;
+    background: #FBBD0625;
+  }
+
+  .redis-output-args {
+    color: #6A6E77;
+    font-weight: bold;
+    line-height: 16px;
+  }
+
+  @resp-color: #99a3ac;
+
+  .redis-output-plain {
+    margin-left: 20px;
+    color: @resp-color;
+    font-weight: bold;
+    white-space: normal; /* 允许自动换行 */
+    word-wrap: break-word; /* 对长单词进行换行 */
+    word-break: break-all; /* 必要时对单词中断 */
+  }
+
+  .redis-output-plain.nil {
+    color: #C18D70;
+  }
+
+  .redis-output-bulk {
+    color: @resp-color;
+    margin-left: 20px;
+    white-space: normal; /* 允许自动换行 */
+    word-wrap: break-word; /* 对长单词进行换行 */
+    word-break: break-all; /* 必要时对单词中断 */
+
+    .redis-output-bulk-index {
+      color: #6A6E77;
+    }
+  }
+
+  .redis-empty-value {
+    color: #6A6E7750;
+  }
+
+}
+
+.redis-output-item:not(:first-of-type) {
+  padding-top: 2px;
+  border-top: 1px solid rgba(128, 128, 128, 0.10);
+}

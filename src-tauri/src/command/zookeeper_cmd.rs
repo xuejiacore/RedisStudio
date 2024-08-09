@@ -300,7 +300,8 @@ mod tests {
         let get_data_result = dispatch_zk_cmd(
             "get_data",
             r#"{"path":"/PaymentCentre/security/access-key-strategy.yaml"}"#,
-        ).unwrap();
+        )
+        .unwrap();
         println!("{}", get_data_result);
 
         // let delete_result = dispatch_zk_cmd("delete_node", r#"{"path":"/zk_test","recursion":true}"#).unwrap();
