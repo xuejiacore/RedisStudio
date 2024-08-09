@@ -11,8 +11,6 @@ use serde_json::{json, Value};
 use sqlx::ColumnIndex;
 use tauri::{AppHandle, Manager, Pattern, Window};
 
-use graph_computing::storage::types::ConnectError;
-
 #[derive(Serialize, Deserialize)]
 struct RedisCmd {
     cmd: String,
@@ -838,7 +836,7 @@ struct VisibleRedisResp {
     origin_cmd: Option<String>,
     cmd: Option<String>,
     success: bool,
-    msg: Option<String>
+    msg: Option<String>,
 }
 
 impl VisibleRedisResp {
@@ -919,7 +917,6 @@ fn run_redis_command(single_command: &str, connection: &mut Connection) -> Visib
             res
         }
     }
-
 }
 
 fn execute_batch_redis_command<F>(
