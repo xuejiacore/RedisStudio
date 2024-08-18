@@ -1,7 +1,7 @@
 .redis-datatable:where(.ant-table-wrapper) {
-  @background: #1E1E1E;
+  @background: #1E1F22;
   @evn-background: #2728296F;
-  @font-color: white;
+  @font-color: #ADAFB4;
   @font-size: 12px;
   @margin-left: 3px;
   @padding-left: 5px;
@@ -12,10 +12,11 @@
   }
 
   .ant-table {
+    font-family: JetBrainsMonoBold, sans-serif;
     border-radius: 0;
 
     .table-row-data {
-      color: #D4D4D5 !important;
+      color: @font-color !important;
       font-weight: 550;
       white-space: nowrap;
       overflow: hidden;

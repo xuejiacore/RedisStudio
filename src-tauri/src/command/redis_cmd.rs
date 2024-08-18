@@ -1,15 +1,24 @@
-use std::collections::BTreeMap;
-use std::fmt::{Error, Write};
-use std::str::from_utf8;
-use std::vec::Vec;
-
+use crate::{command, CmdError};
+use crate::storage::redis_pool::RedisPool;
+use futures::future::MaybeDone::Future;
 use log::debug;
+use redis::aio::{ConnectionLike, MultiplexedConnection};
 use redis::{cmd, Cmd, Commands, Connection, FromRedisValue, RedisResult, RedisWrite};
 use regex::{Match, Regex};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::ColumnIndex;
-use tauri::{AppHandle, Manager, Pattern, Window};
+use std::collections::BTreeMap;
+use std::fmt::{Error, Write};
+use std::ops::DerefMut;
+use std::str::from_utf8;
+use std::sync::Mutex;
+use std::time::Instant;
+use std::vec::Vec;
+use tauri::{AppHandle, Manager, Pattern, State, Window, Wry};
+use tokio::sync::MutexGuard;
+
+type Result<T> = std::result::Result<T, CmdError>;
 
 #[derive(Serialize, Deserialize)]
 struct RedisCmd {
@@ -30,85 +39,90 @@ impl Default for RedisCmd {
     }
 }
 
-pub fn dispatch_redis_cmd(cmd_data: &str, app: AppHandle, window: Window) -> Value {
+#[tauri::command]
+pub async fn redis_invoke(
+    data: &str,
+    app: tauri::AppHandle,
+    window: tauri::Window<Wry>,
+    redis_pool: State<'_, RedisPool>,
+) -> Result<String> {
+    Ok(dispatch_redis_cmd(data, app, window, redis_pool).await.to_string())
+}
+
+pub async fn dispatch_redis_cmd(cmd_data: &str, app: AppHandle, window: Window, redis_pool: State<'_, RedisPool>) -> Value {
     let redis_cmd: RedisCmd = serde_json::from_str(cmd_data).unwrap();
     let param_json = redis_cmd.param_json;
 
     debug!("cmd = {}, params = {}", &redis_cmd.cmd.clone(), cmd_data);
-
     // TODO: select runtime redis datasource id.
-    let client = redis::Client::open("redis://localhost/").unwrap();
-    let con = client.get_connection().unwrap();
+    let datasource_id = redis_cmd.datasource_id;
+    let arc = redis_pool.fetch_connection("test").await;
+    let mut con = arc.lock().await;
     match &redis_cmd.cmd as &str {
         "redis_list_datasource" => {
             json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}])
         }
-        "redis_get_database_info" => execute_get_database_info(
-            con,
-            redis_cmd.datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ),
+        "redis_get_database_info" => execute_get_database_info(con).await,
         "redis_key_scan" => execute_scan_cmd(
-            con,
-            redis_cmd.datasource_id,
+            redis_pool,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "redis_key_type" => execute_type_cmd(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "redis_get_hash" => execute_get_hash(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "redis_get_string" => execute_get_string(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "redis_key_info" => execute_key_info(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "redis_zrange_members" => execute_zrange_members(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "redis_lrange_members" => execute_lrange_members(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "redis_sscan" => execute_sscan(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "redis_update" => update_value(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         "run_redis_command" => execute_redis_command(
             con,
-            redis_cmd.datasource_id,
+            datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
-        ),
+        ).await,
         _ => unimplemented!(),
     }
 }
@@ -129,51 +143,52 @@ struct ExecuteScriptSmd {
     script: String,
 }
 
-fn execute_redis_command(
-    mut connection: Connection,
+async fn execute_redis_command(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: ExecuteScriptSmd,
     window: Window,
 ) -> Value {
     let script = params.script;
-    let result = execute_batch_redis_command(script.as_str(), &mut connection, |result| {});
+    let result = execute_batch_redis_command(script.as_str(), &mut connection, |result| {}).await;
     json!({"success": true, "data": result})
 }
 
-fn update_value(
-    mut connection: Connection,
+async fn update_value(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: UpdateCmd,
     window: Window,
 ) -> Value {
     match params.key_type.as_str() {
-        "hash" => update_hash(connection, params),
-        "string" => update_string(connection, params),
-        "zset" => update_zset(connection, params),
-        "set" => update_set(connection, params),
-        "list" => update_list(connection, params),
+        "hash" => update_hash(connection, params).await,
+        "string" => update_string(connection, params).await,
+        "zset" => update_zset(connection, params).await,
+        "set" => update_set(connection, params).await,
+        "list" => update_list(connection, params).await,
         _ => unimplemented!(),
     }
 }
 
-fn update_hash(mut connection: Connection, params: UpdateCmd) -> Value {
+async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
     let field = params.field.unwrap();
     let value = params.value.unwrap();
     let result: i32 = cmd("HSET")
         .arg(params.key)
         .arg(field)
         .arg(value)
-        .query(&mut connection)
+        .query_async(connection.deref_mut())
+        .await
         .unwrap();
 
     json!({"success": true})
 }
 
-fn update_string(mut connection: Connection, params: UpdateCmd) -> Value {
+async fn update_string(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
     unimplemented!();
 }
 
-fn update_zset(mut connection: Connection, params: UpdateCmd) -> Value {
+async fn update_zset(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
     let new_score: f64 = params.field.unwrap().parse().unwrap();
     let member = params.value.unwrap();
     if params.old_value.is_some() {
@@ -182,7 +197,8 @@ fn update_zset(mut connection: Connection, params: UpdateCmd) -> Value {
         let old_value_result: RedisResult<f64> = cmd("ZSCORE")
             .arg(&params.key)
             .arg(&member)
-            .query(&mut connection);
+            .query_async(connection.deref_mut())
+            .await;
         if old_value_result.is_ok() {
             let curr_score = old_value_result.unwrap();
             if curr_score == old_score {
@@ -190,7 +206,7 @@ fn update_zset(mut connection: Connection, params: UpdateCmd) -> Value {
                     .arg(&params.key)
                     .arg(new_score)
                     .arg(&member)
-                    .query(&mut connection);
+                    .query_async(connection.deref_mut()).await;
                 let is_success = update_result.is_ok();
                 json!({"success": is_success})
             } else {
@@ -204,11 +220,11 @@ fn update_zset(mut connection: Connection, params: UpdateCmd) -> Value {
     }
 }
 
-fn update_set(mut connection: Connection, params: UpdateCmd) -> Value {
+async fn update_set(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
     unimplemented!();
 }
 
-fn update_list(mut connection: Connection, params: UpdateCmd) -> Value {
+async fn update_list(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
     let index = params.field.unwrap();
     let new_value = params.value.unwrap();
     let mut ignore_value_check = true;
@@ -219,7 +235,8 @@ fn update_list(mut connection: Connection, params: UpdateCmd) -> Value {
         let old_val_result: RedisResult<String> = cmd("LINDEX")
             .arg(&params.key)
             .arg(&index)
-            .query(&mut connection);
+            .query_async(connection.deref_mut())
+            .await;
         if old_val_result.is_ok() {
             let old_val = old_val_result.unwrap();
             if old_val == old_value {
@@ -227,7 +244,8 @@ fn update_list(mut connection: Connection, params: UpdateCmd) -> Value {
                     .arg(&params.key)
                     .arg(&index)
                     .arg(&new_value)
-                    .query(&mut connection);
+                    .query_async(connection.deref_mut())
+                    .await;
 
                 let is_success = lset_result.is_ok();
                 json!({"success": is_success})
@@ -253,13 +271,10 @@ struct KeySpaceInfo {
     keys: i64,
 }
 
-fn execute_get_database_info(
-    mut connection: Connection,
-    ds: String,
-    params: GetDatabaseInfo,
-    window: Window,
+async fn execute_get_database_info(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
 ) -> Value {
-    let server_info: String = cmd("INFO").arg("SERVER").query(&mut connection).unwrap();
+    let server_info: String = cmd("INFO").arg("SERVER").query_async(connection.deref_mut()).await.unwrap();
     let ver_reg = Regex::new(r"redis_version:(?<version>[0-9.]+)").unwrap();
     let redis_version = ver_reg
         .captures(server_info.as_str())
@@ -270,7 +285,7 @@ fn execute_get_database_info(
 
     // databases key space info.
     let re = Regex::new(r"(?<name>db(?<index>\d+)):keys=(?<keys>\d+),expires=(\d+)").unwrap();
-    let keyspace: String = cmd("INFO").arg("KEYSPACE").query(&mut connection).unwrap();
+    let keyspace: String = cmd("INFO").arg("KEYSPACE").query_async(connection.deref_mut()).await.unwrap();
     let key_space_info: Vec<KeySpaceInfo> = keyspace
         .split("\n")
         .filter(|line| line.len() > 0 && !line.starts_with("#"))
@@ -283,7 +298,7 @@ fn execute_get_database_info(
         })
         .collect();
 
-    let memory_info: String = cmd("INFO").arg("MEMORY").query(&mut connection).unwrap();
+    let memory_info: String = cmd("INFO").arg("MEMORY").query_async(connection.deref_mut()).await.unwrap();
     let used_memory_human_reg = Regex::new(r"used_memory_human:(?<usage>.*)").unwrap();
     let used_memory_human = used_memory_human_reg
         .captures(memory_info.as_str())
@@ -292,13 +307,14 @@ fn execute_get_database_info(
         .unwrap()
         .as_str();
 
-    let dbsize: i64 = cmd("DBSIZE").query(&mut connection).unwrap();
+    let dbsize: i64 = cmd("DBSIZE").query_async(connection.deref_mut()).await.unwrap();
 
     // count of databases.
     let databases_info: Vec<String> = cmd("CONFIG")
         .arg("GET")
         .arg("DATABASES")
-        .query(&mut connection)
+        .query_async(connection.deref_mut())
+        .await
         .unwrap();
     let database_count = &databases_info[1];
 
@@ -330,12 +346,13 @@ struct FieldValue {
     content: String,
 }
 
-fn execute_get_hash(
-    mut connection: Connection,
+async fn execute_get_hash(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: HashGetCmd,
     window: Window,
 ) -> Value {
+    let mut start = Instant::now();
     let is_pattern_scan = !&params.pattern.is_empty();
 
     let mut cursor = params.cursor;
@@ -348,7 +365,8 @@ fn execute_get_hash(
             .arg(&params.pattern)
             .arg("COUNT")
             .arg(&params.count)
-            .query(&mut connection)
+            .query_async(connection.deref_mut())
+            .await
             .unwrap();
         let mut field_values: Vec<FieldValue> = result
             .chunks(2)
@@ -367,8 +385,10 @@ fn execute_get_hash(
         }
     }
 
-    let length: i32 = cmd("HLEN").arg(&params.key).query(&mut connection).unwrap();
-    let ttl: i32 = cmd("TTL").arg(&params.key).query(&mut connection).unwrap();
+    let length: i32 = cmd("HLEN").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
+    let ttl: i32 = cmd("TTL").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
+    let duration = start.elapsed();
+    println!("open() 耗时: {:?}", duration);
     json!({
         "field_values": data_result,
         "length": length,
@@ -377,13 +397,13 @@ fn execute_get_hash(
     })
 }
 
-fn execute_get_string(
-    mut connection: Connection,
+async fn execute_get_string(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: GetStringCmd,
     window: Window,
 ) -> Value {
-    let result: String = cmd("GET").arg(&params.key).query(&mut connection).unwrap();
+    let result: String = cmd("GET").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
     json!({
         "content": result
     })
@@ -392,10 +412,11 @@ fn execute_get_string(
 #[derive(Serialize, Deserialize)]
 struct KeyInfoParam {
     key: String,
+    key_type: String,
 }
 
-fn execute_key_info(
-    mut connection: Connection,
+async fn execute_key_info(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: KeyInfoParam,
     window: Window,
@@ -403,60 +424,74 @@ fn execute_key_info(
     let mut usage = 0;
     let mut data_len = 0;
     let mut encoding = String::from("unknown");
+    let mut ttl_val = 0;
+    let mut exists_val = 0;
+    let key_type = &params.key_type;
 
-    let exists: i32 = cmd("EXISTS")
-        .arg(&params.key)
-        .query(&mut connection)
-        .unwrap();
-    let ttl: i32 = cmd("TTL").arg(&params.key).query(&mut connection).unwrap();
+    let con_ref = &mut *connection;
+    let mut exists_cmd0 = cmd("EXISTS");
+    let cloned_conn = &mut con_ref.clone();
+    let exists_cmd = exists_cmd0.arg(&params.key).query_async::<i32>(cloned_conn);
 
-    if exists == 1 {
-        let memory_result = cmd("MEMORY")
-            .arg("usage")
-            .arg(&params.key)
-            .query::<i32>(&mut connection);
-        if let Ok(val) = memory_result {
-            usage = val;
+    let mut ttl_cmd0 = cmd("TTL");
+    let cloned_conn = &mut con_ref.clone();
+    let ttl_cmd = ttl_cmd0.arg(&params.key).query_async::<i32>(cloned_conn);
+
+    let cloned_conn = &mut con_ref.clone();
+    let mut memory_cmd0 = cmd("MEMORY");
+    let memory_cmd = memory_cmd0.arg("usage").arg(&params.key)
+        .query_async::<i32>(cloned_conn);
+
+    let cloned_conn = &mut con_ref.clone();
+    let mut object_cmd0 = cmd("OBJECT");
+    let object_cmd = object_cmd0.arg("encoding").arg(&params.key)
+        .query_async::<String>(cloned_conn);
+
+    let len_cmd_str;
+    match key_type.as_str() {
+        "hash" => len_cmd_str = Some("HLEN"),
+        "set" => len_cmd_str = Some("SCARD"),
+        "zset" => len_cmd_str = Some("ZCARD"),
+        "list" => len_cmd_str = Some("LLEN"),
+        _ => len_cmd_str = None,
+    }
+
+    if len_cmd_str.is_some() {
+        let cloned_conn = &mut con_ref.clone();
+        let mut hlen_cmd0 = cmd(len_cmd_str.unwrap());
+        let type_len_cmd = hlen_cmd0.arg(&params.key)
+            .query_async::<i32>(cloned_conn);
+        let (exists, ttl, usage_result, encoding_result, type_len_result) = tokio::join!(
+            exists_cmd,
+            ttl_cmd,
+            memory_cmd,
+            object_cmd,
+            type_len_cmd
+        );
+        exists_val = exists.unwrap();
+        if exists_val == 1 {
+            usage = usage_result.unwrap_or(usage);
+            encoding = encoding_result.unwrap_or(encoding);
+            data_len = type_len_result.unwrap_or(data_len);
         }
-
-        let encoding_result = cmd("OBJECT")
-            .arg("encoding")
-            .arg(&params.key)
-            .query::<String>(&mut connection);
-        if let Ok(encoding_val) = encoding_result {
-            encoding = encoding_val;
+    } else {
+        let (exists, ttl, usage_result, encoding_result) = tokio::join!(
+            exists_cmd,
+            ttl_cmd,
+            memory_cmd,
+            object_cmd,
+        );
+        exists_val = exists.unwrap();
+        if exists_val == 1 {
+            usage = usage_result.unwrap_or(usage);
+            encoding = encoding_result.unwrap_or(encoding);
         }
-
-        let type_result: String = cmd("TYPE").arg(&params.key).query(&mut connection).unwrap();
-        match type_result.as_str() {
-            "hash" => {
-                data_len = cmd("HLEN").arg(&params.key).query(&mut connection).unwrap();
-            }
-            "set" => {
-                data_len = cmd("SCARD")
-                    .arg(&params.key)
-                    .query(&mut connection)
-                    .unwrap();
-            }
-            "zset" => {
-                data_len = cmd("ZCARD")
-                    .arg(&params.key)
-                    .query(&mut connection)
-                    .unwrap();
-            }
-            "list" => {
-                data_len = cmd("LLEN").arg(&params.key).query(&mut connection).unwrap();
-            }
-            "string" => {
-                data_len = 1;
-            }
-            _ => {}
-        }
+        ttl_val = ttl.unwrap();
     }
 
     json!({
-        "exists": exists,
-        "ttl": ttl,
+        "exists": exists_val,
+        "ttl": ttl_val,
         "usage": usage,
         "encoding": encoding,
         "data_len": data_len
@@ -468,14 +503,14 @@ struct TypeCmd {
     key: String,
 }
 
-fn execute_type_cmd(
-    mut connection: Connection,
+async fn execute_type_cmd(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: TypeCmd,
     window: Window,
 ) -> Value {
     // connect to redis
-    let result: String = cmd("TYPE").arg(params.key).query(&mut connection).unwrap();
+    let result: String = cmd("TYPE").arg(params.key).query_async(connection.deref_mut()).await.unwrap();
     json!({"type": result})
 }
 
@@ -496,8 +531,8 @@ struct MemberScoreValue {
     rank: usize,
 }
 
-fn execute_zrange_members(
-    mut connection: Connection,
+async fn execute_zrange_members(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: ZRangeParam,
     window: Window,
@@ -531,7 +566,7 @@ fn execute_zrange_members(
 
     let data_len: i32 = redis::cmd("ZCARD")
         .arg(&params.key)
-        .query(&mut connection)
+        .query_async(connection.deref_mut()).await
         .unwrap();
     let mut nomore = false;
     loop {
@@ -546,7 +581,7 @@ fn execute_zrange_members(
             .arg(start)
             .arg(end)
             .arg("WITHSCORES")
-            .query(&mut connection)
+            .query_async(connection.deref_mut()).await
             .unwrap();
 
         let cnt = result.len();
@@ -635,8 +670,8 @@ struct ListMemberScoreValue {
     idx: usize,
 }
 
-fn execute_lrange_members(
-    mut connection: Connection,
+async fn execute_lrange_members(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: LRangeParam,
     window: Window,
@@ -649,7 +684,7 @@ fn execute_lrange_members(
     let mut start = params.start;
     let data_len: i32 = redis::cmd("LLEN")
         .arg(&params.key)
-        .query(&mut connection)
+        .query_async(connection.deref_mut()).await
         .unwrap();
     let mut filter_pattern = Regex::new("").unwrap();
     if is_pattern_scan {
@@ -662,7 +697,7 @@ fn execute_lrange_members(
             .arg(&params.key)
             .arg(start)
             .arg(start + params.size - 1)
-            .query(&mut connection)
+            .query_async(connection.deref_mut()).await
             .unwrap();
 
         let cnt = result.len();
@@ -699,8 +734,8 @@ struct SScanParam {
     pattern: Option<String>,
 }
 
-fn execute_sscan(
-    mut connection: Connection,
+async fn execute_sscan(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
     ds: String,
     params: SScanParam,
     window: Window,
@@ -715,12 +750,12 @@ fn execute_sscan(
     let data: Vec<Vec<String>> = scan_cmd
         .arg("COUNT")
         .arg(&params.size)
-        .query(&mut connection)
+        .query_async(connection.deref_mut()).await
         .unwrap();
 
     let total: i32 = cmd("SCARD")
         .arg(&params.key)
-        .query(&mut connection)
+        .query_async(connection.deref_mut()).await
         .unwrap();
     if let Some(members) = data.get(1) {
         json!({"data": members, "total": total})
@@ -737,13 +772,15 @@ struct ScanCmd {
     pattern: String,
 }
 
-fn execute_scan_cmd(
-    mut connection: Connection,
+async fn execute_scan_cmd(
+    mut redis_pool: State<'_, RedisPool>,
     ds: String,
     params: ScanCmd,
     window: Window,
 ) -> Value {
-    std::thread::spawn(move || {
+    let arc = redis_pool.fetch_connection("test").await;
+    tokio::spawn(async move {
+        let mut con = arc.lock().await;
         // 使用 scan_match 方法迭代匹配指定模式的键
         let pattern = params.pattern.as_str(); // 匹配以 "my_prefix:" 开头的键
         let mut remain_expect_count = params.count.unwrap_or(200);
@@ -761,7 +798,8 @@ fn execute_scan_cmd(
                 .arg(pattern)
                 .arg("COUNT")
                 .arg(require_count)
-                .query(&mut connection)
+                .query_async(con.deref_mut())
+                .await
                 .unwrap();
 
             remain_expect_count = if remain_expect_count > results.len() {
@@ -780,7 +818,7 @@ fn execute_scan_cmd(
             }
         }
     });
-    return json!({});
+    json!({})
 }
 
 pub fn connect() -> String {
@@ -858,7 +896,7 @@ impl FromRedisValue for VisibleRedisResp {
         let mut resp = VisibleRedisResp::default();
         resp.success = true;
         match *v {
-            redis::Value::Data(ref bytes) => {
+            redis::Value::BulkString(ref bytes) => {
                 resp.plain_text(from_utf8(bytes)?.to_string());
                 Ok(resp)
             }
@@ -866,11 +904,7 @@ impl FromRedisValue for VisibleRedisResp {
                 resp.plain_text("OK".to_string());
                 Ok(resp)
             }
-            redis::Value::Status(ref val) => {
-                resp.plain_text(val.to_string());
-                Ok(resp)
-            }
-            redis::Value::Bulk(ref val) => {
+            redis::Value::Array(ref val) => {
                 let t: Vec<String> = val
                     .iter()
                     .map(|item| Self::from_redis_value(item).unwrap().plain_text.unwrap())
@@ -888,16 +922,17 @@ impl FromRedisValue for VisibleRedisResp {
                 resp.plain_text("(nil)".to_string());
                 Ok(resp)
             }
+            _ => unimplemented!()
         }
     }
 }
 
-fn run_redis_command(single_command: &str, connection: &mut Connection) -> VisibleRedisResp {
+async fn run_redis_command(single_command: &str, connection: &mut MutexGuard<'_, MultiplexedConnection>) -> VisibleRedisResp {
     let parse_result = parse_command(single_command.trim());
     let cmd_formatted = parse_result.0;
     let cmd_str = parse_result.1;
     let cmd = parse_result.2;
-    match cmd.query::<VisibleRedisResp>(connection) {
+    match cmd.query_async::<VisibleRedisResp>(connection.deref_mut()).await {
         Ok(mut res) => {
             res.origin_cmd = Some(cmd_formatted.to_string());
             res.cmd = Some(cmd_str);
@@ -919,9 +954,9 @@ fn run_redis_command(single_command: &str, connection: &mut Connection) -> Visib
     }
 }
 
-fn execute_batch_redis_command<F>(
+async fn execute_batch_redis_command<F>(
     script: &str,
-    connection: &mut Connection,
+    connection: &mut MutexGuard<'_, MultiplexedConnection>,
     mut result_consumer: F,
 ) -> Vec<VisibleRedisResp>
 where
@@ -932,7 +967,7 @@ where
     let mut index = 0;
     for single_cmd in each_command {
         if !single_cmd.trim().is_empty() {
-            let mut resp = run_redis_command(single_cmd, connection);
+            let mut resp = run_redis_command(single_cmd, connection).await;
             resp.index = Some(index);
             index = index + 1;
             result_consumer(resp.clone());
@@ -940,43 +975,4 @@ where
         }
     }
     response_list
-}
-
-#[test]
-fn test_parse_redis_cmd() {
-    let client = redis::Client::open("redis://127.0.0.1/").unwrap();
-    let mut con = client.get_connection().unwrap();
-    let result = execute_batch_redis_command(
-        r#"
-    HSET key01 f vvvvvv f2 vvvvvv2
-    hget key01 f
-    hget   key01  blank
-    hget 'key01' f2
-    hget key01 value1
-    hget key01 'value2'
-    hgetall 120:GeneralCommodity:fs688
-    zrange 'bytestudio:zset' 0 -1
-    zrevrange 'bytestudio:zset' 0 -1
-    smembers   bytestudio:set
-    hdel key01 f
-    hdel key01 f3
-    expire key01 60
-    dbsize
-    select 2
-    dbsize
-    info Memory
-    "#,
-        &mut con,
-        |resp| {
-            let origin = resp.origin_cmd.unwrap_or("unknown".to_string());
-            match resp.plain_text {
-                None => {
-                    println!("cmd = {}\nRESP= {:?}", origin, resp.vec);
-                }
-                Some(val) => {
-                    println!("cmd = {}\nRESP= {}", origin, val);
-                }
-            }
-        },
-    );
 }

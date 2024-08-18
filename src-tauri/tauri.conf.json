@@ -37,6 +37,34 @@
         "theme": "Dark"
       },
       {
+        "height": 156,
+        "label": "datasource-dropdown",
+        "url": "windows/datasource-dropdown.html",
+        "width": 400,
+        "fullscreen": false,
+        "hiddenTitle": true,
+        "resizable": false,
+        "title": "DataSourceDropdown",
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "titleBarStyle": "Overlay",
+        "theme": "Dark"
+      },
+      {
+        "label": "datasource-database-selector",
+        "url": "windows/datasource-database-selector.html",
+        "fullscreen": false,
+        "hiddenTitle": true,
+        "resizable": false,
+        "title": "DataSourceDBSelector",
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "titleBarStyle": "Overlay",
+        "theme": "Dark"
+      },
+      {
         "label": "spotlight-search",
         "shadow": true,
         "fullscreen": false,

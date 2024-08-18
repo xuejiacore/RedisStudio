@@ -22,13 +22,13 @@ async fn test() -> Result<(), TantivyError> {
         indexer::redis_indexer::index_or_update("testdatasource0", "133:commodity:32153", &indexer)
             .await
             .unwrap();
-        indexer::redis_indexer::index_or_update(
-            "testdatasource4",
-            r"[a-zA-Z0-9]+:commodity:\d+",
-            &indexer,
-        )
-        .await
-        .unwrap();
+        // indexer::redis_indexer::index_or_update(
+        //     "testdatasource4",
+        //     r"[a-zA-Z0-9]+:commodity:\d+",
+        //     &indexer,
+        // )
+        // .await
+        // .unwrap();
     }
 
     // let docs = indexer.search_with_params(

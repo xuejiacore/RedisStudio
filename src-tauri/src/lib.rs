@@ -1,3 +1,5 @@
+#![feature(mapped_lock_guards)]
+
 use serde::{Serialize, Serializer};
 
 use crate::net::net_launcher;

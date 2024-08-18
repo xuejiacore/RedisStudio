@@ -27,6 +27,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
         || document.body.clientHeight;
 
     const [currentKey, setCurrentKey] = useState('');
+    const [currentKeyType, setCurrentKeyType] = useState('');
     const [nodeData, setNodeData] = useState<CustomDataNode>();
     const [selectedField, setSelectedField] = useState<ValueChanged>();
     const [outlineAction, setOutlineAction] = useState<OutlineAction>();
@@ -84,7 +85,8 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     useEffect(() => {
         const lastKeyName = currentKey;
         if (nodeData?.key) {
-            setCurrentKey(nodeData.key as string)
+            setCurrentKey(nodeData.key as string);
+            setCurrentKeyType(nodeData.keyType as string);
             switch (nodeData.keyType) {
                 case 'hash':
                     setContent(hashOperator);
@@ -151,6 +153,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                     {/* 右侧属性面板 */}
                     <Col className={'right-watcher-panel'} span={7}>
                         <RightWatcherPanel currentKey={currentKey}
+                                           keyType={currentKeyType}
                                            selectedField={selectedField}
                                            outlineAction={outlineAction}
                         />

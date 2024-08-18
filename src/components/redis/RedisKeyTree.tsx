@@ -509,7 +509,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
             <Flex className={'redis-outline'} justify={'center'} align={'center'}>
                 <Space>
-                    <span className={'redis-info-item'}>Redis {version}</span>
+                    <span className={'redis-info-item'}>v {version}</span>
                     <Divider type="vertical"/>
                     <span className={'redis-info-item'}>{memoryUsage}</span>
                     <Divider type="vertical"/>

@@ -1,0 +1,45 @@
+.database-item {
+  width: calc(100vw - 37px);
+  padding: 4px 6px 2px 12px;
+  font-size: 12px;
+  font-weight: normal;
+  border-radius: 4px;
+  color: #787a7c;
+
+  .database-index {
+  }
+
+  .key-size {
+    float: right;
+    background: #3C3B3C;
+    color: #787a7c;
+    padding: 0 8px;
+    border-radius: 4px;
+  }
+}
+
+.database-item.selected {
+  font-weight: bold;
+  color: #f6f6f6;
+
+  .selected-item {
+    position: absolute;
+    left: 0;
+  }
+
+  .key-size {
+    color: #f6f6f6;
+    background: #66686e;
+  }
+}
+
+.database-item:hover {
+  background: #2E436E;
+  color: #f6f6f6;
+  cursor: pointer;
+
+  .key-size {
+    color: #f6f6f6;
+    background: #93969e;
+  }
+}

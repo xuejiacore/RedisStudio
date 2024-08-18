@@ -3,18 +3,21 @@
 
 use std::any::Any;
 
-use redisstudio::command;
 use sqlx::{Connection, Row};
 use tauri::ipc::private::FutureKind;
 use tauri::ipc::IpcResponse;
 use tauri::{Manager, Runtime, State, Wry};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
+use redisstudio::command;
+use redisstudio::command::redis_cmd;
 use redisstudio::command::index_search;
 use redisstudio::command::menu_controller;
 use redisstudio::command::window_controller;
 use redisstudio::command::zookeeper_cmd;
+use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use redisstudio::log::project_logger;
+use redisstudio::storage::redis_pool::RedisPool;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
 
@@ -41,15 +44,6 @@ async fn sys_prop(storage: State<'_, SqliteStorage>, property: &str) -> Result<S
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
-async fn redis_invoke(
-    data: &str,
-    app: tauri::AppHandle,
-    window: tauri::Window<Wry>,
-) -> Result<String> {
-    Ok(command::redis_cmd::dispatch_redis_cmd(data, app, window).to_string())
 }
 
 // receive action from front
@@ -92,7 +86,7 @@ fn main() {
         // .plugin(tauri_plugin_window_state::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             sys_prop,
-            redis_invoke,
+            redis_cmd::redis_invoke,
             action,
             greet,
             close_splashscreen,
@@ -106,6 +100,8 @@ fn main() {
             zookeeper_cmd::zk_invoke,
             menu_controller::show_content_editor_menu,
             menu_controller::show_auto_refresh_menu,
+            window_controller::open_datasource_window,
+            window_controller::open_database_selector_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

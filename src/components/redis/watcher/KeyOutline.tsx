@@ -11,6 +11,7 @@ export interface OutlineAction {
 }
 interface KeyTagsProp {
     selectedKey?: string;
+    selectedKeyType?: string;
     action?: OutlineAction;
 }
 
@@ -177,8 +178,8 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
     }
 
     useEffect(() => {
-        rust_invoke("redis_key_info", {key: props.selectedKey}).then(r => {
-            let keyInfo: KeyInfo = JSON.parse(r as string);
+        rust_invoke("redis_key_info", {key: props.selectedKey, key_type: props.selectedKeyType}).then(r => {
+            const keyInfo: KeyInfo = JSON.parse(r as string);
             setOutlineInfo(keyInfo);
         });
     }, [props.selectedKey]);
@@ -188,7 +189,7 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
         customTags.forEach(v => {
             if (v.id == id) {
                 let idx = 0;
-                let elements = v.vars.map(variables => {
+                const elements = v.vars.map(variables => {
                     return <>
                         <Form.Item label={variables.desc}
                                    className={'tag-variables-form-item'}>

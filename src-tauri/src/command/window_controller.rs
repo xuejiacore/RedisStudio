@@ -5,9 +5,41 @@ use rand::distributions::Uniform;
 use rand::Rng;
 use tauri::utils::config::WindowConfig;
 use tauri::webview::PageLoadEvent;
-use tauri::{Manager, PhysicalPosition, Runtime, WindowEvent, Wry};
+use tauri::{LogicalPosition, LogicalSize, Manager, PhysicalPosition, Position, Runtime, Size, WindowEvent, Wry};
 
 const REDIS_PIN_LABEL_PREFIX: &str = "redispin_win:";
+
+#[tauri::command]
+pub fn open_datasource_window<R: Runtime>(x: f64, y: f64, handle: tauri::AppHandle<R>) {
+    let window = handle.get_window("datasource-dropdown");
+    match window {
+        None => {}
+        Some(win) => {
+            let main_window = handle.get_window("main").unwrap();
+            let pos = main_window.outer_position().unwrap();
+            let log_pos: LogicalPosition<f64> = LogicalPosition::from_physical(pos, main_window.scale_factor().unwrap());
+            win.set_size(Size::Logical(LogicalSize::new(270f64, 600f64))).unwrap();
+            win.set_position(Position::Logical(LogicalPosition::new(x + log_pos.x, y + log_pos.y - 4f64))).unwrap();
+            win.show().unwrap();
+        }
+    }
+}
+
+#[tauri::command]
+pub fn open_database_selector_window<R: Runtime>(x: f64, y: f64, handle: tauri::AppHandle<R>) {
+    let window = handle.get_window("datasource-database-selector");
+    match window {
+        None => {}
+        Some(win) => {
+            let main_window = handle.get_window("main").unwrap();
+            let pos = main_window.outer_position().unwrap();
+            let log_pos: LogicalPosition<f64> = LogicalPosition::from_physical(pos, main_window.scale_factor().unwrap());
+            win.set_size(Size::Logical(LogicalSize::new(140f64, 300f64))).unwrap();
+            win.set_position(Position::Logical(LogicalPosition::new(x + log_pos.x, y + log_pos.y - 4f64))).unwrap();
+            win.show().unwrap();
+        }
+    }
+}
 
 #[tauri::command]
 pub fn prepare_pin_window<R: Runtime>(key_name: &str, key_type: &str, handle: tauri::AppHandle<R>) {

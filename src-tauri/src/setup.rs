@@ -8,12 +8,15 @@ use tauri_plugin_sql::Error;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 use window_vibrancy::{self, NSVisualEffectMaterial, NSVisualEffectState};
 
+use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
+use redisstudio::storage::redis_pool::RedisPool;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
 use redisstudio::Launcher;
 
 use crate::tray;
-use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
+
+pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
 
 /// setup
 pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
@@ -32,6 +35,8 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
     //main_window.restore_state(StateFlags::POSITION | StateFlags::SIZE).unwrap(); // will restore the window's state from disk
     main_window.hide()?;
 
+    init_datasource_window(app)?;
+    init_database_selector_window(app)?;
     let spotlight_search_win = init_spotlight_search_window(app);
     spotlight_search_win.hide()?;
 
@@ -76,6 +81,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         }
     });
     let splashscreen_window = app.get_window("splashscreen").unwrap();
+    splashscreen_window.hide()?;
 
     // 仅在 macOS 下执行
     #[cfg(target_os = "macos")]
@@ -85,7 +91,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         Some(NSVisualEffectState::FollowsWindowActiveState),
         Some(0.5),
     )
-    .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+        .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
     // 仅在 windows 下执行
     #[cfg(target_os = "windows")]
@@ -113,8 +119,18 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     });
 
+    let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
+        let pool = RedisPool::new();
+        let client = redis::Client::open("redis://172.31.72.5/10").unwrap();
+        let con = client.get_multiplexed_async_connection().await.unwrap();
+        pool.add_new_connection("test".into(), con).await;
+        app_handler.manage(pool);
+        Ok(())
+    });
+
     // we perform the initialization code on a new task so the app doesn't freeze
     tauri::async_runtime::spawn(async move {
+        splashscreen_window.show().unwrap();
         // initialize your app here instead of sleeping :)
         println!("Initializing...");
         //std::thread::sleep(std::time::Duration::from_secs(10));
@@ -139,6 +155,52 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+fn init_datasource_window(app: &mut App) -> TauriResult<()> {
+    let datasource_dropdown_win = app.get_window("datasource-dropdown").unwrap();
+    datasource_dropdown_win.hide()?;
+
+    let cloned_win = datasource_dropdown_win.clone();
+    datasource_dropdown_win.on_window_event(move |event| match event {
+        WindowEvent::Resized(_) => {}
+        WindowEvent::Moved(_) => {}
+        WindowEvent::CloseRequested { .. } => {}
+        WindowEvent::Destroyed => {}
+        WindowEvent::Focused(focused) => {
+            if !focused {
+                cloned_win.hide().unwrap();
+            }
+        }
+        WindowEvent::ScaleFactorChanged { .. } => {}
+        WindowEvent::ThemeChanged(_) => {}
+        _ => {}
+    });
+    Ok(())
+}
+
+fn init_database_selector_window(app: &mut App) -> TauriResult<()> {
+    let datasource_dropdown_win = app.get_window("datasource-database-selector").unwrap();
+    datasource_dropdown_win.hide()?;
+
+    let cloned_win = datasource_dropdown_win.clone();
+    datasource_dropdown_win.on_window_event(move |event| match event {
+        WindowEvent::Resized(_) => {}
+        WindowEvent::Moved(_) => {}
+        WindowEvent::CloseRequested { .. } => {}
+        WindowEvent::Destroyed => {}
+        WindowEvent::Focused(focused) => {
+            if !focused {
+                cloned_win.hide().unwrap();
+            }
+        }
+        WindowEvent::ScaleFactorChanged { .. } => {}
+        WindowEvent::ThemeChanged(_) => {}
+        _ => {}
+    });
+    Ok(())
+}
+
+
 
 fn init_spotlight_search_window(app: &mut App) -> Window {
     let win = app.get_window("spotlight-search").unwrap();

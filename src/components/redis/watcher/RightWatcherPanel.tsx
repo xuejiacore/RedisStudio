@@ -8,7 +8,8 @@ import {useTranslation} from "react-i18next";
 import "../../../utils/i18n.ts";
 
 interface RightWatcherPanelProp {
-    currentKey: string
+    currentKey: string;
+    keyType: string;
     selectedField?: ValueChanged;
     outlineAction?: OutlineAction;
 }
@@ -46,7 +47,7 @@ const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
                         label: t('redis.main.right_panel.tabs.outline.name'),
                         key: '1',
                         icon: <TagsOutlined className={'tab-tags'}/>,
-                        children: <KeyOutline selectedKey={props.currentKey} action={props.outlineAction}/>,
+                        children: <KeyOutline selectedKeyType={props.keyType} selectedKey={props.currentKey} action={props.outlineAction}/>,
                     },
                     {
                         label: t('redis.main.right_panel.tabs.value.name'),
