@@ -74,11 +74,11 @@ pub fn prepare_pin_window<R: Runtime>(key_name: &str, key_type: &str, handle: ta
             .build()
             .unwrap();
         window.on_window_event(move |event| match event {
-            WindowEvent::Resized(v) => {}
+            WindowEvent::Resized(_v) => {}
             WindowEvent::Moved(_) => {}
             WindowEvent::CloseRequested { .. } => {}
             WindowEvent::Destroyed => {}
-            WindowEvent::Focused(focused) => {}
+            WindowEvent::Focused(_focused) => {}
             WindowEvent::ScaleFactorChanged { .. } => {}
             WindowEvent::ThemeChanged(_) => {}
             _ => {}
@@ -96,7 +96,7 @@ pub fn prepare_pin_window<R: Runtime>(key_name: &str, key_type: &str, handle: ta
 
         let webview_builder = tauri::webview::WebviewBuilder::from_config(&config)
             .initialization_script(init_script.as_str())
-            .on_page_load(move |webview, payload| {
+            .on_page_load(move |_webview, payload| {
                 match payload.event() {
                     PageLoadEvent::Started => {
                         //println!("{} Started loading", payload.url());
@@ -123,9 +123,9 @@ pub fn prepare_pin_window<R: Runtime>(key_name: &str, key_type: &str, handle: ta
 #[tauri::command]
 pub fn open_redis_pushpin_window<R: Runtime>(
     key_name: &str,
-    key_type: &str,
+    _key_type: &str,
     handle: tauri::AppHandle<R>,
-    window: tauri::Window<Wry>,
+    _window: tauri::Window<Wry>,
 ) {
     let label: String = get_window_label(key_name);
     let exists_window = handle.get_window(&label);

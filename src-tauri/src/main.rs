@@ -9,15 +9,11 @@ use tauri::ipc::IpcResponse;
 use tauri::{Manager, Runtime, State, Wry};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-use redisstudio::command;
-use redisstudio::command::redis_cmd;
 use redisstudio::command::index_search;
 use redisstudio::command::menu_controller;
+use redisstudio::command::redis_cmd;
 use redisstudio::command::window_controller;
-use redisstudio::command::zookeeper_cmd;
-use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use redisstudio::log::project_logger;
-use redisstudio::storage::redis_pool::RedisPool;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
 
@@ -67,7 +63,7 @@ async fn close_splashscreen(window: tauri::Window<Wry>) {
 /// open spotlight window
 #[tauri::command]
 async fn open_spotlight_window<R: Runtime>(
-    handle: tauri::AppHandle<R>,
+    _handle: tauri::AppHandle<R>,
     window: tauri::Window<Wry>,
 ) {
     let search_win = window.get_window("spotlight-search").unwrap();
@@ -97,7 +93,7 @@ fn main() {
             window_controller::prepare_pin_window,
             index_search::search,
             index_search::write_index,
-            zookeeper_cmd::zk_invoke,
+            index_search::infer_redis_key_pattern,
             menu_controller::show_content_editor_menu,
             menu_controller::show_auto_refresh_menu,
             window_controller::open_datasource_window,

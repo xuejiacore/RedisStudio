@@ -5,6 +5,7 @@ import {useTranslation} from "react-i18next";
 import "./index.less";
 import no_data_svg from "../../../assets/images/icons/no-data.svg";
 import {rust_invoke} from "../../../utils/RustIteractor.tsx";
+import {invoke} from "@tauri-apps/api/core";
 
 export interface OutlineAction {
     type?: string
@@ -182,6 +183,9 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
             const keyInfo: KeyInfo = JSON.parse(r as string);
             setOutlineInfo(keyInfo);
         });
+        invoke("infer_redis_key_pattern", {key: props.selectedKey, datasource: "datasource01"}).then(r => {
+            console.log("获得结果", r);
+        })
     }, [props.selectedKey]);
     const searchInputRef = useRef<InputRef>(null);
 

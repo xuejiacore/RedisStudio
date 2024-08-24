@@ -1,20 +1,20 @@
-use std::process;
-
+use crate::tray;
 use log::{debug, info};
-use sqlx::{Connection, Pool};
-use tauri::async_runtime::set;
-use tauri::{App, Manager, PhysicalPosition, Window, WindowEvent, Wry};
-use tauri_plugin_sql::Error;
-use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
-use window_vibrancy::{self, NSVisualEffectMaterial, NSVisualEffectState};
-
+use redisstudio::indexer::redis_indexer::RedisIndexer;
+use redisstudio::indexer::simple_infer_pattern::PatternInferenceEngines;
 use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use redisstudio::storage::redis_pool::RedisPool;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
 use redisstudio::Launcher;
-
-use crate::tray;
+use sqlx::{Connection, Pool};
+use std::process;
+use std::sync::{Arc, Mutex};
+use tauri::async_runtime::set;
+use tauri::{App, Manager, PhysicalPosition, Window, WindowEvent, Wry};
+use tauri_plugin_sql::Error;
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
+use window_vibrancy::{self, NSVisualEffectMaterial, NSVisualEffectState};
 
 pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
 
@@ -101,6 +101,8 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
     let config_dir = app.path().app_config_dir().expect("No App path was found!");
     let mut cloned_dir = config_dir.clone();
     let app_handler = app.app_handle();
+
+    // prepare sqlite connection manager
     let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
         let instance = SqliteStorage::default();
         let mut lock = instance.pool.lock().await;
@@ -113,12 +115,20 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     });
 
+    // prepare tantivy indexer.
     let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
-        let tantivy_indexer = TantivyIndexer::init(config_dir).init_indexer().await;
-        app_handler.manage(tantivy_indexer);
+        let indexer = TantivyIndexer::init(config_dir).init_indexer().await;
+        app_handler.manage(indexer.clone());
+
+        // prepare redis datasource's pattern inference engines.
+        let engines = PatternInferenceEngines::new();
+        let redis_indexer = RedisIndexer::new(Arc::new(Mutex::new(indexer)), Arc::new(Mutex::new(engines)));
+        redis_indexer.initialize_datasource_pattern("datasource01").await;
+        app_handler.manage(redis_indexer);
         Ok(())
     });
 
+    // prepare redis connection manager.
     let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
         let pool = RedisPool::new();
         let client = redis::Client::open("redis://172.31.72.5/10").unwrap();
@@ -127,6 +137,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         app_handler.manage(pool);
         Ok(())
     });
+
 
     // we perform the initialization code on a new task so the app doesn't freeze
     tauri::async_runtime::spawn(async move {
@@ -190,7 +201,7 @@ fn init_database_selector_window(app: &mut App) -> TauriResult<()> {
         WindowEvent::Destroyed => {}
         WindowEvent::Focused(focused) => {
             if !focused {
-                cloned_win.hide().unwrap();
+                //cloned_win.hide().unwrap();
             }
         }
         WindowEvent::ScaleFactorChanged { .. } => {}
@@ -199,7 +210,6 @@ fn init_database_selector_window(app: &mut App) -> TauriResult<()> {
     });
     Ok(())
 }
-
 
 
 fn init_spotlight_search_window(app: &mut App) -> Window {

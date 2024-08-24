@@ -5,11 +5,11 @@ use tauri::{Manager, PhysicalPosition, Runtime, Window};
 pub fn show_content_editor_menu<R: Runtime>(
     handle: tauri::AppHandle<R>,
     window: Window,
-    x: f64,
-    y: f64,
+    _x: f64,
+    _y: f64,
 ) {
     let app_handle = handle.app_handle();
-    let pkg_info = app_handle.package_info();
+    let _pkg_info = app_handle.package_info();
     let menu = Menu::with_items(
         app_handle,
         &[
@@ -31,7 +31,7 @@ pub fn show_auto_refresh_menu<R: Runtime>(
     y: f64,
 ) {
     let app_handle = handle.app_handle();
-    let pkg_info = app_handle.package_info();
+    let _pkg_info = app_handle.package_info();
     let menu = Menu::with_items(
         app_handle,
         &[

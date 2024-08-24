@@ -1,10 +1,10 @@
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Formatter, Write};
 use std::path::PathBuf;
-
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use std::sync::Arc;
 use tantivy::collector::{Collector, SegmentCollector, TopDocs};
 use tantivy::query::{Query, QueryParser};
 use tantivy::schema::{Field, FieldType, Schema};
@@ -54,15 +54,16 @@ impl Collector for Count {
     }
 }
 
+#[derive(Clone)]
 pub struct TantivyIndexer {
     database_dir: PathBuf,
-    indexes: Mutex<HashMap<String, Index>>,
+    indexes: Arc<Mutex<HashMap<String, Index>>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SearchResult {
-    hits: usize,
-    documents: Vec<Value>,
+    pub hits: usize,
+    pub documents: Vec<Value>,
 }
 
 impl SearchResult {
@@ -120,11 +121,11 @@ impl TantivyIndexer {
         println!("index document root: {:?}", indexer_root);
         TantivyIndexer {
             database_dir: indexer_root.clone(),
-            indexes: Mutex::new(HashMap::new()),
+            indexes: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    pub fn create_schema(self, index_name: &str) {}
+    pub fn create_schema(self, _index_name: &str) {}
 
     pub fn database_dir(&self) -> &PathBuf {
         &self.database_dir
@@ -145,6 +146,90 @@ impl TantivyIndexer {
         }
     }
 
+    pub async fn searching_with_params<F>(
+        index: Index,
+        mut search_params_builder: F,
+    ) -> Result<SearchResult>
+    where
+        F: FnMut(&Index, &mut SearchParams),
+    {
+        let reader = index.reader_builder().reload_policy(ReloadPolicy::OnCommitWithDelay).try_into()?;
+        let searcher = reader.searcher();
+
+        let schema = index.schema();
+        let default_fields: Vec<Field> = schema
+            .fields()
+            .filter(|&(field, entry)| {
+                let mut search_enabled = false;
+                if let FieldType::Str(ref text_options) = entry.field_type() {
+                    if text_options.get_indexing_options().is_some() {
+                        search_enabled = true;
+                    }
+                }
+                search_enabled
+            })
+            .map(|(field, _)| field)
+            .collect();
+
+        let mut search_params = SearchParams::default();
+        // TODO: should be cached
+
+        search_params_builder(&index, &mut search_params);
+
+        let query = search_params.query.unwrap_or_else(|| match search_params.query_str {
+            None => panic!("one of `query` or `query_str` must specified"),
+            Some(query_str) => {
+                let query_parser = QueryParser::for_index(&index, default_fields);
+                query_parser.parse_query(query_str.as_str()).unwrap()
+            }
+        });
+
+        let top_docs = TopDocs::with_limit(search_params.limit.unwrap_or(1))
+            .and_offset(search_params.offset.unwrap_or(0));
+
+        let mut result: Vec<Value> = vec![];
+        let num_hits;
+        match search_params.order_field {
+            None => {
+                let collector = &(top_docs, Count);
+                let (top_docs, hits) = searcher.search(&query, collector).unwrap();
+                num_hits = hits;
+                for (_score, doc_address) in top_docs {
+                    Self::extract_docs_as_json_result(
+                        &searcher,
+                        &schema,
+                        &mut result,
+                        doc_address,
+                    )?;
+                }
+            }
+            Some(order_field) => {
+                let collector = &(
+                    top_docs.order_by_u64_field(
+                        order_field,
+                        search_params.order.unwrap_or(Order::Asc),
+                    ),
+                    Count,
+                );
+                let (top_docs, hits) = searcher.search(&query, collector).unwrap();
+                num_hits = hits;
+                for (_score, doc_address) in top_docs {
+                    Self::extract_docs_as_json_result(
+                        &searcher,
+                        &schema,
+                        &mut result,
+                        doc_address,
+                    )?;
+                }
+            }
+        }
+
+        Ok(SearchResult {
+            hits: num_hits,
+            documents: result,
+        })
+    }
+
     pub async fn search_with_params<F>(
         &self,
         index_name: &str,
@@ -153,91 +238,14 @@ impl TantivyIndexer {
     where
         F: FnMut(&Index, &mut SearchParams),
     {
-        let res = self.indexes.lock().await;
-        match res.get(&index_name.to_string()) {
+        let index_opt: Option<Index> = {
+            let res = self.indexes.lock().await;
+            res.get(index_name).cloned() // 假设 `index_name` 是 `&str` 类型，并且 `res` 是 `HashMap<String, Index>` 类型
+        };
+
+        match index_opt {
             Some(index) => {
-                let reader = index
-                    .reader_builder()
-                    .reload_policy(ReloadPolicy::OnCommitWithDelay)
-                    .try_into()
-                    .unwrap();
-
-                let searcher = reader.searcher();
-
-                let schema = index.schema();
-                let default_fields: Vec<Field> = schema
-                    .fields()
-                    .filter(|&(field, entry)| {
-                        let mut search_enabled = false;
-                        if let FieldType::Str(ref text_options) = entry.field_type() {
-                            if text_options.get_indexing_options().is_some() {
-                                search_enabled = true;
-                            }
-                        }
-                        search_enabled
-                    })
-                    .map(|(field, _)| field)
-                    .collect();
-
-                let mut search_params = SearchParams::default();
-                // TODO: should be cached
-
-                search_params_builder(index, &mut search_params);
-
-                let query = search_params
-                    .query
-                    .unwrap_or_else(|| match search_params.query_str {
-                        None => panic!("one of `query` or `query_str` must specified"),
-                        Some(query_str) => {
-                            let query_parser = QueryParser::for_index(&index, default_fields);
-                            query_parser.parse_query(query_str.as_str()).unwrap()
-                        }
-                    });
-
-                let top_docs = TopDocs::with_limit(search_params.limit.unwrap_or(1))
-                    .and_offset(search_params.offset.unwrap_or(0));
-
-                let mut result: Vec<Value> = vec![];
-                let mut num_hits;
-                match search_params.order_field {
-                    None => {
-                        let collector = &(top_docs, Count);
-                        let (top_docs, hits) = searcher.search(&query, collector).unwrap();
-                        num_hits = hits;
-                        for (_score, doc_address) in top_docs {
-                            Self::extract_docs_as_json_result(
-                                &searcher,
-                                &schema,
-                                &mut result,
-                                doc_address,
-                            )?;
-                        }
-                    }
-                    Some(order_field) => {
-                        let collector = &(
-                            top_docs.order_by_u64_field(
-                                order_field,
-                                search_params.order.unwrap_or(Order::Asc),
-                            ),
-                            Count,
-                        );
-                        let (top_docs, hits) = searcher.search(&query, collector).unwrap();
-                        num_hits = hits;
-                        for (_score, doc_address) in top_docs {
-                            Self::extract_docs_as_json_result(
-                                &searcher,
-                                &schema,
-                                &mut result,
-                                doc_address,
-                            )?;
-                        }
-                    }
-                }
-
-                Ok(SearchResult {
-                    hits: num_hits,
-                    documents: result,
-                })
+                TantivyIndexer::searching_with_params(index, search_params_builder).await
             }
             None => Err(TantivyError::FieldNotFound(String::from(
                 "index not exists.",
@@ -265,12 +273,12 @@ impl TantivyIndexer {
         limit: usize,
         offset: usize,
     ) -> Result<SearchResult> {
-        self.search_with_params(index_name, |index, top_docs| {
+        self.search_with_params(index_name, |_index, top_docs| {
             top_docs
                 .with_limit_offset(limit, offset)
                 .with_query_str(query_str);
         })
-        .await
+            .await
     }
 
     pub async fn write_json(&self, index_name: &str, document: Value) -> Result<()> {
@@ -299,7 +307,6 @@ impl TantivyIndexer {
         match res.get(index_name) {
             None => Err(TantivyError::SystemError(String::from("index not exists."))),
             Some(index) => {
-                let schema = index.schema();
                 let mut writer: IndexWriter<TantivyDocument> = index.writer(15000000).unwrap();
                 writer.delete_term(delete_term);
                 writer.commit()?;
@@ -319,19 +326,30 @@ impl TantivyIndexer {
                 let field_entry = schema.get_field_entry(field);
                 let field_type = field_entry.field_type();
                 match json_value {
-                    serde_json::Value::Array(json_items) => {
+                    Value::Array(json_items) => {
                         for json_item in json_items {
                             let value = field_type
                                 .value_from_json(json_item)
-                                .map_err(|e| DocParsingError::ValueError(field_name.clone()))
+                                .map_err(|_e| DocParsingError::ValueError(field_name.clone()))
                                 .unwrap();
                             doc.add_field_value(field, value);
+                        }
+                    }
+                    Value::Number(num) => {
+                        if num.is_u64() {
+                            doc.add_field_value(field, num.as_u64().unwrap());
+                        } else if num.is_i64() {
+                            doc.add_field_value(field, num.as_i64().unwrap());
+                        } else if num.is_f64() {
+                            doc.add_field_value(field, num.as_f64().unwrap());
+                        } else {
+                            panic!();
                         }
                     }
                     _ => {
                         let value = field_type
                             .value_from_json(json_value)
-                            .map_err(|e| DocParsingError::ValueError(field_name.clone()))
+                            .map_err(|_e| DocParsingError::ValueError(field_name.clone()))
                             .unwrap();
                         doc.add_field_value(field, value);
                     }

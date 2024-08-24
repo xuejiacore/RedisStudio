@@ -49,9 +49,9 @@ pub async fn redis_invoke(
     Ok(dispatch_redis_cmd(data, app, window, redis_pool).await.to_string())
 }
 
-pub async fn dispatch_redis_cmd(cmd_data: &str, app: AppHandle, window: Window, redis_pool: State<'_, RedisPool>) -> Value {
+pub async fn dispatch_redis_cmd(cmd_data: &str, _app: AppHandle, window: Window, redis_pool: State<'_, RedisPool>) -> Value {
     let redis_cmd: RedisCmd = serde_json::from_str(cmd_data).unwrap();
-    let param_json = redis_cmd.param_json;
+    let _param_json = redis_cmd.param_json;
 
     debug!("cmd = {}, params = {}", &redis_cmd.cmd.clone(), cmd_data);
     // TODO: select runtime redis datasource id.
@@ -145,20 +145,20 @@ struct ExecuteScriptSmd {
 
 async fn execute_redis_command(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    _ds: String,
     params: ExecuteScriptSmd,
-    window: Window,
+    _window: Window,
 ) -> Value {
     let script = params.script;
-    let result = execute_batch_redis_command(script.as_str(), &mut connection, |result| {}).await;
+    let result = execute_batch_redis_command(script.as_str(), &mut connection, |_result| {}).await;
     json!({"success": true, "data": result})
 }
 
 async fn update_value(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    connection: MutexGuard<'_, MultiplexedConnection>,
+    _ds: String,
     params: UpdateCmd,
-    window: Window,
+    _window: Window,
 ) -> Value {
     match params.key_type.as_str() {
         "hash" => update_hash(connection, params).await,
@@ -173,7 +173,7 @@ async fn update_value(
 async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
     let field = params.field.unwrap();
     let value = params.value.unwrap();
-    let result: i32 = cmd("HSET")
+    let _result: i32 = cmd("HSET")
         .arg(params.key)
         .arg(field)
         .arg(value)
@@ -184,7 +184,7 @@ async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, para
     json!({"success": true})
 }
 
-async fn update_string(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
+async fn update_string(_connection: MutexGuard<'_, MultiplexedConnection>, _params: UpdateCmd) -> Value {
     unimplemented!();
 }
 
@@ -220,7 +220,7 @@ async fn update_zset(mut connection: MutexGuard<'_, MultiplexedConnection>, para
     }
 }
 
-async fn update_set(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
+async fn update_set(_connection: MutexGuard<'_, MultiplexedConnection>, _params: UpdateCmd) -> Value {
     unimplemented!();
 }
 
@@ -348,11 +348,11 @@ struct FieldValue {
 
 async fn execute_get_hash(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    _ds: String,
     params: HashGetCmd,
-    window: Window,
+    _window: Window,
 ) -> Value {
-    let mut start = Instant::now();
+    let start = Instant::now();
     let is_pattern_scan = !&params.pattern.is_empty();
 
     let mut cursor = params.cursor;
@@ -370,8 +370,8 @@ async fn execute_get_hash(
             .unwrap();
         let mut field_values: Vec<FieldValue> = result
             .chunks(2)
-            .flat_map(|mut pair| {
-                pair[1].chunks(2).map(|mut fv| {
+            .flat_map(|pair| {
+                pair[1].chunks(2).map(|fv| {
                     let (field, content) = (fv[0].clone(), fv[1].clone());
                     FieldValue { field, content }
                 })
@@ -399,9 +399,9 @@ async fn execute_get_hash(
 
 async fn execute_get_string(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    _ds: String,
     params: GetStringCmd,
-    window: Window,
+    _window: Window,
 ) -> Value {
     let result: String = cmd("GET").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
     json!({
@@ -417,9 +417,9 @@ struct KeyInfoParam {
 
 async fn execute_key_info(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    _ds: String,
     params: KeyInfoParam,
-    window: Window,
+    _window: Window,
 ) -> Value {
     let mut usage = 0;
     let mut data_len = 0;
@@ -461,7 +461,7 @@ async fn execute_key_info(
         let mut hlen_cmd0 = cmd(len_cmd_str.unwrap());
         let type_len_cmd = hlen_cmd0.arg(&params.key)
             .query_async::<i32>(cloned_conn);
-        let (exists, ttl, usage_result, encoding_result, type_len_result) = tokio::join!(
+        let (exists, _ttl, usage_result, encoding_result, type_len_result) = tokio::join!(
             exists_cmd,
             ttl_cmd,
             memory_cmd,
@@ -505,9 +505,9 @@ struct TypeCmd {
 
 async fn execute_type_cmd(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    _ds: String,
     params: TypeCmd,
-    window: Window,
+    _window: Window,
 ) -> Value {
     // connect to redis
     let result: String = cmd("TYPE").arg(params.key).query_async(connection.deref_mut()).await.unwrap();
@@ -533,9 +533,9 @@ struct MemberScoreValue {
 
 async fn execute_zrange_members(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    _ds: String,
     params: ZRangeParam,
-    window: Window,
+    _window: Window,
 ) -> Value {
     let page_size = params.size.abs() as usize;
 
@@ -672,9 +672,9 @@ struct ListMemberScoreValue {
 
 async fn execute_lrange_members(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    _ds: String,
     params: LRangeParam,
-    window: Window,
+    _window: Window,
 ) -> Value {
     let is_pattern_scan = match &params.pattern {
         None => false,
@@ -736,9 +736,9 @@ struct SScanParam {
 
 async fn execute_sscan(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    _ds: String,
     params: SScanParam,
-    window: Window,
+    _window: Window,
 ) -> Value {
     let mut scan_cmd = Cmd::new();
     scan_cmd.arg("SSCAN").arg(&params.key).arg(&params.start);
@@ -774,7 +774,7 @@ struct ScanCmd {
 
 async fn execute_scan_cmd(
     mut redis_pool: State<'_, RedisPool>,
-    ds: String,
+    _ds: String,
     params: ScanCmd,
     window: Window,
 ) -> Value {

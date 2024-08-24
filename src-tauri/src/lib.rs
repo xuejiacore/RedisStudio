@@ -12,6 +12,8 @@ mod net;
 pub mod storage;
 pub mod view;
 
+pub mod constant;
+
 #[derive(Debug, thiserror::Error)]
 pub enum CmdError {
     #[error("unsupported datatype: {0}")]
