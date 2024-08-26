@@ -4,15 +4,15 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 const REGX_NUMERIC: &str = r"\d+";
-const REGX_DATE: &str = r"^\d{4}(-?)\d{2}\d{2}$";
+const REGX_DATE: &str = r"\d{4}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])";
 const REGX_ALPHABET: &str = "[a-zA-Z]+";
 const REGX_ALPHABET_NUM: &str = "[a-zA-Z0-9]+";
 const REGX_ALPHABET_NUM_BAR: &str = "[a-zA-Z0-9_-]+";
 
 lazy_static! {
-    static ref NUMERIC_ALPHABETIC_PATTERN: Regex = Regex::new(REGX_ALPHABET_NUM).unwrap();
-    static ref NUM_ALPHA_UNDERLINE_PATTERN: Regex = Regex::new(REGX_ALPHABET_NUM_BAR).unwrap();
-    static ref YYYY_MM_DD_PATTERN: Regex = Regex::new(REGX_DATE).unwrap();
+    static ref NUMERIC_ALPHABETIC_PATTERN: Regex = Regex::new("^[a-zA-Z0-9]+$").unwrap();
+    static ref NUM_ALPHA_UNDERLINE_PATTERN: Regex = Regex::new("^[a-zA-Z0-9_-]+$").unwrap();
+    static ref YYYY_MM_DD_PATTERN: Regex = Regex::new(r"^\d{4}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$").unwrap();
 }
 
 /// manager of pattern inference engines.
@@ -144,19 +144,19 @@ impl PatternInferenceEngine {
                 regex_parts.push(format!("{}", regex::escape(unique_parts.iter().next().unwrap())));
             } else if unique_parts.iter().all(|x| YYYY_MM_DD_PATTERN.is_match(x)) {
                 regex_parts.push(REGX_DATE.to_string());
-                recognized_score += 0.2f32;
+                recognized_score += 0.2;
             } else if unique_parts.iter().all(|&x| x.chars().all(char::is_numeric)) {
                 regex_parts.push(REGX_NUMERIC.to_string());
-                recognized_score += 0.1f32;
+                recognized_score += 0.1;
             } else if unique_parts.iter().all(|&x| x.chars().all(char::is_alphabetic)) {
                 regex_parts.push(REGX_ALPHABET.to_string());
-                recognized_score += 0.3f32;
+                recognized_score += 0.3;
             } else if unique_parts.iter().all(|&x| NUMERIC_ALPHABETIC_PATTERN.is_match(x)) {
                 regex_parts.push(REGX_ALPHABET_NUM.to_string());
-                recognized_score += 0.4f32;
+                recognized_score += 0.4;
             } else if unique_parts.iter().all(|&x| NUM_ALPHA_UNDERLINE_PATTERN.is_match(x)) {
                 regex_parts.push(REGX_ALPHABET_NUM_BAR.to_string());
-                recognized_score += 0.5f32;
+                recognized_score += 0.5;
             } else {
                 regex_parts.push("[^:]+".to_string());
             }

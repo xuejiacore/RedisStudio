@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use tantivy::query::{BooleanQuery, FuzzyTermQuery, Occur, Query, TermQuery};
 use tantivy::schema::{IndexRecordOption, Schema};
 use tantivy::tokenizer::Tokenizer;
-use tantivy::Term;
+use tantivy::{Index, Term};
 use uuid::{uuid, Uuid};
 
 const SCOPE_SYS: u64 = 0;
@@ -137,30 +137,25 @@ impl RedisIndexer {
                     self.search_similar_key_names(datasource_id, key_ref, segment_len).await
                 };
 
-                // match result {
-                //     Ok(search_result) => {
-                //         if search_result.hits > 0 {
-                //             /*
-                //             unwrap the result from index, which documents matched by `key.keyword` and `datasource.keyword`.
-                //             then extract keys and doc_ids (for delete after recognized pattern).
-                //             */
-                //             let (mut keys, doc_ids) = Self::unwrap_unrecognized_pattern(search_result);
-                //             // combine current key to history for inferring.
-                //             keys.push(key_ref.to_string());
-                //
-                //             match self.fast_infer(datasource_id, &keys).await {
-                //                 None => None,
-                //                 Some(result) => self.save_new_recognized_pattern(datasource_id, &mut keys, &doc_ids, result).await
-                //             }
-                //         } else {
-                //             // insert into temporary index.
-                //             self.save_unrecognized(datasource_id, segment, key_ref).await;
-                //             None
-                //         }
-                //     }
-                //     Err(_) => None
-                // }
-                None
+                let search_result = result.unwrap();
+                if search_result.hits > 0 {
+                    /*
+                    unwrap the result from index, which documents matched by `key.keyword` and `datasource.keyword`.
+                    then extract keys and doc_ids (for delete after recognized pattern).
+                    */
+                    let (mut keys, doc_ids) = Self::unwrap_unrecognized_pattern(search_result);
+                    // combine current key to history for inferring.
+                    keys.push(key_ref.to_string());
+
+                    match self.fast_infer(datasource_id, &keys).await {
+                        None => None,
+                        Some(result) => self.save_new_recognized_pattern(datasource_id, &mut keys, &doc_ids, result).await
+                    }
+                } else {
+                    // insert into temporary index.
+                    self.save_unrecognized(datasource_id, segment, key_ref).await;
+                    None
+                }
             }
             Some(result) => Some(result)
         }
@@ -180,7 +175,11 @@ impl RedisIndexer {
             "segment": segment_len,
         });
         let indexer = self.tantivy_indexer.lock().unwrap();
-        let _ = indexer.write_json(IDX_NAME_UNRECOGNIZED_PATTERN, doc).await;
+        let index_map = indexer.indexes.lock().unwrap();
+        let index = index_map.get(IDX_NAME_UNRECOGNIZED_PATTERN).cloned();
+
+        let doc_json = doc.to_string();
+        TantivyIndexer::write_json_doc(&doc_json, &index.unwrap()).unwrap();
     }
 
     async fn save_new_recognized_pattern(&self, datasource_id: &str, keys: &mut Vec<String>, doc_ids: &Vec<String>, infer_result: InferResult) -> Option<InferResult> {
@@ -196,9 +195,58 @@ impl RedisIndexer {
         if let Some(mut eng) = try_engine {
             eng.load_known_pattern(vec![(pattern.clone(), score)]);
 
-            let indexer = self.tantivy_indexer.lock().unwrap();
             // index or update exists document record when pattern was recognized.
-            let _ = index_or_update(datasource_id, pattern.as_str(), score, &indexer, normalized_pattern, &keys, SCOPE_SYS).await;
+            let now = Utc::now();
+            let timestamp_millis = now.timestamp_millis();
+
+            let doc = json!({
+                "pattern.keyword": pattern,
+                "pattern": pattern,
+                "datasource.keyword": datasource_id,
+                "score": score,
+                "scope": SCOPE_SYS,
+                "ts": timestamp_millis,
+                "typical_samples": &keys,
+                "normalization": normalized_pattern,
+            });
+
+            // check exists document by `pattern.keyword`
+            let index = {
+                let indexer = self.tantivy_indexer.lock().unwrap();
+                let indexes = indexer.indexes.lock().unwrap();
+                indexes.get(IDX_NAME_KEY_PATTERN)?.clone()
+            };
+            let pattern_ref = pattern.as_str();
+
+            let query_exists_result = TantivyIndexer::searching_with_params(index.clone(), |index, search_params| {
+                let schema = index.schema();
+                let query = build_text_term(&schema, "pattern.keyword", pattern_ref);
+                search_params.with_limit_offset(1, 0).with_query(Box::new(query));
+            }).await;
+
+            let _ = match query_exists_result {
+                Ok(result) => {
+                    if result.size() > 0 {
+                        let index = {
+                            let indexer = self.tantivy_indexer.lock().unwrap();
+                            let indexes = indexer.indexes.lock().unwrap();
+                            indexes.get(IDX_NAME_KEY_PATTERN)?.clone()
+                        };
+                        let schema = index.schema();
+                        let pattern_keyword = schema.get_field("pattern.keyword").unwrap();
+                        let delete_term = Term::from_field_text(pattern_keyword, pattern_ref);
+                        // if !tantivy_indexer.delete(IDX_NAME_KEY_PATTERN, delete_term).await.unwrap() {
+                        //     return Err(IndexError::SystemErr(String::from("fail to delete old document.")));
+                        // }
+                    }
+                    let doc_json = doc.to_string();
+                    match TantivyIndexer::write_json_doc(&doc_json, &index) {
+                        Ok(_result) => Ok(()),
+                        Err(_err) => Err(IndexError::Unknown(String::from(""))),
+                    }
+                }
+                Err(err) => Err(IndexError::Unknown(err.to_string())),
+            };
 
             // delete temporary similar keys data.
             // clean_temporary_similar_keys(&indexer, &doc_ids).await;
@@ -245,29 +293,28 @@ impl RedisIndexer {
         key_ref: &str,
         segment_len: usize,
     ) -> crate::indexer::tantivy_indexer::Result<SearchResult> {
-        let indexer = {
+        let index = {
             let indexer = self.tantivy_indexer.lock()?;
-            // let idx = indexer.get_indexer(IDX_NAME_UNRECOGNIZED_PATTERN).await;
-            // idx.clone()
+            let idx = indexer.indexes.lock()?;
+            idx.get(IDX_NAME_UNRECOGNIZED_PATTERN).unwrap().clone()
         };
 
-        // TantivyIndexer::searching_with_params(indexer?, |index, search_params| {
-        //     let schema = index.schema();
-        //     let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource_id);
-        //     let key_kw_term_query = build_text_term(&schema, "key.keyword", key_ref);
-        //     let seg_len_term_query = build_text_term(&schema, "segment", &segment_len.to_string());
-        //
-        //     let mut sub_query = vec![
-        //         (Occur::Must, datasource_term_query),
-        //         (Occur::Must, seg_len_term_query),
-        //         (Occur::MustNot, key_kw_term_query),
-        //     ];
-        //     Self::construct_sub_query(key_ref, schema, &mut sub_query);
-        //     let query = BooleanQuery::new(sub_query);
-        //
-        //     search_params.with_limit_offset(50, 0).with_query(Box::new(query));
-        // }).await
-        Ok(SearchResult::default())
+        TantivyIndexer::searching_with_params(index, |index, search_params| {
+            let schema = index.schema();
+            let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource_id);
+            let key_kw_term_query = build_text_term(&schema, "key.keyword", key_ref);
+            let seg_len_term_query = build_text_term(&schema, "segment", &segment_len.to_string());
+
+            let mut sub_query = vec![
+                (Occur::Must, datasource_term_query),
+                (Occur::Must, seg_len_term_query),
+                (Occur::MustNot, key_kw_term_query),
+            ];
+            Self::construct_sub_query(key_ref, schema, &mut sub_query);
+            let query = BooleanQuery::new(sub_query);
+
+            search_params.with_limit_offset(50, 0).with_query(Box::new(query));
+        }).await
     }
 
     /// construct sub query by provided tokenizer.
@@ -341,45 +388,27 @@ async fn index_or_update(
     similar_keys: &Vec<String>,
     scope: u64,
 ) -> Result<()> {
-    let now = Utc::now();
-    let timestamp_millis = now.timestamp_millis();
 
-    let doc = json!({
-        "pattern.keyword": pattern,
-        "pattern": pattern,
-        "datasource.keyword": datasource,
-        "score": score,
-        "scope": scope,
-        "ts": timestamp_millis,
-        "typical_samples": similar_keys,
-        "normalization": normalized_pattern,
-    });
-
-    // check exists document by `pattern.keyword`
-    let query_exists_result = tantivy_indexer.search_with_params(IDX_NAME_KEY_PATTERN, |index, search_params| {
-        let schema = index.schema();
-        let query = build_text_term(&schema, "pattern.keyword", pattern);
-        search_params.with_limit_offset(1, 0).with_query(Box::new(query));
-    }).await;
-
-    match query_exists_result {
-        Ok(result) => {
-            if result.size() > 0 {
-                let indexer = tantivy_indexer.get_indexer(IDX_NAME_KEY_PATTERN).await.unwrap();
-                let schema = indexer.schema();
-                let pattern_keyword = schema.get_field("pattern.keyword").unwrap();
-                let delete_term = Term::from_field_text(pattern_keyword, pattern);
-                if !tantivy_indexer.delete(IDX_NAME_KEY_PATTERN, delete_term).await.unwrap() {
-                    return Err(IndexError::SystemErr(String::from("fail to delete old document.")));
-                }
-            }
-            match tantivy_indexer.write_json(IDX_NAME_KEY_PATTERN, doc).await {
-                Ok(_result) => Ok(()),
-                Err(_err) => Err(IndexError::Unknown(String::from(""))),
-            }
-        }
-        Err(err) => Err(IndexError::Unknown(err.to_string())),
-    }
+    //
+    // match query_exists_result {
+    //     Ok(result) => {
+    //         if result.size() > 0 {
+    //             let indexer = tantivy_indexer.get_indexer(IDX_NAME_KEY_PATTERN).await.unwrap();
+    //             let schema = indexer.schema();
+    //             let pattern_keyword = schema.get_field("pattern.keyword").unwrap();
+    //             let delete_term = Term::from_field_text(pattern_keyword, pattern);
+    //             if !tantivy_indexer.delete(IDX_NAME_KEY_PATTERN, delete_term).await.unwrap() {
+    //                 return Err(IndexError::SystemErr(String::from("fail to delete old document.")));
+    //             }
+    //         }
+    //         match tantivy_indexer.write_json(IDX_NAME_KEY_PATTERN, doc).await {
+    //             Ok(_result) => Ok(()),
+    //             Err(_err) => Err(IndexError::Unknown(String::from(""))),
+    //         }
+    //     }
+    //     Err(err) => Err(IndexError::Unknown(err.to_string())),
+    // }
+    Ok(())
 }
 
 /// index redis key name by tantivy indexer.

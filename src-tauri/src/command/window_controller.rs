@@ -5,7 +5,7 @@ use rand::distributions::Uniform;
 use rand::Rng;
 use tauri::utils::config::WindowConfig;
 use tauri::webview::PageLoadEvent;
-use tauri::{LogicalPosition, LogicalSize, Manager, PhysicalPosition, Position, Runtime, Size, WindowEvent, Wry};
+use tauri::{Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, Position, Runtime, Size, WindowEvent, Wry};
 
 const REDIS_PIN_LABEL_PREFIX: &str = "redispin_win:";
 

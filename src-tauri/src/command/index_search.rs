@@ -55,10 +55,18 @@ pub async fn infer_redis_key_pattern<R: Runtime>(
 ) -> Result<String> {
     match redis_indexer.infer(datasource, key).await {
         None => {
-            Err(CmdError::Unknown(String::from("")))
+            Ok(json!({
+                "recognized": false
+            }).to_string())
         }
         Some(infer_result) => {
-            Ok(infer_result.recognized_pattern)
+            let pattern = &infer_result.recognized_pattern;
+            let normalized = infer_result.normalized();
+            Ok(json!({
+                "recognized": true,
+                "pattern": pattern,
+                "normalized": normalized
+            }).to_string())
         }
     }
 }

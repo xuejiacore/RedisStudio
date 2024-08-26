@@ -15,7 +15,7 @@ use std::str::from_utf8;
 use std::sync::Mutex;
 use std::time::Instant;
 use std::vec::Vec;
-use tauri::{AppHandle, Manager, Pattern, State, Window, Wry};
+use tauri::{AppHandle, Emitter, Manager, Pattern, State, Window, Wry};
 use tokio::sync::MutexGuard;
 
 type Result<T> = std::result::Result<T, CmdError>;

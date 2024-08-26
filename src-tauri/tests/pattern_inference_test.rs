@@ -96,15 +96,15 @@ fn test_tokenize() {
 
 #[tokio::test]
 async fn test_infer_new_pattern() {
-    let datasource_id = "testdatasource0";
+    let datasource_id = "datasource01";
     let indexer = initialize_redis_indexer().await;
 
-    simple_test(&indexer, datasource_id, "15311:commodity:5512").await;
-    simple_test(&indexer, datasource_id, "3241:foo:2234").await;
-    simple_test(&indexer, datasource_id, "3221:commodity:24").await;
-    simple_test(&indexer, datasource_id, "3311:foo:1234").await;
-    simple_test(&indexer, datasource_id, "Ax23:commodity:24").await;
-    simple_test(&indexer, datasource_id, "42:foo:12").await;
+    simple_test(&indexer, datasource_id, "endlessSettle:10002274:1724517510486_6npl4pnd6f1mo").await;
+    simple_test(&indexer, datasource_id, "endlessSettle:10002274:1724516703006_6npl4phadrjeo").await;
+    // simple_test(&indexer, datasource_id, "3221:commodity:24").await;
+    // simple_test(&indexer, datasource_id, "3311:foo:1234").await;
+    // simple_test(&indexer, datasource_id, "Ax23:commodity:24").await;
+    // simple_test(&indexer, datasource_id, "42:foo:12").await;
 }
 
 async fn simple_test(redis_indexer: &RedisIndexer, datasource: &str, key: &str) {
@@ -134,6 +134,7 @@ async fn initialize_redis_indexer() -> RedisIndexer {
     let arc_inference_engine = Arc::new(Mutex::new(inference_engine));
     // create core redis indexer
     let redis_indexer = RedisIndexer::new(arc_indexer, arc_inference_engine);
+    redis_indexer.initialize_datasource_pattern("datasource01").await;
     redis_indexer
 }
 

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Formatter, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tantivy::collector::{Collector, SegmentCollector, TopDocs};
 use tantivy::query::{Query, QueryParser};
 use tantivy::schema::{Field, FieldType, Schema};
@@ -13,7 +13,6 @@ use tantivy::{
     SegmentOrdinal, SegmentReader, TantivyDocument, TantivyError, Term,
 };
 use thiserror::Error;
-use tokio::sync::Mutex;
 
 pub struct Count;
 
@@ -57,10 +56,10 @@ impl Collector for Count {
 #[derive(Clone)]
 pub struct TantivyIndexer {
     database_dir: PathBuf,
-    indexes: Arc<Mutex<HashMap<String, Index>>>,
+    pub indexes: Arc<Mutex<HashMap<String, Index>>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SearchResult {
     pub hits: usize,
     pub documents: Vec<Value>,
@@ -132,12 +131,12 @@ impl TantivyIndexer {
     }
 
     pub async fn add_index(&self, index_name: String, index: Index) {
-        let mut res = self.indexes.lock().await;
+        let mut res = self.indexes.lock().unwrap();
         res.insert(index_name, index);
     }
 
     pub async fn get_indexer(&self, index_name: &str) -> Result<Index> {
-        let res = self.indexes.lock().await;
+        let res = self.indexes.lock()?;
         match res.get(&index_name.to_string()) {
             Some(index) => Ok(index.clone()),
             None => Err(TantivyError::FieldNotFound(String::from(
@@ -239,7 +238,7 @@ impl TantivyIndexer {
         F: FnMut(&Index, &mut SearchParams),
     {
         let index_opt: Option<Index> = {
-            let res = self.indexes.lock().await;
+            let res = self.indexes.lock()?;
             res.get(index_name).cloned() // 假设 `index_name` 是 `&str` 类型，并且 `res` 是 `HashMap<String, Index>` 类型
         };
 
@@ -286,24 +285,29 @@ impl TantivyIndexer {
     }
 
     pub async fn write(&self, index_name: &str, document_json: &str) -> Result<()> {
-        let res = self.indexes.lock().await;
+        let res = self.indexes.lock()?;
 
         match res.get(index_name) {
             Some(index) => {
-                let schema = index.schema();
-                let mut writer = index.writer(15000000).unwrap();
-                let doc = serde_json::from_str(document_json).unwrap();
-                let document = Self::from_json_object(&schema, doc).unwrap();
-                writer.add_document(document)?;
-                writer.commit()?;
+                Self::write_json_doc(document_json, index)?;
                 Ok(())
             }
             None => Ok(()),
         }
     }
 
+    pub fn write_json_doc(document_json: &str, index: &Index) -> std::result::Result<(), TantivyError> {
+        let schema = index.schema();
+        let mut writer = index.writer(15000000)?;
+        let doc = serde_json::from_str(document_json)?;
+        let document = Self::from_json_object(&schema, doc)?;
+        writer.add_document(document)?;
+        writer.commit()?;
+        Ok(())
+    }
+
     pub async fn delete(&self, index_name: &str, delete_term: Term) -> Result<bool> {
-        let res = self.indexes.lock().await;
+        let res = self.indexes.lock()?;
         match res.get(index_name) {
             None => Err(TantivyError::SystemError(String::from("index not exists."))),
             Some(index) => {
