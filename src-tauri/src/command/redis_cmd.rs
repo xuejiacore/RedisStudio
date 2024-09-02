@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::fmt::{Error, Write};
 use std::ops::DerefMut;
 use std::str::from_utf8;
+use std::string::FromUtf8Error;
 use std::sync::Mutex;
 use std::time::Instant;
 use std::vec::Vec;
@@ -461,7 +462,7 @@ async fn execute_key_info(
         let mut hlen_cmd0 = cmd(len_cmd_str.unwrap());
         let type_len_cmd = hlen_cmd0.arg(&params.key)
             .query_async::<i32>(cloned_conn);
-        let (exists, _ttl, usage_result, encoding_result, type_len_result) = tokio::join!(
+        let (exists, ttl, usage_result, encoding_result, type_len_result) = tokio::join!(
             exists_cmd,
             ttl_cmd,
             memory_cmd,
@@ -474,6 +475,7 @@ async fn execute_key_info(
             encoding = encoding_result.unwrap_or(encoding);
             data_len = type_len_result.unwrap_or(data_len);
         }
+        ttl_val = ttl.unwrap();
     } else {
         let (exists, ttl, usage_result, encoding_result) = tokio::join!(
             exists_cmd,
@@ -667,6 +669,7 @@ struct LRangeParam {
 #[derive(Serialize, Deserialize)]
 struct ListMemberScoreValue {
     element: String,
+    bytes: Vec<u8>,
     idx: usize,
 }
 
@@ -693,7 +696,7 @@ async fn execute_lrange_members(
     loop {
         let mut cmd = Cmd::new();
         cmd.arg("LRANGE");
-        let result: Vec<String> = cmd
+        let result: Vec<Vec<u8>> = cmd
             .arg(&params.key)
             .arg(start)
             .arg(start + params.size - 1)
@@ -703,15 +706,28 @@ async fn execute_lrange_members(
         let cnt = result.len();
         for idx in 0..cnt {
             let element = result.get(idx).unwrap().clone();
-            if is_pattern_scan {
-                if !filter_pattern.is_match(&element) {
-                    continue;
+            match String::from_utf8(element.clone()) {
+                Ok(string) => {
+                    if is_pattern_scan {
+                        if !filter_pattern.is_match(&string) {
+                            continue;
+                        }
+                    }
+                    ret.push(ListMemberScoreValue {
+                        element: string,
+                        bytes: vec![],
+                        idx: params.start + idx,
+                    });
+                }
+                Err(_) => {
+                    ret.push(ListMemberScoreValue {
+                        element: String::from(""),
+                        bytes: element,
+                        idx: params.start + idx,
+                    });
                 }
             }
-            ret.push(ListMemberScoreValue {
-                element,
-                idx: params.start + idx,
-            });
+
         }
         if !is_pattern_scan || cnt == 0 || ret.len() >= params.size {
             break;

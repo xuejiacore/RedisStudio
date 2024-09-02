@@ -10,8 +10,9 @@
 
     input {
       height: 20px !important;
-      background: transparent !important;
+      border-radius: 0 !important;
       box-shadow: none !important;
+      caret-color: #375ca6;
     }
 
     .ant-select-selection-placeholder {
@@ -22,18 +23,40 @@
   }
 
   .ant-select-clear {
-    color: #909090 !important;
+    position: absolute;
+    top: 50%;
+    inset-inline-start: auto;
+    inset-inline-end: 11px;
+    z-index: 1;
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-top: -6px;
+    color: rgba(0, 0, 0, 0.25);
+    font-size: 12px;
+    font-style: normal;
+    line-height: 14px;
+    text-align: center;
+    text-transform: none;
+    background: #545151;
+    cursor: pointer;
+    opacity: 0;
+    text-rendering: auto;
+    border-radius: 4px;
   }
 }
 
 .ant-select-dropdown {
   background: #2B2D30 !important;
+  border-radius: 4px;
 
   .ant-select-item {
     color: #DCDFE2 !important;
     min-height: 18px;
     line-height: 18px;
     border-radius: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
   }
 
   .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
@@ -50,6 +73,6 @@
   }
 
   .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-    background-color: #373737;
+    background-color: #375ca6;
   }
 }

@@ -99,8 +99,18 @@ async fn test_infer_new_pattern() {
     let datasource_id = "datasource01";
     let indexer = initialize_redis_indexer().await;
 
-    simple_test(&indexer, datasource_id, "endlessSettle:10002274:1724517510486_6npl4pnd6f1mo").await;
-    simple_test(&indexer, datasource_id, "endlessSettle:10002274:1724516703006_6npl4phadrjeo").await;
+    simple_test(&indexer, datasource_id, "user:10001904:attr").await;
+    simple_test(&indexer, datasource_id, "user:10001905:attr").await;
+    simple_test(&indexer, datasource_id, "user:10001904:params").await;
+    simple_test(&indexer, datasource_id, "user:10001905:params").await;
+    simple_test(&indexer, datasource_id, "user:10001904:privilege").await;
+    simple_test(&indexer, datasource_id, "user:10001905:privilege").await;
+    simple_test(&indexer, datasource_id, "user:10001904:adv").await;
+    simple_test(&indexer, datasource_id, "user:10001907:adv").await;
+    simple_test(&indexer, datasource_id, "user:10001903:daily:20240826").await;
+    simple_test(&indexer, datasource_id, "user:10001907:daily:20240827").await;
+    simple_test(&indexer, datasource_id, "match:info:10002248:1724062323935_6npl22hb6l8g0").await;
+    simple_test(&indexer, datasource_id, "match:info:10002160:1723010547265_6npkvykwb162o").await;
     // simple_test(&indexer, datasource_id, "3221:commodity:24").await;
     // simple_test(&indexer, datasource_id, "3311:foo:1234").await;
     // simple_test(&indexer, datasource_id, "Ax23:commodity:24").await;
@@ -113,7 +123,7 @@ async fn simple_test(redis_indexer: &RedisIndexer, datasource: &str, key: &str) 
         None => println!("Unrecognized key: {}", key),
         Some(r) => {
             let normalization = r.normalized();
-            println!("{:?}, normalization: {}", r, normalization);
+            println!("{} => {:?}, normalization: {}", key, r, normalization);
         }
     }
 }

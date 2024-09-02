@@ -96,7 +96,7 @@ const CommonValueViewer: React.FC<CommonValueViewerProp> = (props, context) => {
     return <>
         <Editor
             className={'value-viewer'}
-            height={'60vh'}
+            height={'67vh'}
             language={language}
             theme={"redis-theme"}
             beforeMount={handleEditorWillMount}

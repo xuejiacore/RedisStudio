@@ -59,7 +59,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                     <Flex className={'project-selector'} gap={4} align='center' justify={'start'}>
                         <Space className={'selector'} onClick={onDatasourceClick}>
                             <div className={'project-icon'} style={{background: datasourceColor}}>BS</div>
-                            <div className={'project-name'}>本地测试</div>
+                            <div className={'project-name'}>Localhost</div>
                             <div className={'down-arrow'}></div>
                         </Space>
                         <Space className={'selector'} onClick={onDatabaseSelectorClick}>

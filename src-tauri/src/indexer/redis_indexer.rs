@@ -1,7 +1,7 @@
 use crate::constant;
 use crate::indexer::indexer_initializer::{IDX_NAME_KEY_PATTERN, IDX_NAME_UNRECOGNIZED_PATTERN};
 use crate::indexer::key_tokenize::RedisKeyTokenizer;
-use crate::indexer::simple_infer_pattern::{InferResult, PatternInferenceEngine, PatternInferenceEngines};
+use crate::indexer::simple_infer_pattern::{InferResult, PatternInferenceEngine, PatternInferenceEngines, REGX_ALPHABET};
 use crate::indexer::tantivy_indexer::{SearchResult, TantivyIndexer};
 use chrono::Utc;
 use regex::Regex;
@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use tantivy::query::{BooleanQuery, FuzzyTermQuery, Occur, Query, TermQuery};
 use tantivy::schema::{IndexRecordOption, Schema};
 use tantivy::tokenizer::Tokenizer;
-use tantivy::{Index, Term};
+use tantivy::{Index, IndexWriter, TantivyDocument, Term};
 use uuid::{uuid, Uuid};
 
 const SCOPE_SYS: u64 = 0;
@@ -61,7 +61,7 @@ impl RedisIndexer {
                 let keyword_pattern = schema.get_field("datasource.keyword").unwrap();
                 let term = Term::from_field_text(keyword_pattern, datasource);
                 let query = TermQuery::new(term, IndexRecordOption::Basic);
-                search_params.with_limit_offset(10, 0).with_query(Box::new(query));
+                search_params.with_limit_offset(100, 0).with_query(Box::new(query));
             }).await;
             query_result.clone()
         };
@@ -147,6 +147,7 @@ impl RedisIndexer {
                     // combine current key to history for inferring.
                     keys.push(key_ref.to_string());
 
+                    println!("合并后 test 数组：{:?}", &keys);
                     match self.fast_infer(datasource_id, &keys).await {
                         None => None,
                         Some(result) => self.save_new_recognized_pattern(datasource_id, &mut keys, &doc_ids, result).await
@@ -249,11 +250,26 @@ impl RedisIndexer {
             };
 
             // delete temporary similar keys data.
-            // clean_temporary_similar_keys(&indexer, &doc_ids).await;
+            self.clean_temporary_similar_keys(&doc_ids).await;
         }
         Some(infer_result)
     }
 
+    async fn clean_temporary_similar_keys(&self, doc_ids: &Vec<String>) {
+        let indexer = {
+            let indexer = self.tantivy_indexer.lock().unwrap();
+            let indexes = indexer.indexes.lock().unwrap();
+            indexes.get(IDX_NAME_UNRECOGNIZED_PATTERN).unwrap().clone()
+        };
+        for doc_id in doc_ids {
+            let schema = indexer.schema();
+            let doc_id_field = schema.get_field("doc_id").unwrap();
+            let delete_term = Term::from_field_text(doc_id_field, doc_id);
+            let mut writer: IndexWriter<TantivyDocument> = indexer.writer(15000000).unwrap();
+            writer.delete_term(delete_term);
+            writer.commit().unwrap();
+        }
+    }
     /// unwrap from tantivy search result
     ///
     /// ## Parameters
@@ -323,13 +339,17 @@ impl RedisIndexer {
         let mut token_stream = tokenizer.token_stream(key_ref);
         // build effective (exclude number) subquery by `Should` condition.
         let mut pattern_sub_query = vec![];
+        let regex = Regex::new("^[a-zA-Z]+$").unwrap();
         while token_stream.advance() {
             let token = token_stream.token();
             if token.text.parse::<i32>().is_err() {
-                let key_field = schema.get_field("key").unwrap();
-                let key_term = Term::from_field_text(key_field, &token.text);
-                let key_query: Box<dyn Query> = Box::new(TermQuery::new(key_term, IndexRecordOption::WithFreqsAndPositions));
-                pattern_sub_query.push((Occur::Should, key_query));
+                let is_pure_alphabet = regex.is_match(&token.text);
+                if is_pure_alphabet {
+                    let key_field = schema.get_field("key").unwrap();
+                    let key_term = Term::from_field_text(key_field, &token.text);
+                    let key_query: Box<dyn Query> = Box::new(TermQuery::new(key_term, IndexRecordOption::WithFreqsAndPositions));
+                    pattern_sub_query.push((Occur::Must, key_query));
+                }
             }
         }
         if !pattern_sub_query.is_empty() {
@@ -366,16 +386,6 @@ impl RedisIndexer {
             Ok(result) => Ok(result),
             Err(err) => Err(IndexError::SystemErr(err.to_string())),
         }
-    }
-}
-
-async fn clean_temporary_similar_keys(tantivy_indexer: &MutexGuard<'_, TantivyIndexer>, doc_ids: &Vec<String>) {
-    for doc_id in doc_ids {
-        let indexer = tantivy_indexer.get_indexer(IDX_NAME_UNRECOGNIZED_PATTERN).await.unwrap();
-        let schema = indexer.schema();
-        let doc_id_field = schema.get_field("doc_id").unwrap();
-        let delete_term = Term::from_field_text(doc_id_field, doc_id);
-        let _ = tantivy_indexer.delete(IDX_NAME_UNRECOGNIZED_PATTERN, delete_term).await.unwrap();
     }
 }
 

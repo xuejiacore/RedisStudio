@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, {useEffect, useRef, useState} from "react";
 import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
 import {Table} from "antd";
@@ -9,6 +10,7 @@ import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
+import {toHexString} from "../../../../utils/Util.ts";
 
 interface ListOperatorProp {
     data: any,
@@ -21,6 +23,7 @@ interface ListOperatorProp {
 interface DataType {
     key?: string;
     element?: string;
+    bytes?: Uint8Array
     rank?: number;
     idx?: number;
 }
@@ -56,6 +59,14 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
             </div>
         </>
     };
+    const renderBytesCell = (record: DataType) => {
+        return <>
+            <div className='table-row-data'>
+                <span className={'byte-element-tag'}>HEX</span>
+                <span className={'byte-element-value'}>{toHexString(record.bytes)}</span>
+            </div>
+        </>
+    };
     const columns: ColumnsType<DataType> = [
         {
             title: <>
@@ -74,7 +85,13 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
             dataIndex: 'element',
             key: 'element',
             ellipsis: true,
-            render: renderCell
+            render: (value: any, record: DataType, index: number) => {
+                if (record.bytes) {
+                    return renderBytesCell(record);
+                } else {
+                    return renderCell(value as string);
+                }
+            }
         }
     ];
 
@@ -101,7 +118,7 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
                     const pl: UpdateRequest = event.payload;
                     if (pl.type == 'list' && pl.key == currentKey.current) {
                         let isNewItem = true;
-                        let newDs = data.map(v => {
+                        const newDs = data.map(v => {
                             if (v.key == pl.field) {
                                 v.element = pl.value;
                                 isNewItem = false;

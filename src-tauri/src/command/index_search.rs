@@ -5,7 +5,8 @@ use crate::CmdError;
 use serde::{Serialize, Serializer};
 use serde_json::json;
 use std::sync::{Arc, Mutex, MutexGuard};
-use tantivy::TantivyError;
+use tantivy::query::{FuzzyTermQuery, RegexQuery};
+use tantivy::{TantivyError, Term};
 use tauri::ipc::InvokeError;
 use tauri::{Runtime, State, Wry};
 use tauri_plugin_sql::Error;
@@ -24,8 +25,27 @@ pub async fn search<R: Runtime>(
     _window: tauri::Window<Wry>,
 ) -> Result<String> {
     println!("search index: {}, query: {}", index_name, query);
-    match indexer.search(index_name, query, limit, offset).await {
-        Ok(result) => Ok(serde_json::to_string(&result).unwrap()),
+    match indexer.search_with_params(index_name, |index, params_builder| {
+        let schema = index.schema();
+        let normalize_field = schema.get_field("normalization").unwrap();
+        let regex_query = RegexQuery::from_pattern(query, normalize_field).unwrap();
+
+        params_builder
+            .with_limit_offset(limit, offset)
+            .with_query(Box::new(regex_query));
+    }).await {
+        Ok(result) => {
+            let hits = &result.hits;
+            let documents = &result.documents;
+            let ret = json!({
+                "results": [{
+                    "scene": "key_pattern",
+                    "hits": hits,
+                    "documents": documents,
+                }]
+            });
+            Ok(ret.to_string())
+        }
         Err(_err) => Err(CmdError::Unknown(String::from("sdd"))),
     }
 }

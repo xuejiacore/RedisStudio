@@ -201,7 +201,7 @@ fn init_database_selector_window(app: &mut App) -> TauriResult<()> {
         WindowEvent::Destroyed => {}
         WindowEvent::Focused(focused) => {
             if !focused {
-                //cloned_win.hide().unwrap();
+                cloned_win.hide().unwrap();
             }
         }
         WindowEvent::ScaleFactorChanged { .. } => {}

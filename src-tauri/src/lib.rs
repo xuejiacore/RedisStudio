@@ -13,6 +13,7 @@ pub mod storage;
 pub mod view;
 
 pub mod constant;
+pub mod dao;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CmdError {

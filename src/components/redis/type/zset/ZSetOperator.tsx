@@ -88,7 +88,8 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
         const scoreVal = parseFloat(text);
         const integerPart = Math.trunc(scoreVal);
         const decimalPart = scoreVal - integerPart;
-        const decimalPartStr = decimalPart > 0 ? text.toString().substring(3) : '';
+        const decimalIdx = text.toString().indexOf(".") + 1;
+        const decimalPartStr = decimalPart > 0 ? text.toString().substring(decimalIdx) : '';
         const decimalPartDom = decimalPartStr ? <>
             <span className='score-decimal-part'>.</span>
             <span className='score-decimal-part'>{decimalPartStr}</span>

@@ -2,7 +2,7 @@ import {Button, Collapse, Divider, Empty, Flex, Input, Space} from 'antd';
 import type {DataNode} from 'antd/es/tree';
 import React, {Key, useEffect, useMemo, useRef, useState} from "react";
 import "./RedisKeyTree.less"
-import {FileAddFilled, FileAddOutlined, LoadingOutlined, SearchOutlined} from "@ant-design/icons";
+import {FormOutlined, LoadingOutlined, SearchOutlined} from "@ant-design/icons";
 import DirectoryTree from 'antd/es/tree/DirectoryTree';
 import {rust_invoke} from '../../utils/RustIteractor';
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
@@ -477,7 +477,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                             size='small'
                             autoCapitalize={'none'}
                             autoCorrect={'off'}/>
-                    <FileAddOutlined className={'key-add-button'}/>
+                    <FormOutlined className={'key-add-button'}/>
                 </Flex>
             </div>
 
@@ -511,9 +511,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 <Space>
                     <span className={'redis-info-item'}>v {version}</span>
                     <Divider type="vertical"/>
-                    <span className={'redis-info-item'}>{memoryUsage}</span>
+                    <span className={'redis-info-item'}>{memoryUsage}<span className={'arrow up'}>↑</span></span>
                     <Divider type="vertical"/>
-                    <span className={'redis-info-item'}>{dbsize} keys</span>
+                    <span className={'redis-info-item'}>{dbsize}<span className={'arrow down'}>↓</span></span>
                 </Space>
             </Flex>
         </div>

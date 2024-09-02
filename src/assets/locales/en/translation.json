@@ -25,6 +25,16 @@
       }
     },
     "main": {
+      "search": {
+        "scene": {
+          "key_pattern": {
+            "label": "Matched Pattern"
+          },
+          "recently": {
+            "label": "Recently"
+          }
+        }
+      },
       "right_panel": {
         "tabs": {
           "outline": {
@@ -108,7 +118,7 @@
         "placeholder": "Search & Open Anything"
       },
       "empty": {
-        "description": "Type search query to find anything."
+        "description": "Could not found any matched items."
       }
     }
   }

@@ -22,6 +22,10 @@
   .datasource-tree-panel-search {
     padding: 4px 8px;
 
+    .ant-input-search .ant-input:hover, .ant-input-search .ant-input:focus {
+      border-color: transparent;
+    }
+
     .ant-input-search-button {
       height: 18px !important;
       line-height: 18px;
@@ -35,6 +39,11 @@
         color: #939393;
         height: 18px;
       }
+    }
+
+    .ant-input-search-button:hover {
+      border-color: transparent;
+      background: #4F5253;
     }
 
     .ant-input-search > span > input {
@@ -63,19 +72,20 @@
     }
 
     .key-add-button {
-      margin-top: 1px;
+      margin-top: 2px;
+      height: 12px;
       width: 12px;
       border-radius: 3px;
       padding: 3px 4px;
       color: #939393;
       background: #414349;
       margin-left: 4px;
+    }
 
-      :hover {
-        background: #54575e;
-        cursor: pointer;
-        color: #DFE0E0;
-      }
+    .key-add-button:hover {
+      background: #4F5253;
+      cursor: pointer;
+      color: #DFE0E0;
     }
   }
 

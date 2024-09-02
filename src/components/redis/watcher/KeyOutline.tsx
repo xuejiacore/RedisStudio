@@ -1,15 +1,17 @@
 import React, {useEffect, useRef, useState} from "react";
-import {Button, Divider, Empty, Flex, Form, Input, InputRef, Space, Tag} from "antd";
+import {Button, Divider, Empty, Flex, Form, Input, InputRef, Space} from "antd";
 import {FilterOutlined} from "@ant-design/icons";
 import {useTranslation} from "react-i18next";
 import "./index.less";
 import no_data_svg from "../../../assets/images/icons/no-data.svg";
 import {rust_invoke} from "../../../utils/RustIteractor.tsx";
-import {invoke} from "@tauri-apps/api/core";
+import RedisKeyTags from "../tags/RedisKeyTags.tsx";
+import {timeUntil} from "../../../utils/Util.ts";
 
 export interface OutlineAction {
     type?: string
 }
+
 interface KeyTagsProp {
     selectedKey?: string;
     selectedKeyType?: string;
@@ -57,11 +59,18 @@ function formatTtl(keyInfo: KeyInfo) {
         const hour = Math.round(Math.floor(ttl / 3600) % 24);
         const days = Math.floor(ttl / 86400);
 
-        const daysPart = days > 0 ? (<span className={'cd-days-part'}><i>+{days}d</i></span>) : (<></>);
         const hourPart = hour > 0 ? padZero(hour) + ':' : '';
         const minPart = min > 0 ? padZero(min) + ':' : '';
+        const expireAt = Math.round(Date.now() / 1000) + keyInfo.ttl;
+        const dp = timeUntil(expireAt * 1000);
+        let dayPart;
+        if (dp) {
+            dayPart = <span className={'cd-days-part'}><i>{dp}</i></span>;
+        } else {
+            dayPart = <></>;
+        }
         return (<>
-            <span>{hourPart}{minPart}{padZero(sec)}</span>{daysPart}
+            <span>{hourPart}{minPart}{padZero(sec)}</span>{dayPart}
         </>)
     }
 }
@@ -183,9 +192,6 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
             const keyInfo: KeyInfo = JSON.parse(r as string);
             setOutlineInfo(keyInfo);
         });
-        invoke("infer_redis_key_pattern", {key: props.selectedKey, datasource: "datasource01"}).then(r => {
-            console.log("获得结果", r);
-        })
     }, [props.selectedKey]);
     const searchInputRef = useRef<InputRef>(null);
 
@@ -264,6 +270,15 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
                      orientation="left">{t('redis.main.right_panel.tabs.outline.divider.recommend')}
             </Divider>
 
+            <Flex gap="4px 0" wrap="wrap">
+                <RedisKeyTags selectedKey={props.selectedKey} datasource={'datasource01'}/>
+            </Flex>
+
+            {/* Custom Tags */}
+            <Divider className={'divider'}
+                     orientation="left">{t('redis.main.right_panel.tabs.outline.divider.custom_tags')}
+            </Divider>
+
             <Empty
                 className={'empty'}
                 image={no_data_svg}
@@ -282,24 +297,6 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
                 )}
             >
             </Empty>
-
-            {/* Custom Tags */}
-            <Divider className={'divider'}
-                     orientation="left">{t('redis.main.right_panel.tabs.outline.divider.custom_tags')}
-            </Divider>
-
-            <Flex gap="4px 0" wrap="wrap">
-                {customTags.map(c => {
-                    return <Tag className={'key-tag'}
-                                closeIcon={true}
-                                color={c.color}
-                                key={c.id}
-                                onClose={preventDefault}
-                                onClick={e => showTagVars(c.id)}>
-                        {c.name}
-                    </Tag>
-                })}
-            </Flex>
 
             <Divider className={'divider'}
                      orientation="left">{t('redis.main.right_panel.tabs.outline.divider.tag_vars')}

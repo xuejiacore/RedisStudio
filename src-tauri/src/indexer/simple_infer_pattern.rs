@@ -3,16 +3,16 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-const REGX_NUMERIC: &str = r"\d+";
-const REGX_DATE: &str = r"\d{4}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])";
-const REGX_ALPHABET: &str = "[a-zA-Z]+";
-const REGX_ALPHABET_NUM: &str = "[a-zA-Z0-9]+";
-const REGX_ALPHABET_NUM_BAR: &str = "[a-zA-Z0-9_-]+";
+pub const REGX_NUMERIC: &str = r"\d+";
+pub const REGX_DATE: &str = r"([0-9]{3}[1-9]|[0-9]{2}[1-9][0-9]{1}|[0-9]{1}[1-9][0-9]{2}|[1-9][0-9]{3})-?((0[13578]|1[02])-?(0[1-9]|[12][0-9]|3[01])|(0[469]|11)-?(0[1-9]|[12][0-9]|30)|02-?(0[1-9]|1[0-9]|2[0-8])|(02-?29))";
+pub const REGX_ALPHABET: &str = "[a-zA-Z]+";
+pub const REGX_ALPHABET_NUM: &str = "[a-zA-Z0-9]+";
+pub const REGX_ALPHABET_NUM_BAR: &str = "[a-zA-Z0-9_-]+";
 
 lazy_static! {
     static ref NUMERIC_ALPHABETIC_PATTERN: Regex = Regex::new("^[a-zA-Z0-9]+$").unwrap();
     static ref NUM_ALPHA_UNDERLINE_PATTERN: Regex = Regex::new("^[a-zA-Z0-9_-]+$").unwrap();
-    static ref YYYY_MM_DD_PATTERN: Regex = Regex::new(r"^\d{4}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$").unwrap();
+    static ref YYYY_MM_DD_PATTERN: Regex = Regex::new(r"^([0-9]{3}[1-9]|[0-9]{2}[1-9][0-9]{1}|[0-9]{1}[1-9][0-9]{2}|[1-9][0-9]{3})-?((0[13578]|1[02])-?(0[1-9]|[12][0-9]|3[01])|(0[469]|11)-?(0[1-9]|[12][0-9]|30)|02-?(0[1-9]|1[0-9]|2[0-8])|(02-?29))$").unwrap();
 }
 
 /// manager of pattern inference engines.
@@ -100,6 +100,7 @@ impl PatternInferenceEngine {
             .map(|p| (p.0.unwrap(), p.1))
             .collect();
         patterns.append(&mut tmp);
+        println!("初始化完成:{}", patterns.len());
         (*patterns).sort_by(|a, b| a.1.total_cmp(&b.1))
     }
 
@@ -140,8 +141,13 @@ impl PatternInferenceEngine {
             }
 
             if unique_parts.len() == 1 {
-                contain_exactly_words = true;
-                regex_parts.push(format!("{}", regex::escape(unique_parts.iter().next().unwrap())));
+                if parts[0][i].parse::<i32>().is_err() {
+                    contain_exactly_words = true;
+                    regex_parts.push(format!("{}", regex::escape(unique_parts.iter().next().unwrap())));
+                } else {
+                    regex_parts.push(REGX_NUMERIC.to_string());
+                    recognized_score += 0.1;
+                }
             } else if unique_parts.iter().all(|x| YYYY_MM_DD_PATTERN.is_match(x)) {
                 regex_parts.push(REGX_DATE.to_string());
                 recognized_score += 0.2;

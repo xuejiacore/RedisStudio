@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, {useEffect, useRef, useState} from "react";
 import {Button, Col, Flex, Input, InputRef, Row} from "antd";
 import {LeftOutlined, PlusOutlined, RightOutlined} from "@ant-design/icons";
@@ -37,7 +38,7 @@ const RedisFooter: React.FC<RedisFooterProps> = (props, context) => {
     const [pageSize, setPageSize] = useState(props.pageSize || 5);
     const searchInputRef = useRef<InputRef>(null);
     const [inputValue, setInputValue] = useState('');
-    const debounceTimeoutRef = useRef<number>(0);
+    const debounceTimeoutRef = useRef<any>();
     const [pageInfo, setPageInfo] = useState(<></>);
 
     useEffect(() => {

@@ -1,3 +1,5 @@
+@border-radio: 8px;
+
 .right-watcher-panel-container {
   //background: red;
   height: calc(100vh);
@@ -70,24 +72,28 @@
     .label-space {
       row-gap: 0;
       color: @font-color;
-      padding-left: 10px;
+      padding-left: 6px;
 
       .label-text {
         font-size: 12px;
       }
 
       .label-time {
+        font-family: JetBrainsMonoBold, sans-serif;
         color: #BCBEC460;
         font-size: 8px;
       }
 
       .label-memory-size {
+        font-family: JetBrainsMonoBold, sans-serif;
         color: #BCBEC460;
         font-size: 10px;
       }
     }
 
     .ttl-countdown {
+      font-family: JetBrainsMonoBold, sans-serif;
+
       .cd-days-part {
         color: olivedrab;
         margin-left: 5px;
@@ -125,6 +131,14 @@
       line-height: 18px;
       border-radius: 4px;
       margin-top: 12px;
+    }
+
+    .key-tag {
+      margin-left: 14px;
+      max-width: 60%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .key-tag:hover {
@@ -184,7 +198,7 @@
     }
 
     .value-viewer {
-      border-radius: 3px;
+      border-radius: @border-radio;
       background: #1E1E1E;
       color: #BCBEC4;
       box-shadow: 0 0 1.5px #696C6C60;
@@ -262,4 +276,27 @@
       color: #c0c0c0;
     }
   }
+}
+
+.pattern-full-name {
+  .ant-tooltip-content {
+    font-size: 12px !important;
+  }
+}
+
+.monaco-editor {
+
+  .overflow-guard {
+    border-radius: @border-radio !important;
+  }
+
+  .monaco-mouse-cursor-text {
+  }
+
+  .margin-view-overlays {
+  }
+}
+
+.monaco-editor.mac {
+  border-radius: @border-radio !important;
 }
