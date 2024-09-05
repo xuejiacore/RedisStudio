@@ -160,9 +160,9 @@ const RedisFooter: React.FC<RedisFooterProps> = (props, context) => {
         <div className={'redis-footer ' + pinModeClass}>
             <Row>
                 <Col span={8}>
-                    <Flex gap="small" align="center" wrap="wrap">
+                    <Flex className={'right-button-group'} gap="small" align="center" wrap="wrap">
                         <Button
-                            className={'redis-footer-button first-btn'}
+                            className={`redis-footer-button first-btn ${pinModeClass}`}
                             type="default"
                             size="small"
                             icon={<PlusOutlined/>}

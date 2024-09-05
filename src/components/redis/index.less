@@ -313,8 +313,12 @@ div div.ant-collapse-item > div.ant-collapse-content > div > div {
   }
 
   // 第一个按钮左边距
-  .redis-footer-button.first-btn {
+  .right-button-group:first-child {
     margin-left: @footer-component-margin;
+  }
+
+  .redis-footer-button.first-btn.pinned {
+    display: none;
   }
 
   .redis-footer-button:hover {

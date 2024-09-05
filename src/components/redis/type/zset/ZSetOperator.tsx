@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, {useEffect, useRef, useState} from "react";
 import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
 import {Flex, Table} from "antd";
@@ -10,6 +11,7 @@ import {TableRowSelection} from "antd/es/table/interface";
 import {SortAscendingOutlined, SortDescendingOutlined} from "@ant-design/icons";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
+import {toHexString} from "../../../../utils/Util.ts";
 
 interface ZSetOperatorProp {
     data: any,
@@ -23,6 +25,7 @@ interface ZSetOperatorProp {
 interface DataType {
     key?: string;
     member?: string;
+    bytes?: Uint8Array
     score?: number;
     rank?: number;
     children?: any[];
@@ -84,6 +87,14 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
             </div>
         </>
     };
+    const renderBytesCell = (record: DataType) => {
+        return <>
+            <div className='table-row-data'>
+                <span className={'byte-element-tag'}>HEX</span>
+                <span className={'byte-element-value'}>{toHexString(record.bytes)}</span>
+            </div>
+        </>
+    };
     const scoreRender = (text: string) => {
         const scoreVal = parseFloat(text);
         const integerPart = Math.trunc(scoreVal);
@@ -135,7 +146,13 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
             dataIndex: 'member',
             key: 'member',
             ellipsis: true,
-            render: renderCell
+            render: (value: any, record: DataType, index: number) => {
+                if (record.bytes) {
+                    return renderBytesCell(record);
+                } else {
+                    return renderCell(value as string);
+                }
+            }
         }
     ];
 
@@ -166,11 +183,11 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
         const addListenerAsync = async (data: DataType[]) => {
             return new Promise<UnlistenFn>(resolve => {
                 listen('redis/update-value', (event) => {
-                    // @ts-ignore
+                    // @ts-expect-error
                     const pl: UpdateRequest = event.payload;
                     if (pl.type == 'zset' && pl.key == currentKey.current) {
                         let isNewItem = true;
-                        let newDs = data.map(v => {
+                        const newDs = data.map(v => {
                             if (v.key == pl.value) {
                                 v.score = parseFloat(pl.field!);
                                 isNewItem = false;

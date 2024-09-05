@@ -19,35 +19,40 @@ interface RedisKeyProp {
 const RedisKey: React.FC<RedisKeyProp> = (props, context) => {
     const ref = useRef(null);
     useEffect(() => {
-        const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting) {
-                if (!node.keyType || node.keyType == 'undefined') {
-                    rust_invoke("redis_key_type", {
-                        datasource_id: 'props.datasourceId',
-                        key: node.key
-                    }).then(ret => {
-                        const obj: { type: string } = JSON.parse(ret as string);
-                        node.keyType = obj.type;
-                    });
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    if (!node.keyType || node.keyType == 'undefined') {
+                        rust_invoke("redis_key_type", {
+                            datasource_id: 'props.datasourceId',
+                            keys: [node.key]
+                        }).then(ret => {
+                            const obj: { type: string } = JSON.parse(ret as string);
+                            node.keyType = obj.type;
+                        });
+                        observer.disconnect();
+                    }
                 }
-            } else {
-            }
+            })
         });
 
         if (ref.current) {
             observer.observe(ref.current);
         }
         return () => {
-            observer.disconnect();
+            if (ref.current) {
+                observer.unobserve(ref.current);
+            }
         }
     }, []);
-    let node = props.node;
+
+    const node = props.node;
     const deleteClz = '';//deletedKeys.has(data.key as string) ? ' deleted' : '';
     const keyTypeNameFirstChar = node.keyType?.substring(0, 1).toUpperCase();
-    let title = node.title as ReactNode;
+    const title = node.title as ReactNode;
     return <>
         <div ref={ref} className="tree-node-name">
-            <div className={"redis-type " + node.keyType + deleteClz}>{keyTypeNameFirstChar}</div>
+            <div className={"redis-type " + props.node.keyType + deleteClz}>{keyTypeNameFirstChar}</div>
             <div className={`redis-key-name ${title ? '' : 'empty'}`}>{title ? title : '<Empty>'}</div>
         </div>
     </>

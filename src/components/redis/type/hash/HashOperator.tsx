@@ -11,6 +11,7 @@ import {useTranslation} from "react-i18next";
 import {PushpinFilled} from "@ant-design/icons";
 import {TableRowSelection} from "antd/es/table/interface";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
+import SmartData from "../common/SmartData.tsx";
 
 interface HashOperatorProps {
     data: any;
@@ -32,6 +33,12 @@ interface HashGetResult {
     ttl: number,
     length: number,
     cursor: number,
+    pinned_fields: string[],
+}
+
+interface PinResult {
+    status: string;
+    fields: string[];
 }
 
 /**
@@ -41,6 +48,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     const {t} = useTranslation();
     const hasRun = useRef(false);
     const [fieldToolActivated, setFieldToolActivated] = useState('');
+    const [pinnedFields, setPinnedFields] = useState<string[]>([]);
     const [dataSource, setDataSource] = useState<DataType[]>([{key: '-'}]);
     const [key, setKey] = useState('');
     const [keyType, setKeyType] = useState('');
@@ -68,13 +76,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     const [comHeight, setComHeight] = useState(calParentHeight());
 
     const renderCell = (text: string) => {
-        return text ? <>
-            <div className='table-row-data'>{text}</div>
-        </> : <>
-            <div className='table-row-data'>
-                <i className={'empty-data'}>&lt;Empty&gt;</i>
-            </div>
-        </>
+        return <SmartData value={text}/>
     };
 
     const onFieldToolkitShowing = (fieldName: string, e: any, visible: boolean) => {
@@ -88,6 +90,14 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
 
     const onPushpinField = (e: React.MouseEvent<HTMLSpanElement>, field: string) => {
         e.stopPropagation();
+        const op = pinnedFields.includes(field) ? 'remove' : 'add';
+        invoke('pattern_add_tag', {datasourceId: 'datasource01', key: key, pinField: field, op: op}).then(r => {
+            const ret = r as PinResult;
+            if (ret.status == 'success') {
+                setPinnedFields(ret.fields);
+                onReload();
+            }
+        })
     };
 
     const renderField = (text: string) => {
@@ -96,8 +106,10 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                  onMouseOver={(e: any) => onFieldToolkitShowing(text, e, true)}
                  onMouseOut={(e: any) => onFieldToolkitShowing(text, e, false)}>
                 <div className='table-row-data'>{text}</div>
-                <div className={'field-tool ' + (fieldToolActivated === text ? 'activated' : '')}>
-                    <PushpinFilled className={`toolbar-btn pushpin-btn`} onClick={e => onPushpinField(e, text)}/>
+                <div className={'field-tool ' + (pinnedFields.includes(text) ? 'activated' : '')}>
+                    <PushpinFilled
+                        className={'toolbar-btn pushpin-btn ' + (pinnedFields.includes(text) ? 'selected' : '')}
+                        onClick={e => onPushpinField(e, text)}/>
                 </div>
             </div>
         </> : <>
@@ -245,6 +257,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         } else {
             rust_invoke("redis_get_hash", {
                 key: props.data.key,
+                datasource_id: "datasource01",
                 cursor: cursor,
                 count: pageSize,
                 pattern: scanPattern
@@ -252,6 +265,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                 const obj: HashGetResult = JSON.parse(r as string);
                 cachedPage.current.set(page, obj);
                 cachedPageShown.current = cachedPageShown.current + obj.field_values.length;
+                setPinnedFields(obj.pinned_fields);
                 setDynamicPageSize(page + Math.ceil((obj.length - cachedPageShown.current) / pageSize));
                 setNoMoreDataPage(obj.cursor <= 0);
                 fillData(obj);

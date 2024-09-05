@@ -1,8 +1,9 @@
-import {Button, Collapse, Divider, Empty, Flex, Input, Space} from 'antd';
-import type {DataNode} from 'antd/es/tree';
+import {Button, Collapse, Divider, Empty, Flex, Input, MenuProps, Space} from 'antd';
+import type {DataNode, EventDataNode} from 'antd/es/tree';
 import React, {Key, useEffect, useMemo, useRef, useState} from "react";
-import "./RedisKeyTree.less"
-import {FormOutlined, LoadingOutlined, SearchOutlined} from "@ant-design/icons";
+import "./RedisKeyTree.less";
+import "../menu/Menu.less";
+import {LoadingOutlined, PlusOutlined, SearchOutlined} from "@ant-design/icons";
 import DirectoryTree from 'antd/es/tree/DirectoryTree';
 import {rust_invoke} from '../../utils/RustIteractor';
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
@@ -11,11 +12,12 @@ import SystemProperties, {SysProp} from "../../utils/SystemProperties.ts";
 import FavoriteTree from "../favorite/FavoriteTree.tsx";
 import {useTranslation} from "react-i18next";
 import ConsoleIcon from "../icons/ConsoleIcon.tsx";
+import {invoke} from "@tauri-apps/api/core";
 import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
 
 const {Search} = Input;
 
-const MAX_PRELOAD_KEY_SIZE = 5;
+const MAX_PRELOAD_KEY_SIZE = 25;
 
 export type CustomDataNode = DataNode & {
     keyType?: string,
@@ -58,6 +60,46 @@ function formatNumber(num: number): string {
     return num.toString();
 }
 
+const items: MenuProps['items'] = [
+    {
+        label: <span className={'menu-simple-text'}>String</span>,
+        key: 'string',
+    },
+    {
+        label: <span className={'menu-simple-text'}>Hash</span>,
+        key: 'hash',
+    },
+    {
+        label: <span className={'menu-simple-text'}>List</span>,
+        key: 'list',
+    },
+    {
+        label: <span className={'menu-simple-text'}>Set</span>,
+        key: 'set',
+    },
+    {
+        label: <span className={'menu-simple-text'}>ZSet</span>,
+        key: 'zset',
+    },
+    {
+        type: 'divider',
+    },
+    {
+        label: 'Import',
+        key: '3',
+        children: [
+            {
+                key: '1-1',
+                label: <span className={'menu-simple-text'}>Json</span>,
+            },
+            {
+                key: '1-2',
+                label: <span className={'menu-simple-text'}>Raw</span>,
+            },
+        ],
+    },
+];
+
 const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     const {t} = useTranslation();
@@ -73,7 +115,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const [databases, setDatabases] = useState<any[]>([]);
     const [selectedDBIndex, setSelectedDBIndex] = useState(0);
     const [dataSources, setDataSources] = useState([]);
-    let set = new Set<string>();
+    const set = new Set<string>();
     const [deletedKeys, setDeletedKeys] = useState<Set<string>>(set);
     const [databasePopupMatchSelectWidth, setDatabasePopupMatchSelectWidth] = useState(140);
 
@@ -141,7 +183,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             if (lv == 0) {
                 rust_invoke("redis_key_type", {
                     datasource_id: props.datasourceId,
-                    key: node.key
+                    keys: [node.key]
                 }).then(ret => {
                     const obj: { type: string } = JSON.parse(ret as string);
                     node.keyType = obj.type;
@@ -347,22 +389,32 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         return <>${data.title}</>;
     }
 
-    const onExpand = (expandedKeys: Key[], info: {
+    const onExpand = async (expandedKeys: Key[], info: {
         node: any;
         expanded: boolean;
         nativeEvent: MouseEvent;
     }) => {
         const fetchKeyTypeList = info.node.children.slice(0, Math.min(info.node.children.length, MAX_PRELOAD_KEY_SIZE));
+        const keys = [];
         for (const child of fetchKeyTypeList) {
             if (child.isLeaf && !child.keyType) {
-                rust_invoke("redis_key_type", {
-                    datasource_id: props.datasourceId,
-                    key: child.key
-                }).then(ret => {
-                    const obj: { type: string } = JSON.parse(ret as string);
-                    child.keyType = obj.type;
-                });
+                keys.push(child.key);
+                child.keyType = 'unknown';
             }
+        }
+        if (keys.length > 0) {
+            rust_invoke("redis_key_type", {
+                datasource_id: props.datasourceId,
+                keys: keys
+            }).then(r => {
+                const resp = JSON.parse(r as string);
+                const types = resp.types;
+                for (const child of fetchKeyTypeList) {
+                    if (child.isLeaf) {
+                        child.keyType = types[child.key];
+                    }
+                }
+            });
         }
     };
 
@@ -415,6 +467,17 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             });
         }
     };
+
+    const onKeyTreeRightClick = (info: {
+        event: React.MouseEvent;
+        node: EventDataNode<CustomDataNode>;
+    }) => {
+        if (info.node.isLeaf) {
+            invoke("show_key_tree_right_menu", {}).then(r => {
+            });
+        }
+    }
+
     if (treeData) {
         treeDataDom = (<>
             <DirectoryTree
@@ -428,6 +491,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 checkable={false}
                 height={comHeight}
                 onSelect={props.onSelect}
+                onRightClick={onKeyTreeRightClick}
                 titleRender={onTitleRender}
                 style={{
                     background: "#2B2D30",
@@ -464,6 +528,14 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         </Empty>)
     }
 
+    const onAddClick = (e: React.MouseEvent) => {
+        invoke('show_add_new_key_menu', {
+            x: e.clientX,
+            y: e.clientY
+        }).then(r => {
+        })
+    }
+
     return (
         <div className='redis-key-tree-panel'>
             {/* key 检索输入 */}
@@ -477,7 +549,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                             size='small'
                             autoCapitalize={'none'}
                             autoCorrect={'off'}/>
-                    <FormOutlined className={'key-add-button'}/>
+                    <PlusOutlined className={'key-add-button'} onClick={onAddClick}/>
                 </Flex>
             </div>
 
@@ -495,11 +567,12 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             {/* 收藏的树信息 */}
             <Collapse defaultActiveKey={['2']} ghost accordion={true}
                       className={'core-redis-keys-tree'}
-                      items={[{
-                          key: '1',
-                          label: t('redis.key_tree.sub_tree.favor_count', {'count': 17}),
-                          children: <><FavoriteTree/></>
-                      },
+                      items={[
+                          {
+                              key: '1',
+                              label: t('redis.key_tree.sub_tree.favor_count', {'count': 17}),
+                              children: <><FavoriteTree/></>
+                          },
                           {
                               key: '2',
                               label: t('redis.key_tree.sub_tree.keys_count', {'keyCount': scannedKeyCount}),

@@ -1,0 +1,44 @@
+@font-color: #ADAFB4;
+
+.ant-dropdown, .ant-dropdown-menu-submenu {
+  background: transparent;
+
+  .ant-dropdown-menu, .ant-dropdown-menu-sub {
+    background: #2b2d30;
+    border-radius: 4px;
+    border: 1px solid rgba(98, 98, 99, 0.15);
+
+    .ant-dropdown-menu-item-divider {
+      background-color: rgba(149, 148, 148, 0.16);
+    }
+
+    .ant-dropdown-menu-item, .ant-dropdown-menu-submenu-title {
+      color: @font-color;
+      padding: 0 8px;
+
+      .menu-simple-text {
+        font-size: 12px;
+        font-family: JetBrainsMonoBold, sans-serif;
+      }
+
+      .ant-dropdown-menu-submenu-arrow-icon svg {
+        color: @font-color;
+      }
+    }
+
+    .ant-dropdown-menu-item.ant-dropdown-menu-item-active, .ant-dropdown-menu-submenu.ant-dropdown-menu-submenu-active {
+      background: #32436B;
+      color: #FFFFFF;
+      border-radius: 4px;
+
+      .ant-dropdown-menu-title-content {
+        color: #FFFFFF;
+      }
+
+      .ant-dropdown-menu-submenu-arrow-icon svg {
+        color: #FFFFFF;
+      }
+    }
+
+  }
+}

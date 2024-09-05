@@ -22,6 +22,16 @@
       text-overflow: ellipsis;
     }
 
+    .table-row-data.null {
+      color: #c7896a !important;
+    }
+
+    .table-row-data.null-text {
+      font-family: JetBrainsMonoRegular, sans-serif !important;
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
     .ant-table-row {
       .ant-table-cell-row-hover {
         @row-hover-background: #393B4035 !important;
@@ -47,6 +57,7 @@
         font-size: 12px;
         font-weight: bold;
       }
+
       .byte-element-value {
         margin-left: 5px;
         font-weight: bold;
@@ -196,7 +207,7 @@
   }
 
   .table-row-data {
-    color: #BBBDC2 !important;
+    color: #bbbdc2 !important;
   }
 
   .field-toolkits {
@@ -225,14 +236,18 @@
       background: #393B4070;
     }
 
+    .field-tool:hover {
+      display: block;
+      opacity: 1;
+    }
     .pushpin-btn:hover {
-      background: #393B40;
-      color: orange;
+      background: #393b40;
+      color: #E69808 !important;
       cursor: pointer;
     }
 
     .pushpin-btn.selected {
-      color: orange;
+      color: #E69808;
     }
   }
 
@@ -253,4 +268,13 @@
 
 .redis-datatable .pinned {
   height: calc(100vh - 38px) !important;
+}
+
+.ant-tooltip-content {
+  height: 26px;
+  .ant-tooltip-inner {
+    font-size: 10px;
+    height: 26px;
+    min-height: 26px;
+  }
 }

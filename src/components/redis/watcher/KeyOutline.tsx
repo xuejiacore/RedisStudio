@@ -6,7 +6,7 @@ import "./index.less";
 import no_data_svg from "../../../assets/images/icons/no-data.svg";
 import {rust_invoke} from "../../../utils/RustIteractor.tsx";
 import RedisKeyTags from "../tags/RedisKeyTags.tsx";
-import {timeUntil} from "../../../utils/Util.ts";
+import {timeUntil} from "../../../utils/TimeUtil.ts";
 
 export interface OutlineAction {
     type?: string

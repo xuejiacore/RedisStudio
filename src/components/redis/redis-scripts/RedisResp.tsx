@@ -42,7 +42,7 @@ const RedisResp: FC<RedisRespProp> = (props, context) => {
             if (message.indexOf("wrong kind of value") > 0) {
                 rust_invoke("redis_key_type", {
                     datasource_id: '',
-                    key: mybeKey
+                    keys: [mybeKey]
                 }).then(ret => {
                     const obj: { type: string } = JSON.parse(ret as string);
                     setErrMsg(t('redis.key_tree.command_script.error.wrong_kind_of_value', {'type': obj.type}));

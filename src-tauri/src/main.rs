@@ -13,6 +13,7 @@ use redisstudio::command::index_search;
 use redisstudio::command::menu_controller;
 use redisstudio::command::redis_cmd;
 use redisstudio::command::window_controller;
+use redisstudio::command::pattern_manager;
 use redisstudio::log::project_logger;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
@@ -87,17 +88,28 @@ fn main() {
             greet,
             close_splashscreen,
             open_spotlight_window,
+
+            // Searching
+            index_search::search,
+            index_search::write_index,
+            index_search::infer_redis_key_pattern,
+
+            // Pattern Manager
+            pattern_manager::pattern_add_tag,
+
+            // Window
             window_controller::open_redis_pushpin_window,
             window_controller::close_redis_pushpin_window,
             window_controller::on_redis_pushpin_window_shown,
             window_controller::prepare_pin_window,
-            index_search::search,
-            index_search::write_index,
-            index_search::infer_redis_key_pattern,
-            menu_controller::show_content_editor_menu,
-            menu_controller::show_auto_refresh_menu,
             window_controller::open_datasource_window,
             window_controller::open_database_selector_window,
+
+            // Menu
+            menu_controller::show_content_editor_menu,
+            menu_controller::show_auto_refresh_menu,
+            menu_controller::show_add_new_key_menu,
+            menu_controller::show_key_tree_right_menu,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

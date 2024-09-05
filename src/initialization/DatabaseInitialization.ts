@@ -81,10 +81,11 @@ function createSystemTables(executeInitSql: (sql: string, bindValues?: unknown[]
             description   TEXT,    -- description of tag
             meta          TEXT,    -- meta info json for pattern, eg: {"userId":"用户ID","nid":"NID"}
             last_vars     TEXT,    -- last variables record, eg: {"userId":"foo", "nid":"bar"}
-            datasource_id INTEGER, -- datasource id
-            create_time   INTEGER,
-            update_time   INTEGER,
-            mode          INTEGER  -- match mode, 1: exact 2: fuzzy
+            datasource_id TEXT,    -- datasource id
+            create_time   INTEGER, -- create time
+            update_time   INTEGER, -- update time
+            mode          INTEGER, -- match mode, 1: exact 2: fuzzy
+            pin_meta      TEXT     -- pinned field
         )
     `);
 

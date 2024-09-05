@@ -1,5 +1,7 @@
-use crate::{command, CmdError};
+use crate::indexer::redis_indexer::RedisIndexer;
 use crate::storage::redis_pool::RedisPool;
+use crate::storage::sqlite_storage::SqliteStorage;
+use crate::{command, CmdError};
 use futures::future::MaybeDone::Future;
 use log::debug;
 use redis::aio::{ConnectionLike, MultiplexedConnection};
@@ -7,8 +9,8 @@ use redis::{cmd, Cmd, Commands, Connection, FromRedisValue, RedisResult, RedisWr
 use regex::{Match, Regex};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::ColumnIndex;
-use std::collections::BTreeMap;
+use sqlx::{ColumnIndex, Row};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Error, Write};
 use std::ops::DerefMut;
 use std::str::from_utf8;
@@ -43,19 +45,27 @@ impl Default for RedisCmd {
 #[tauri::command]
 pub async fn redis_invoke(
     data: &str,
-    app: tauri::AppHandle,
-    window: tauri::Window<Wry>,
+    app: AppHandle,
+    window: Window<Wry>,
     redis_pool: State<'_, RedisPool>,
+    sqlite: State<'_, SqliteStorage>,
+    redis_indexer: State<'_, RedisIndexer>,
 ) -> Result<String> {
-    Ok(dispatch_redis_cmd(data, app, window, redis_pool).await.to_string())
+    Ok(dispatch_redis_cmd(data, app, window, redis_pool, sqlite, redis_indexer).await.to_string())
 }
 
-pub async fn dispatch_redis_cmd(cmd_data: &str, _app: AppHandle, window: Window, redis_pool: State<'_, RedisPool>) -> Value {
+pub async fn dispatch_redis_cmd(
+    cmd_data: &str,
+    _app: AppHandle,
+    window: Window,
+    redis_pool: State<'_, RedisPool>,
+    sqlite: State<'_, SqliteStorage>,
+    redis_indexer: State<'_, RedisIndexer>,
+) -> Value {
     let redis_cmd: RedisCmd = serde_json::from_str(cmd_data).unwrap();
     let _param_json = redis_cmd.param_json;
 
     debug!("cmd = {}, params = {}", &redis_cmd.cmd.clone(), cmd_data);
-    // TODO: select runtime redis datasource id.
     let datasource_id = redis_cmd.datasource_id;
     let arc = redis_pool.fetch_connection("test").await;
     let mut con = arc.lock().await;
@@ -81,6 +91,8 @@ pub async fn dispatch_redis_cmd(cmd_data: &str, _app: AppHandle, window: Window,
             datasource_id,
             serde_json::from_str(cmd_data).unwrap(),
             window,
+            redis_indexer,
+            sqlite,
         ).await,
         "redis_get_string" => execute_get_string(
             con,
@@ -349,15 +361,52 @@ struct FieldValue {
 
 async fn execute_get_hash(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
+    ds: String,
     params: HashGetCmd,
     _window: Window,
+    redis_indexer: State<'_, RedisIndexer>,
+    sqlite: State<'_, SqliteStorage>,
 ) -> Value {
-    let start = Instant::now();
+    let mut data_result: Vec<FieldValue> = vec![];
     let is_pattern_scan = !&params.pattern.is_empty();
 
+    let mut pin_field_list = vec![];
+    if let Some(result) = redis_indexer.fast_infer(&ds, &vec![&params.key]).await {
+        let mut instance = sqlite.pool.lock().await;
+        let db = instance.get_mut("default").unwrap();
+        let rows = sqlx::query("select pin_meta from tbl_redis_custom_tag where pattern = $1")
+            .bind(&result.normalized())
+            .fetch_all(&*db)
+            .await
+            .unwrap();
+        if rows.len() > 0 {
+            let meta: String = rows[0].try_get("pin_meta").unwrap();
+            let pin_fields: Vec<&str> = meta.split(";").collect();
+            if !pin_fields.is_empty() {
+                if is_pattern_scan {
+                    // TODO:
+                }
+
+                let mget_result: Vec<Option<String>> = cmd("HMGET")
+                    .arg(&params.key)
+                    .arg(&pin_fields)
+                    .query_async(connection.deref_mut())
+                    .await
+                    .unwrap();
+                for (idx, field) in pin_fields.iter().enumerate() {
+                    let content_opt = mget_result[idx].clone();
+                    if let Some(content) = content_opt {
+                        pin_field_list.push(field.to_string());
+                        data_result.push(FieldValue { field: field.to_string(), content })
+                    }
+                }
+            }
+        } else {
+            println!("未查询到配置");
+        }
+    }
+
     let mut cursor = params.cursor;
-    let mut data_result: Vec<FieldValue> = vec![];
     loop {
         let result: Vec<Vec<String>> = cmd("HSCAN")
             .arg(&params.key)
@@ -377,6 +426,9 @@ async fn execute_get_hash(
                     FieldValue { field, content }
                 })
             })
+            .filter(|t| {
+                !pin_field_list.contains(&t.field)
+            })
             .collect();
         cursor = result[0][0].parse().unwrap();
 
@@ -388,13 +440,12 @@ async fn execute_get_hash(
 
     let length: i32 = cmd("HLEN").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
     let ttl: i32 = cmd("TTL").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
-    let duration = start.elapsed();
-    println!("open() 耗时: {:?}", duration);
     json!({
         "field_values": data_result,
         "length": length,
         "ttl": ttl,
-        "cursor": cursor
+        "cursor": cursor,
+        "pinned_fields": pin_field_list
     })
 }
 
@@ -502,7 +553,7 @@ async fn execute_key_info(
 
 #[derive(Serialize, Deserialize)]
 struct TypeCmd {
-    key: String,
+    keys: Vec<String>,
 }
 
 async fn execute_type_cmd(
@@ -511,9 +562,19 @@ async fn execute_type_cmd(
     params: TypeCmd,
     _window: Window,
 ) -> Value {
-    // connect to redis
-    let result: String = cmd("TYPE").arg(params.key).query_async(connection.deref_mut()).await.unwrap();
-    json!({"type": result})
+    let mut pipe = redis::pipe();
+    let cloned_keys = params.keys.clone();
+    params.keys.iter().for_each(|k| {
+        pipe.cmd("TYPE").arg(k);
+    });
+    let types: Vec<String> = pipe.query_async(connection.deref_mut()).await.unwrap();
+    let mut map = HashMap::new();
+    for idx in 0..cloned_keys.len() {
+        let key = &cloned_keys[idx];
+        let t = &types[idx];
+        map.insert(key, t);
+    }
+    json!({"types": map})
 }
 
 #[derive(Serialize, Deserialize)]
@@ -529,6 +590,7 @@ struct ZRangeParam {
 #[derive(Serialize, Deserialize)]
 struct MemberScoreValue {
     member: String,
+    bytes: Vec<u8>,
     score: f64,
     rank: usize,
 }
@@ -578,7 +640,7 @@ async fn execute_zrange_members(
             false => cmd.arg("ZRANGE"),
         };
 
-        let result: Vec<(String, f64)> = cmd
+        let result: Vec<(Vec<u8>, f64)> = cmd
             .arg(&params.key)
             .arg(start)
             .arg(end)
@@ -597,21 +659,40 @@ async fn execute_zrange_members(
             let item = result.get(idx).unwrap().clone();
             let member = item.0;
             let score = item.1;
-            if is_pattern_scan {
-                if !filter_pattern.is_match(&member) {
-                    continue;
-                }
-            }
 
             let rank = start + idx + 1;
-            let val = MemberScoreValue {
-                member,
-                score,
-                rank,
-            };
-            match params.size > 0 {
-                true => ret.push(val),
-                false => ret.insert(0, val),
+
+            match String::from_utf8(member.clone()) {
+                Ok(member_str) => {
+                    if is_pattern_scan {
+                        if !filter_pattern.is_match(&member_str) {
+                            continue;
+                        }
+                    }
+
+                    let val = MemberScoreValue {
+                        member: member_str,
+                        bytes: vec![],
+                        score,
+                        rank,
+                    };
+                    match params.size > 0 {
+                        true => ret.push(val),
+                        false => ret.insert(0, val),
+                    }
+                }
+                Err(_) => {
+                    let val = MemberScoreValue {
+                        member: String::from(""),
+                        bytes: member,
+                        score,
+                        rank,
+                    };
+                    match params.size > 0 {
+                        true => ret.push(val),
+                        false => ret.insert(0, val),
+                    }
+                }
             }
 
             fetch_count = fetch_count + 1;
@@ -727,7 +808,6 @@ async fn execute_lrange_members(
                     });
                 }
             }
-
         }
         if !is_pattern_scan || cnt == 0 || ret.len() >= params.size {
             break;

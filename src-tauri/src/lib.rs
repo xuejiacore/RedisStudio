@@ -14,6 +14,7 @@ pub mod view;
 
 pub mod constant;
 pub mod dao;
+pub mod menu;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CmdError {
