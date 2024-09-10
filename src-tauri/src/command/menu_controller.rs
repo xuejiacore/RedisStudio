@@ -1,6 +1,5 @@
 use tauri::menu::{ContextMenu, Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Manager, PhysicalPosition, Runtime, Window};
-use tokio::runtime::Handle;
+use tauri::{AppHandle, Manager, Runtime, Window};
 
 const MID_ADD_STRING: &str = "new_string";
 const MID_ADD_HASH: &str = "new_hash";
@@ -28,6 +27,11 @@ pub fn show_key_tree_right_menu<R: Runtime>(
     menu.popup(window).unwrap();
 }
 
+
+const MID_KEY_OP_CP: &str = "key_copy_content";
+const MID_KEY_OP_CP_AS: &str = "key_as";
+const MID_KEY_OP_DELETE: &str = "key_del";
+
 #[tauri::command]
 pub fn show_content_editor_menu<R: Runtime>(
     handle: tauri::AppHandle<R>,
@@ -40,10 +44,10 @@ pub fn show_content_editor_menu<R: Runtime>(
     let menu = Menu::with_items(
         app_handle,
         &[
-            &MenuItem::new(app_handle, "Copy Content", true, None::<&str>).unwrap(),
-            &MenuItem::new(app_handle, "Copy As", true, None::<&str>).unwrap(),
+            &MenuItem::with_id(app_handle, MID_KEY_OP_CP, "Copy Content", true, None::<&str>).unwrap(),
+            &MenuItem::with_id(app_handle, MID_KEY_OP_CP_AS, "Copy As", true, None::<&str>).unwrap(),
             &PredefinedMenuItem::separator(app_handle).unwrap(),
-            &MenuItem::new(app_handle, "Delete Row", true, None::<&str>).unwrap(),
+            &MenuItem::with_id(app_handle, MID_KEY_OP_DELETE, "Delete Row", true, None::<&str>).unwrap(),
         ],
     ).unwrap();
     menu.popup(window).unwrap();

@@ -11,6 +11,7 @@ import {TableRowSelection} from "antd/es/table/interface";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import {toHexString} from "../../../../utils/Util.ts";
+import SmartData from "../common/SmartData.tsx";
 
 interface ListOperatorProp {
     data: any,
@@ -86,10 +87,10 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
             key: 'element',
             ellipsis: true,
             render: (value: any, record: DataType, index: number) => {
-                if (record.bytes) {
+                if (record.bytes?.length! > 0) {
                     return renderBytesCell(record);
                 } else {
-                    return renderCell(value as string);
+                    return <SmartData value={value as string}/>;
                 }
             }
         }

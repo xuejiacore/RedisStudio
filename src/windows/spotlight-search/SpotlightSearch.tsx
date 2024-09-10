@@ -1,20 +1,24 @@
-import React from "react";
+import React, {useEffect, useRef} from "react";
 import "./index.less";
-import {Button, Divider, Flex, Input, Row, Space} from "antd";
+import {Flex, InputRef} from "antd";
+import SpotlightAutoComplete from "../../components/titlebar/spotlight/SpotlightAutoComplete.tsx";
+import "../../utils/i18n.ts";
 
 interface SpotlightSearchProp {
 }
 
 const SpotlightSearch: React.FC<SpotlightSearchProp> = (props, context) => {
+    const searchInputRef = useRef<InputRef>(null);
+
+    useEffect(() => {
+        searchInputRef.current?.focus();
+    }, []);
+
     return <>
-        <div className={'spotlight-search-container'}>
-            <div className={'visible-content'}>
-                <Flex justify={"center"} align={"flex-start"}>
-                    <Input placeholder={'Search anything.'} className={'input-style'} autoFocus/>
-                </Flex>
-                <Divider className={'divider'}/>
-            </div>
-        </div>
+        <Flex className={'spotlight-container'} justify={"center"} align={"flex-start"}>
+            {/*<Input ref={searchInputRef} placeholder={'Search anything.'} className={'input-style'}/>*/}
+            <SpotlightAutoComplete global={true}/>
+        </Flex>
     </>
 }
 

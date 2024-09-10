@@ -28,15 +28,6 @@
         "label": "main"
       },
       {
-        "decorations": false,
-        "height": 156,
-        "hiddenTitle": true,
-        "label": "splashscreen",
-        "url": "windows/splashscreen.html",
-        "width": 400,
-        "theme": "Dark"
-      },
-      {
         "height": 156,
         "label": "datasource-dropdown",
         "url": "windows/datasource-dropdown.html",
@@ -66,16 +57,16 @@
       },
       {
         "label": "spotlight-search",
-        "shadow": true,
+        "shadow": false,
         "fullscreen": false,
         "hiddenTitle": true,
         "maximizable": false,
-        "height": 200,
-        "width": 660,
+        "width": 502,
+        "height": 26,
         "resizable": false,
         "alwaysOnTop": true,
         "transparent": true,
-        "closable": true,
+        "closable": false,
         "visible": false,
         "titleBarStyle": "Overlay",
         "decorations": false,

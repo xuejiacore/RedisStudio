@@ -1,4 +1,4 @@
-import React, {ReactNode, useEffect, useRef} from "react";
+import React, {ReactNode, useEffect, useRef, useState} from "react";
 import type {DataNode} from "antd/es/tree";
 import {rust_invoke} from "../../utils/RustIteractor";
 
@@ -18,17 +18,28 @@ interface RedisKeyProp {
  */
 const RedisKey: React.FC<RedisKeyProp> = (props, context) => {
     const ref = useRef(null);
+    const node = props.node;
+    const deleteClz = '';//deletedKeys.has(data.key as string) ? ' deleted' : '';
+    const keyTypeNameFirstChar = node.keyType?.substring(0, 1).toUpperCase();
+    const title = node.title as ReactNode;
+    const [keyTypeFirstChart, setKeyTypeFirstChart] = useState(keyTypeNameFirstChar)
+    const [keyType, setKeyType] = useState<string | undefined>(node.keyType);
+
     useEffect(() => {
         const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     if (!node.keyType || node.keyType == 'undefined') {
+                    console.log(node);
                         rust_invoke("redis_key_type", {
-                            datasource_id: 'props.datasourceId',
+                            datasource_id: 'datasource01',
                             keys: [node.key]
                         }).then(ret => {
-                            const obj: { type: string } = JSON.parse(ret as string);
-                            node.keyType = obj.type;
+                            const obj= JSON.parse(ret as string);
+                            node.keyType = obj.types[node.key as string];
+                            console.log('设置 node: ' + node.keyType);
+                            setKeyTypeFirstChart(node.keyType?.substring(0, 1).toUpperCase())
+                            setKeyType(node.keyType);
                         });
                         observer.disconnect();
                     }
@@ -46,13 +57,9 @@ const RedisKey: React.FC<RedisKeyProp> = (props, context) => {
         }
     }, []);
 
-    const node = props.node;
-    const deleteClz = '';//deletedKeys.has(data.key as string) ? ' deleted' : '';
-    const keyTypeNameFirstChar = node.keyType?.substring(0, 1).toUpperCase();
-    const title = node.title as ReactNode;
     return <>
         <div ref={ref} className="tree-node-name">
-            <div className={"redis-type " + props.node.keyType + deleteClz}>{keyTypeNameFirstChar}</div>
+            <div className={"redis-type " + keyType + deleteClz}>{keyTypeFirstChart}</div>
             <div className={`redis-key-name ${title ? '' : 'empty'}`}>{title ? title : '<Empty>'}</div>
         </div>
     </>

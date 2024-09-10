@@ -17,15 +17,15 @@ const RedisResp: FC<RedisRespProp> = (props, context) => {
     const resp = props.resp;
     const cmd = resp.origin_cmd.split(" ");
     const baseCommand = cmd[0];
-    const mybeKey = cmd.length >= 2 ? cmd[1] : 'unknown';
+    const maybekey = cmd.length >= 2 ? cmd[1] : 'unknown';
     const type = REDIS_CMD_TYPE[baseCommand as RedisCommand] ?? "unknown";
 
     let keyName = <></>;
     let remainCommand;
-    if (type != 'unknown' && mybeKey != 'unknown') {
+    if (type != 'unknown' && maybekey != 'unknown') {
         remainCommand = cmd.slice(2).join(" ");
         keyName = <>
-            <span className={`redis-resp-key-name ${type}`}>{mybeKey}</span>&nbsp;
+            <span className={`redis-resp-key-name ${type}`}>{maybekey}</span>&nbsp;
         </>
     } else {
         remainCommand = cmd.slice(1).join(" ");
@@ -41,11 +41,11 @@ const RedisResp: FC<RedisRespProp> = (props, context) => {
         if (message) {
             if (message.indexOf("wrong kind of value") > 0) {
                 rust_invoke("redis_key_type", {
-                    datasource_id: '',
-                    keys: [mybeKey]
+                    datasource_id: 'datasource01',
+                    keys: [maybekey]
                 }).then(ret => {
-                    const obj: { type: string } = JSON.parse(ret as string);
-                    setErrMsg(t('redis.key_tree.command_script.error.wrong_kind_of_value', {'type': obj.type}));
+                    const obj = JSON.parse(ret as string);
+                    setErrMsg(t('redis.key_tree.command_script.error.wrong_kind_of_value', {'type': obj.types[maybekey]}));
                 });
             } else {
                 setErrMsg(message);

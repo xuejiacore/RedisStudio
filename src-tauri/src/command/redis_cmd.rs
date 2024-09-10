@@ -401,8 +401,6 @@ async fn execute_get_hash(
                     }
                 }
             }
-        } else {
-            println!("未查询到配置");
         }
     }
 
@@ -1016,6 +1014,10 @@ impl FromRedisValue for VisibleRedisResp {
             }
             redis::Value::Nil => {
                 resp.plain_text("(nil)".to_string());
+                Ok(resp)
+            }
+            redis::Value::SimpleString(ref val) => {
+                resp.plain_text(val.to_string());
                 Ok(resp)
             }
             _ => unimplemented!()

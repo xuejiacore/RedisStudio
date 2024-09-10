@@ -40,7 +40,7 @@ const Zookeeper: (props: ZookeeperProps) => JSX.Element = (props: ZookeeperProps
                             <div className={'empty-panel-tips-icon shortcut'}>
                                 <img src={mac_cmd_icon} alt={'cmd'}/>
                             </div>
-                            <div className={'empty-panel-tips-icon shortcut'}>K</div>
+                            <div className={'empty-panel-tips-icon shortcut'}>P</div>
                             <div className={'empty-panel-tips-icon tips'}>Open Anything</div>
                         </div>
                     </>

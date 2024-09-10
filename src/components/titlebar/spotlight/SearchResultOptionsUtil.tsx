@@ -11,6 +11,7 @@ interface OptionItem {
 interface ResultOptions {
     label?: JSX.Element;
     options: OptionItem[];
+    height: number;
 }
 
 /**
@@ -29,7 +30,8 @@ export interface SearchResultDto {
 function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined>): ResultOptions {
     if (result.hits == 0) {
         return {
-            options: []
+            options: [],
+            height: 0,
         };
     }
     let options: OptionItem[];
@@ -45,17 +47,20 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
             });
             return {
                 label: <span className={'group-name'}>{t('redis.main.search.scene.key_pattern.label')}</span>,
-                options: options
+                options: options,
+                height: (options.length + 1) * 23 + 38
             };
         case "recently":
             options = [];
             return {
                 label: <span className={'group-name'}>{t('redis.main.search.scene.recently.label')}</span>,
-                options: options
+                options: options,
+                height: (options.length + 1) * 23 + 38
             }
     }
     return {
-        options: []
+        options: [],
+        height: 0,
     };
 }
 
@@ -64,24 +69,27 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
  * @param data data
  * @param t translation
  */
-export const wrapSearchResult = (data: SearchResultDto, t: TFunction<"translation", undefined>) => {
+export function wrapSearchResult(data: SearchResultDto, t: TFunction<"translation", undefined>):
+    { opts: ResultOptions[], height: number } {
     if (data) {
         if (data.results) {
+            let height = 0;
             // @ts-ignore
             let ret: ResultOptions[] = [];
             for (const result of data.results) {
                 let unwrapped = unwrap(result, t);
                 if (unwrapped.options.length > 0) {
                     ret.push(unwrapped);
+                    height += unwrapped.height;
                 }
             }
             // @ts-ignore
-            return ret;
+            return {opts: ret, height: height};
         } else {
-            return [];
+            return {opts: [], height: 0};
         }
     } else {
-        return []
+        return {opts: [], height: 0};
     }
 }
 

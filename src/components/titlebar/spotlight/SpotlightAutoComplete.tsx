@@ -12,29 +12,8 @@ import {SearchResultDto, wrapSearchResult} from "./SearchResultOptionsUtil.tsx";
 import type {BaseSelectRef} from "rc-select";
 
 interface SpotlightSearchProp {
-
+    global?: boolean;
 }
-
-const renderTitle = (title: string) => (
-    <>
-        <span key={title} className={'spotlight-search-group'}>{title}</span>
-    </>
-);
-
-const renderItem = (title: string, count: number) => ({
-    value: title,
-    label: <>
-        <div
-            style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-            }}
-        >
-            <span className={'spotlight-search-item'}>{title}</span>
-            <span>{count}</span>
-        </div>
-    </>,
-});
 
 interface SearchData {
     text: string;
@@ -66,34 +45,27 @@ const useHotkeys = (keys: string, callback: any) => {
 };
 
 
-const SpotlightSearch: React.FC<SpotlightSearchProp> = (props) => {
+const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
     const {t} = useTranslation();
     const [options, setOptions] = useState<any>();
-    const [data, setData] = useState<SearchData[]>([]);
     const debounceTimeoutRef = useRef<any>();
     const autoCompleteRef = useRef<BaseSelectRef | null>(null);
+    const [searchText, setSearchText] = useState('');
     useHotkeys('command+p', (event: any) => {
         if (autoCompleteRef) {
             autoCompleteRef.current?.focus();
             // autoCompleteRef.current?.blur();
         }
     });
-
     useEffect(() => {
+        if (props.global) {
+            resize_global_height(0, () => {
+            });
+        }
         return () => {
 
         }
     }, []);
-
-    const render = (data: SearchData[]) => {
-
-    }
-
-    useEffect(() => {
-        render(data);
-        return () => {
-        }
-    }, [data]);
 
     // 防抖函数
     function debounce(func: any, wait: any) {
@@ -109,10 +81,31 @@ const SpotlightSearch: React.FC<SpotlightSearchProp> = (props) => {
         };
     }
 
-    // 查询函数，这里进行了防抖处理
+    function resize_global_height(height: number, callback: () => void) {
+        if (height < 0) {
+            height = 26;
+        } else if (height == 0) {
+            height = 112;
+        }
+        invoke("resize_spotlight_window", {
+            height: height,
+        }).then(r => {
+            callback();
+        });
+    }
+
+// 查询函数，这里进行了防抖处理
     const debouncedQuery = debounce(async (val: string) => {
         try {
             const limit = val.length == 0 ? 5 : 10;
+            if (val.length == 0) {
+                if (props.global) {
+                    resize_global_height(0, () => {
+                        setOptions([]);
+                    });
+                }
+                return;
+            }
             invoke("search", {
                 indexName: 'key_pattern',
                 query: `.*${val}.*`,
@@ -120,9 +113,12 @@ const SpotlightSearch: React.FC<SpotlightSearchProp> = (props) => {
                 offset: 0
             }).then(r => {
                 const data: SearchResultDto = JSON.parse(r as string);
-                console.log(data);
                 const opt = wrapSearchResult(data, t);
-                setOptions(opt);
+                setOptions(opt.opts);
+                if (props.global) {
+                    resize_global_height(opt.height, () => {
+                    });
+                }
             });
         } catch (error) {
             console.error('Error fetching query result:', error);
@@ -135,19 +131,33 @@ const SpotlightSearch: React.FC<SpotlightSearchProp> = (props) => {
     return <>
         <AutoComplete
             ref={autoCompleteRef}
-            className="spotlight-search-input"
+            className={`spotlight-search-input ${props.global ? 'global' : ''}`}
             popupClassName="certain-category-search-dropdown"
             popupMatchSelectWidth={500}
             options={options}
             size="small"
+            open={props.global}
+            value={searchText}
             placeholder={<>
                 <MacCommandIcon style={{width: 12, color: '#505153'}}/> + P {t('redis.spotlight.input.placeholder')}
             </>}
             autoFocus={true}
             notFoundContent={<EmptySearchResult/>}
             allowClear={{clearIcon: <CloseOutlined/>}}
+            onDropdownVisibleChange={(open: boolean) => {
+                if (!open && props.global) {
+                    if (searchText.length == 0) {
+                        resize_global_height(0, () => {
+                            invoke('hide_spotlight_window', {}).then(_r => {
+                            });
+                        });
+                    }
+                }
+                setOptions([]);
+            }}
             onSelect={onSelect}
             onSearch={val => {
+                setSearchText(val);
                 debouncedQuery(val); // 每次输入都调用防抖后的查询函数
             }}
         >
@@ -155,4 +165,4 @@ const SpotlightSearch: React.FC<SpotlightSearchProp> = (props) => {
     </>
 }
 
-export default SpotlightSearch;
+export default SpotlightAutoComplete;

@@ -68,6 +68,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     const [pageChanged, setPageChanged] = useState(0);
     const [footerAction, setFooterAction] = useState<FooterAction>();
     const [maxFieldWidth, setMaxFieldWidth] = useState(180);
+    const [tableUniqueId, setTableUniqueId] = useState(Date.now())
 
     // 父组件的高度，用于计算树的最大高度
     const calParentHeight = () => (window.innerHeight
@@ -79,15 +80,6 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         return <SmartData value={text}/>
     };
 
-    const onFieldToolkitShowing = (fieldName: string, e: any, visible: boolean) => {
-        //console.log('onToolkitShow', props.data.key, fieldName, visible);
-        if (visible) {
-            setFieldToolActivated(fieldName);
-        } else {
-            setFieldToolActivated('');
-        }
-    };
-
     const onPushpinField = (e: React.MouseEvent<HTMLSpanElement>, field: string) => {
         e.stopPropagation();
         const op = pinnedFields.includes(field) ? 'remove' : 'add';
@@ -95,16 +87,14 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             const ret = r as PinResult;
             if (ret.status == 'success') {
                 setPinnedFields(ret.fields);
-                onReload();
+                onReload(false);
             }
         })
     };
 
     const renderField = (text: string) => {
         return text ? <>
-            <div className='field-toolkits'
-                 onMouseOver={(e: any) => onFieldToolkitShowing(text, e, true)}
-                 onMouseOut={(e: any) => onFieldToolkitShowing(text, e, false)}>
+            <div className='field-toolkits'>
                 <div className='table-row-data'>{text}</div>
                 <div className={'field-tool ' + (pinnedFields.includes(text) ? 'activated' : '')}>
                     <PushpinFilled
@@ -179,7 +169,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                             // 重新计算field宽度
                             let maxField: string | undefined = '';
                             newDs.forEach((c: DataType) => {
-                                if (c.field?.length! > maxField?.length!) {
+                                if (c.field!.length > maxField!.length!) {
                                     maxField = c.field;
                                 }
                             });
@@ -229,14 +219,14 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         const textWidth = span.offsetWidth;
         // 移除span元素
         document.body.removeChild(span);
-        setMaxFieldWidth(clamp(textWidth + 40, 60, 200));
+        setMaxFieldWidth(clamp(textWidth + 70, 60, 200));
     }
 
     function fillData(obj: HashGetResult) {
         let maxField: string | undefined = '';
         obj.field_values.forEach(c => {
             c.key = c.field;
-            if (c.field?.length! > maxField?.length!) {
+            if (c.field!.length > maxField!.length!) {
                 maxField = c.field;
             }
         })
@@ -248,6 +238,9 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     }
 
     function loadHashData(cursor: number) {
+        if (cursor <= 0) {
+            setTableUniqueId(Date.now());
+        }
         if (cachedPage.current.has(page)) {
             const obj = cachedPage.current.get(page);
             if (obj) {
@@ -277,15 +270,19 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         setKeyType(props.data.keyType);
     }
 
-    function clean() {
-        setPage(1);
-        setCursor(0);
+    function clean(page?: number) {
         setSelectedRowKeys([]);
         setMaxPage(1);
         setNoMoreDataPage(false);
-        setDynamicPageSize(0);
-        cachedPage.current.clear();
-        cachedPageShown.current = 0;
+        if (page) {
+            cachedPage.current.delete(page);
+        } else {
+            setPage(1);
+            setCursor(0);
+            cachedPage.current.clear();
+            cachedPageShown.current = 0;
+            setDynamicPageSize(0);
+        }
     }
 
     // 捕获hash的key值发生了变化，变化后需要重新请求后端数据加载
@@ -302,6 +299,8 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     useEffect(() => {
         if (cachedPage.current.size > 0) {
             loadHashData(cursor);
+        } else {
+            loadHashData(0);
         }
     }, [pageChanged]);
 
@@ -355,10 +354,15 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             setScanPattern('*');
         }
     };
-    const onReload = () => {
-        clean();
+    const onReload = (all: boolean) => {
+        console.log("重新加载数据：", pageChanged, cursor)
+        if (all) {
+            clean();
+        } else {
+            clean(page);
+        }
         if (pageChanged == 1) {
-            loadHashData(cursor);
+            loadHashData(0);
         } else {
             setPage(1);
             setPageChanged(1);
@@ -373,48 +377,50 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                       keyType={keyType}
                       pinMode={props.pinMode}
                       onClose={props.onClose}
-                      onReload={onReload}
+                      onReload={() => onReload(true)}
         />
         {/*<RedisTableView columns={columns}/>*/}
-        <Table columns={columns}
-               dataSource={dataSource}
-               size={"small"}
-               className={"redis-datatable " + (props.pinMode ? 'pinned' : '')}
-               pagination={false}
-               scroll={{y: comHeight}}
-               rowSelection={rowSelection}
-               onRow={(record: DataType) => {
-                   return {
-                       onClick: (e) => {
-                           if (e.ctrlKey || e.metaKey) {
-                               e.preventDefault()
-                               selectRow(record);
-                           } else {
-                               props.onFieldClicked({
-                                   key: record.key,
-                                   field: record.field,
-                                   value: record.content,
-                                   redisKey: props.data.key,
-                                   type: 'FIELD_CLK',
-                                   dataType: 'hash'
-                               });
-                           }
-                       },
-                       onContextMenu: (e) => {
-                           // 调用 Rust 代码显示右键菜单
-                           invoke('show_content_editor_menu', {
-                               x: e.clientX,
-                               y: e.clientY
-                           }).then(r => {
+        <Table
+            key={tableUniqueId}
+            columns={columns}
+            dataSource={dataSource}
+            size={"small"}
+            className={"redis-datatable " + (props.pinMode ? 'pinned' : '')}
+            pagination={false}
+            scroll={{y: comHeight}}
+            rowSelection={rowSelection}
+            onRow={(record: DataType) => {
+                return {
+                    onClick: (e) => {
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault()
+                            selectRow(record);
+                        } else {
+                            props.onFieldClicked({
+                                key: record.key,
+                                field: record.field,
+                                value: record.content,
+                                redisKey: props.data.key,
+                                type: 'FIELD_CLK',
+                                dataType: 'hash'
+                            });
+                        }
+                    },
+                    onContextMenu: (e) => {
+                        // 调用 Rust 代码显示右键菜单
+                        invoke('show_content_editor_menu', {
+                            x: e.clientX,
+                            y: e.clientY
+                        }).then(r => {
 
-                           });
-                       },
-                       onDoubleClick: (e) => {
-                           console.log('双击了行数据：key = ' + key, record);
-                           invoke("open_key_detail_window").then(r => console.log("全局搜索窗口打开", r))
-                       }
-                   }
-               }}
+                        });
+                    },
+                    onDoubleClick: (e) => {
+                        console.log('双击了行数据：key = ' + key, record);
+                        invoke("open_key_detail_window").then(r => console.log("全局搜索窗口打开", r))
+                    }
+                }
+            }}
         />
         <RedisFooter
             data={props.data}

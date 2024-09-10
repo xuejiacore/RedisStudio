@@ -5,7 +5,7 @@ import "./index.less";
 import {Col, Divider, Flex, Row, Space} from "antd";
 import DatabaseNumberIcon from "../icons/DatabaseNumberIcon.tsx";
 import DisconnectedIcon from "../icons/DisconnectedIcon.tsx";
-import SpotlightSearch from "./spotlight/SpotlightSearch.tsx";
+import SpotlightAutoComplete from "./spotlight/SpotlightAutoComplete.tsx";
 import {HistoryOutlined, SettingOutlined} from "@ant-design/icons";
 import {invoke} from "@tauri-apps/api/core";
 
@@ -77,7 +77,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                 </Col>
                 <Col span={12}>
                     <div className={'window-title-bar'} data-tauri-drag-region>
-                        <SpotlightSearch/>
+                        <SpotlightAutoComplete/>
                     </div>
                 </Col>
                 <Col span={6}>

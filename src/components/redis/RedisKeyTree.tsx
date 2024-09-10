@@ -118,6 +118,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const set = new Set<string>();
     const [deletedKeys, setDeletedKeys] = useState<Set<string>>(set);
     const [databasePopupMatchSelectWidth, setDatabasePopupMatchSelectWidth] = useState(140);
+    const [treeUniqueId, setTreeUniqueId] = useState(Date.now())
 
     const calParentHeight = () => (window.innerHeight
         || document.documentElement.clientHeight
@@ -164,6 +165,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         treeDataContext.cacheData = new Map<string, CustomDataNode>;
         setScannedKeyCount(0);
         setDeletedKeys(new Set<string>);
+        setTreeUniqueId(Date.now());
     }
 
     const packageDataNode = (data: CustomDataNode[] | any, array: string[], item: ScanItem, prePath: string, lv: number, context: TreeDataParseContext): number => {
@@ -185,8 +187,8 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     datasource_id: props.datasourceId,
                     keys: [node.key]
                 }).then(ret => {
-                    const obj: { type: string } = JSON.parse(ret as string);
-                    node.keyType = obj.type;
+                    const obj = JSON.parse(ret as string);
+                    node.keyType = obj.types[node.key as string];
                 });
             }
             const lv0LeafIdx = context.lv0LeafIndex.get(lv) ?? 0;
@@ -482,6 +484,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         treeDataDom = (<>
             <DirectoryTree
                 multiple
+                key={treeUniqueId}
                 defaultExpandAll={false}
                 // switcherIcon={<DownOutlined/>}
                 showLine={false}

@@ -16,6 +16,7 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
     const [greetMsg, setGreetMsg] = useState("");
     const [name, setName] = useState("");
     const [activityKey, setActivityKey] = useState("redis");
+    const [hasRun, setHasRun] = useState(false);
 
     // 注册全局快捷键
     const registerShortcut = (shortcut: string, handler: ShortcutHandler) => {
@@ -26,6 +27,7 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
                     });
                 });
             } else {
+                console.log("注册快捷键：", shortcut, registered);
                 register(shortcut, handler).then(() => {
                 });
             }
@@ -33,10 +35,13 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
     }
 
     useEffect(() => {
-        // registerShortcut('CommandOrControl+K', () => {
-        //     console.log('快捷键触发');
-        //     invoke("open_spotlight_window").then(r => console.log("全局搜索窗口打开", r));
-        // });
+        // if (!hasRun) {
+        //     setHasRun(true);
+        //     registerShortcut('CommandOrControl+K', () => {
+        //         console.log('快捷键触发');
+        //         invoke("open_spotlight_window").then(r => console.log("全局搜索窗口打开", r));
+        //     });
+        // }
         return () => {
         }
     }, []);

@@ -6,14 +6,14 @@ use std::any::Any;
 use sqlx::{Connection, Row};
 use tauri::ipc::private::FutureKind;
 use tauri::ipc::IpcResponse;
-use tauri::{Manager, Runtime, State, Wry};
+use tauri::{Manager, PhysicalPosition, PhysicalSize, Runtime, State, Wry};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 use redisstudio::command::index_search;
 use redisstudio::command::menu_controller;
+use redisstudio::command::pattern_manager;
 use redisstudio::command::redis_cmd;
 use redisstudio::command::window_controller;
-use redisstudio::command::pattern_manager;
 use redisstudio::log::project_logger;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
@@ -63,12 +63,24 @@ async fn close_splashscreen(window: tauri::Window<Wry>) {
 
 /// open spotlight window
 #[tauri::command]
-async fn open_spotlight_window<R: Runtime>(
-    _handle: tauri::AppHandle<R>,
+async fn hide_spotlight_window<R: Runtime>(
+    handle: tauri::AppHandle<R>,
     window: tauri::Window<Wry>,
 ) {
-    let search_win = window.get_window("spotlight-search").unwrap();
-    search_win.show().unwrap();
+    let search_win = handle.get_window("spotlight-search").unwrap();
+    search_win.hide().unwrap();
+}
+
+#[tauri::command]
+async fn resize_spotlight_window<R: Runtime>(
+    height: u32,
+    handle: tauri::AppHandle<R>,
+    window: tauri::Window<Wry>,
+) {
+    let search_win = handle.get_window("spotlight-search").unwrap();
+    let size = search_win.inner_size().unwrap();
+    let scale = 1;
+    search_win.set_size(PhysicalSize::new(size.width, height * scale)).unwrap();
 }
 
 fn main() {
@@ -87,7 +99,8 @@ fn main() {
             action,
             greet,
             close_splashscreen,
-            open_spotlight_window,
+            resize_spotlight_window,
+            hide_spotlight_window,
 
             // Searching
             index_search::search,

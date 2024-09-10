@@ -4,17 +4,23 @@ use redisstudio::indexer::redis_indexer::RedisIndexer;
 use redisstudio::indexer::simple_infer_pattern::PatternInferenceEngines;
 use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use redisstudio::menu::menu_manager;
-use redisstudio::menu::menu_manager::MenuManager;
+use redisstudio::menu::menu_manager::MenuContext;
 use redisstudio::storage::redis_pool::RedisPool;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
 use redisstudio::Launcher;
+use serde_json::json;
 use sqlx::{Connection, Pool};
+use ssh2::HostKeyType;
 use std::process;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tauri::async_runtime::set;
 use tauri::menu::{Menu, MenuId};
-use tauri::{App, Manager, PhysicalPosition, Window, WindowEvent, Wry};
+use tauri::utils::config::WindowConfig;
+use tauri::webview::PageLoadEvent;
+use tauri::{App, Emitter, Listener, Manager, PhysicalPosition, Window, WindowEvent, Wry};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_sql::Error;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 use window_vibrancy::{self, NSVisualEffectMaterial, NSVisualEffectState};
@@ -37,27 +43,12 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
     init_datasource_window(app)?;
     init_database_selector_window(app)?;
 
-    // let _redis_value_editor = init_redis_value_editor_window(app);
-    // _redis_value_editor.hide()?;
-    let splashscreen_window = app.get_window("splashscreen").unwrap();
-    splashscreen_window.hide()?;
+    let splashscreen_window = prepare_splashscreen_window(app);
+    splashscreen_window.show()?;
 
     let config_dir = app.path().app_config_dir().expect("No App path was found!");
     let mut cloned_dir = config_dir.clone();
     let app_handler = app.app_handle();
-
-    // prepare sqlite connection manager
-    let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
-        let instance = SqliteStorage::default();
-        let mut lock = instance.pool.lock().await;
-        cloned_dir.push("redisstudio.db");
-        let protocol = format!("sqlite:{}", cloned_dir.as_os_str().to_str().unwrap());
-        let pool = Pool::connect(&protocol.as_str()).await?;
-        let _ = lock.insert("default".to_string(), pool);
-        drop(lock);
-        app_handler.manage(instance);
-        Ok(())
-    });
 
     // prepare tantivy indexer.
     let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
@@ -72,19 +63,33 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     });
 
-    // prepare redis connection manager.
-    let _: Result<(), Error> = tauri::async_runtime::block_on(async move {
+    let cloned_app_handler = app_handler.clone();
+
+    // we perform the initialization code on a new task so the app doesn't freeze
+    tauri::async_runtime::spawn(async move {
+        splashscreen_window.emit("splashscreen_progress", json!({
+            "tips": "connect to sqlite"
+        })).unwrap();
+        // prepare sqlite connection manager
+        let instance = SqliteStorage::default();
+        let mut lock = instance.pool.lock().await;
+        cloned_dir.push("redisstudio.db");
+        let protocol = format!("sqlite:{}", cloned_dir.as_os_str().to_str().unwrap());
+        let pool = Pool::connect(&protocol.as_str()).await.unwrap();
+        let _ = lock.insert("default".to_string(), pool);
+        drop(lock);
+        cloned_app_handler.manage(instance);
+
+        splashscreen_window.emit("splashscreen_progress", json!({
+            "tips": "connect to redis"
+        })).unwrap();
+        // prepare redis connection manager.
         let pool = RedisPool::new();
         let client = redis::Client::open("redis://172.31.72.5/10").unwrap();
         let con = client.get_multiplexed_async_connection().await.unwrap();
         pool.add_new_connection("test".into(), con).await;
-        app_handler.manage(pool);
-        Ok(())
-    });
+        cloned_app_handler.manage(pool);
 
-    // we perform the initialization code on a new task so the app doesn't freeze
-    tauri::async_runtime::spawn(async move {
-        splashscreen_window.show().unwrap();
         // initialize your app here instead of sleeping :)
         println!("Initializing...");
         //std::thread::sleep(std::time::Duration::from_secs(10));
@@ -94,6 +99,9 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         command_dispatcher.setup();
         splashscreen_window.close().unwrap();
         main_window.show().unwrap();
+        splashscreen_window.emit("splashscreen_progress", json!({
+            "tips": "connect to redis2"
+        })).unwrap();
         //sqlite.initialize();
         // match sqlite.initialize().await {
         //     Ok(()) => {
@@ -135,18 +143,33 @@ fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<Window> {
         cloned_search_win.set_position(new_pos).unwrap();
     };
     reset_spotlight_search_win_pos();
+
+    // register global spotlight search shortcut
+    let global_shortcut_manager = app.handle().global_shortcut();
+    let search_win = spotlight_search_win.clone();
+    global_shortcut_manager.on_shortcut("CmdOrCtrl+K", move |handle, hotkey, event| {
+        match event.state {
+            ShortcutState::Pressed => {
+                reset_spotlight_search_win_pos();
+                search_win.show().unwrap();
+                search_win.set_focus().unwrap();
+            }
+            ShortcutState::Released => {}
+        }
+    }).expect("failed to register global shortcut");
+
     let app_handler = app.handle().clone();
     main_window.on_window_event(move |event| {
         match event {
             WindowEvent::Resized(_) => {}
             WindowEvent::Moved(_) => {
-                reset_spotlight_search_win_pos();
+                //reset_spotlight_search_win_pos();
             }
             WindowEvent::CloseRequested { .. } => {
                 info!("--------------- 主窗口关闭 ---------------");
                 // `tauri::AppHandle` now has the following additional method
                 //&app_handler.save_window_state(StateFlags::POSITION | StateFlags::SIZE); // will save the state of all open windows to disk
-                app_handler.exit(0);
+                // app_handler.exit(0);
             }
             WindowEvent::Destroyed => {}
             WindowEvent::Focused(_focused) => {}
@@ -229,7 +252,7 @@ fn init_spotlight_search_window(app: &mut App) -> Window {
         WindowEvent::Destroyed => {}
         WindowEvent::Focused(focused) => {
             if !focused {
-                cloned_spotlight_win.hide().unwrap();
+                //cloned_spotlight_win.hide().unwrap();
             }
         }
         WindowEvent::ScaleFactorChanged { .. } => {}
@@ -237,4 +260,68 @@ fn init_spotlight_search_window(app: &mut App) -> Window {
         _ => {}
     });
     win
+}
+
+fn prepare_splashscreen_window(app: &mut App) -> Window {
+    let handler = app.app_handle();
+    let label = String::from("splashscreen");
+    let mut config = WindowConfig::default();
+
+    // 预备一个窗口
+    config.label = label.clone();
+    config.title = label.clone();
+    config.decorations = false;
+    config.visible = true;
+    config.always_on_top = true;
+    config.width = 510f64;
+    config.height = 317f64;
+    config.min_width = Some(510f64);
+    config.min_height = Some(317f64);
+    config.transparent = true;
+    config.shadow = true;
+    config.hidden_title = true;
+
+    let webview_url = tauri::WebviewUrl::App("windows/splashscreen.html".into());
+    config.url = webview_url;
+    let window = tauri::window::WindowBuilder::from_config(handler, &config)
+        .unwrap()
+        .build()
+        .unwrap();
+    window.on_window_event(move |event| match event {
+        WindowEvent::Resized(_v) => {}
+        WindowEvent::Moved(_) => {}
+        WindowEvent::CloseRequested { .. } => {}
+        WindowEvent::Destroyed => {}
+        WindowEvent::Focused(_focused) => {}
+        WindowEvent::ScaleFactorChanged { .. } => {}
+        WindowEvent::ThemeChanged(_) => {}
+        _ => {}
+    });
+
+    // creat new webview to the window.
+    let mut init_script: String = String::from(
+        r#""#,
+    );
+
+    let webview_builder = tauri::webview::WebviewBuilder::from_config(&config)
+        .initialization_script(init_script.as_str())
+        .on_page_load(move |_webview, payload| {
+            match payload.event() {
+                PageLoadEvent::Started => {
+                    // println!("{} Started loading", payload.url());
+                }
+                PageLoadEvent::Finished => {
+                    // println!("{} Finished loading", payload.url());
+                    //cloned_win.show().unwrap();
+                }
+            }
+        })
+        .auto_resize();
+
+    let _ = window.add_child(
+        webview_builder,
+        tauri::LogicalPosition::new(0, 0),
+        window.inner_size().unwrap(),
+    ).unwrap();
+    window
 }

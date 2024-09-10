@@ -2,8 +2,8 @@ use crate::indexer::redis_indexer::RedisIndexer;
 use crate::indexer::simple_infer_pattern::InferResult;
 use crate::indexer::tantivy_indexer::TantivyIndexer;
 use crate::CmdError;
-use serde::{Serialize, Serializer};
-use serde_json::json;
+use serde::{Deserialize, Serialize, Serializer};
+use serde_json::{json, Value};
 use std::sync::{Arc, Mutex, MutexGuard};
 use tantivy::query::{FuzzyTermQuery, RegexQuery};
 use tantivy::{TantivyError, Term};
@@ -12,6 +12,30 @@ use tauri::{Runtime, State, Wry};
 use tauri_plugin_sql::Error;
 
 type Result<T> = std::result::Result<T, CmdError>;
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+struct SearchResultItem {
+    scene: String,
+    hits: usize,
+    documents: Vec<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+struct SearchResultDto {
+    results: Vec<SearchResultItem>,
+}
+
+impl SearchResultDto {
+    fn new() -> Self {
+        SearchResultDto {
+            results: Vec::new(),
+        }
+    }
+
+    fn add(&mut self, scene: String, hits: usize, documents: Vec<Value>) {
+        self.results.push(SearchResultItem { scene, hits, documents });
+    }
+}
 
 /// search documents by provided query string.
 #[tauri::command]
@@ -25,29 +49,26 @@ pub async fn search<R: Runtime>(
     _window: tauri::Window<Wry>,
 ) -> Result<String> {
     println!("search index: {}, query: {}", index_name, query);
-    match indexer.search_with_params(index_name, |index, params_builder| {
+    let search_from_index = indexer.search_with_params(index_name, |index, params_builder| {
         let schema = index.schema();
         let normalize_field = schema.get_field("normalization").unwrap();
         let regex_query = RegexQuery::from_pattern(query, normalize_field).unwrap();
-
         params_builder
             .with_limit_offset(limit, offset)
             .with_query(Box::new(regex_query));
-    }).await {
+    });
+
+    let mut search_result = SearchResultDto::new();
+    let (index_result, ) = tokio::join!(search_from_index);
+    match index_result {
         Ok(result) => {
             let hits = &result.hits;
             let documents = &result.documents;
-            let ret = json!({
-                "results": [{
-                    "scene": "key_pattern",
-                    "hits": hits,
-                    "documents": documents,
-                }]
-            });
-            Ok(ret.to_string())
+            search_result.add("key_pattern".to_string(), *hits, documents.clone());
         }
-        Err(_err) => Err(CmdError::Unknown(String::from("sdd"))),
+        Err(_) => {}
     }
+    Ok(json!(search_result).to_string())
 }
 
 /// add document to index.

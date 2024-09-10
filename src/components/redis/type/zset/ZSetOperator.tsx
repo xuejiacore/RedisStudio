@@ -12,6 +12,8 @@ import {SortAscendingOutlined, SortDescendingOutlined} from "@ant-design/icons";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import {toHexString} from "../../../../utils/Util.ts";
+import SmartData from "../common/SmartData.tsx";
+import {convertTimestampToDateWithMillis} from "../../../../utils/TimeUtil.ts";
 
 interface ZSetOperatorProp {
     data: any,
@@ -96,6 +98,10 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
         </>
     };
     const scoreRender = (text: string) => {
+        const val = convertTimestampToDateWithMillis(text);
+        if (val !== text.toString()) {
+            return <SmartData value={text}/>
+        }
         const scoreVal = parseFloat(text);
         const integerPart = Math.trunc(scoreVal);
         const decimalPart = scoreVal - integerPart;
@@ -147,10 +153,10 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
             key: 'member',
             ellipsis: true,
             render: (value: any, record: DataType, index: number) => {
-                if (record.bytes) {
+                if (record.bytes?.length! > 0) {
                     return renderBytesCell(record);
                 } else {
-                    return renderCell(value as string);
+                    return <SmartData value={value as string}/>;
                 }
             }
         }
