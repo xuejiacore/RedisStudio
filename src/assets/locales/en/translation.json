@@ -32,6 +32,12 @@
           },
           "recently": {
             "label": "Recently"
+          },
+          "datasource": {
+            "label": "Datasource"
+          },
+          "key": {
+            "label": "Key"
           }
         }
       },

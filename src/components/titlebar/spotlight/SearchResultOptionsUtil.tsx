@@ -2,6 +2,8 @@
 import {TFunction} from "i18next";
 import KeyPatternSearchResult from "./KeyPatternSearchResult.tsx";
 import React from "react";
+import DatasourceSearchResult from "./DatasourceSearchResult.tsx";
+import KeySearchResult from "./KeySearchResult.tsx";
 
 interface OptionItem {
     value: any;
@@ -27,7 +29,7 @@ export interface SearchResultDto {
     results: SearchSceneResult[]
 }
 
-function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined>): ResultOptions {
+function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined>, global?: boolean): ResultOptions {
     if (result.hits == 0) {
         return {
             options: [],
@@ -56,6 +58,37 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
                 label: <span className={'group-name'}>{t('redis.main.search.scene.recently.label')}</span>,
                 options: options,
                 height: (options.length + 1) * 23 + 38
+            };
+        case "key":
+            options = result.documents.map(t => {
+                return {
+                    value: `${t.hostport}`,
+                    label: <KeySearchResult key={`${result.scene}-${t.key}`}
+                                            keyName={t.key}
+                                            type={t.type}
+                                            global={global}/>
+                }
+            });
+            return {
+                label: <span className={'group-name'}>{t('redis.main.search.scene.key.label')}</span>,
+                options: options,
+                height: (options.length + 1) * 23 + 38
+            }
+        case "datasource":
+            options = result.documents.map(t => {
+                return {
+                    value: `${t.hostport}`,
+                    label: <DatasourceSearchResult key={`${result.scene}-${t.hostport}`}
+                                                   hostport={t.hostport}
+                                                   desc={t.desc}
+                                                   connected={t.connected}
+                                                   global={global}/>
+                }
+            });
+            return {
+                label: <span className={'group-name'}>{t('redis.main.search.scene.datasource.label')}</span>,
+                options: options,
+                height: (options.length + 1) * 23 + 38
             }
     }
     return {
@@ -69,7 +102,7 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
  * @param data data
  * @param t translation
  */
-export function wrapSearchResult(data: SearchResultDto, t: TFunction<"translation", undefined>):
+export function wrapSearchResult(data: SearchResultDto, t: TFunction<"translation", undefined>, global?: boolean):
     { opts: ResultOptions[], height: number } {
     if (data) {
         if (data.results) {
@@ -77,7 +110,7 @@ export function wrapSearchResult(data: SearchResultDto, t: TFunction<"translatio
             // @ts-ignore
             let ret: ResultOptions[] = [];
             for (const result of data.results) {
-                let unwrapped = unwrap(result, t);
+                let unwrapped = unwrap(result, t, global);
                 if (unwrapped.options.length > 0) {
                     ret.push(unwrapped);
                     height += unwrapped.height;

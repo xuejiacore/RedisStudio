@@ -1,0 +1,52 @@
+.key-search-result {
+  color: #949598;
+
+  .key {
+    margin: 6px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 4px;
+  }
+
+  .key.hash {
+    background: #B162C925;
+  }
+
+  .key.zset {
+    background: #EB433425;
+  }
+
+  .key.string {
+    background: #35AA5325;
+  }
+
+  .key.set {
+    background: #4586F325;
+  }
+
+  .key.list {
+    background: #FBBD0625;
+  }
+
+  .type {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: JetBrainsMonoBold, sans-serif;
+  }
+
+  .export-icon {
+    color: transparent;
+    width: 12px;
+  }
+
+}
+
+.ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  .key-search-result {
+    color: #b8b9bc;
+    .export-icon {
+      color: #949598;
+    }
+  }
+}

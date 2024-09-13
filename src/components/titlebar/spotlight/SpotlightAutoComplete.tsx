@@ -61,6 +61,9 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
         if (props.global) {
             resize_global_height(0, () => {
             });
+            if (autoCompleteRef) {
+                autoCompleteRef.current?.focus();
+            }
         }
         return () => {
 
@@ -87,6 +90,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
         } else if (height == 0) {
             height = 112;
         }
+        height += 200;
         invoke("resize_spotlight_window", {
             height: height,
         }).then(r => {
@@ -94,7 +98,6 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
         });
     }
 
-// 查询函数，这里进行了防抖处理
     const debouncedQuery = debounce(async (val: string) => {
         try {
             const limit = val.length == 0 ? 5 : 10;
@@ -103,17 +106,19 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                     resize_global_height(0, () => {
                         setOptions([]);
                     });
+                } else {
+                    setOptions([]);
                 }
                 return;
             }
             invoke("search", {
                 indexName: 'key_pattern',
-                query: `.*${val}.*`,
+                query: `${val}`,
                 limit: limit,
                 offset: 0
             }).then(r => {
                 const data: SearchResultDto = JSON.parse(r as string);
-                const opt = wrapSearchResult(data, t);
+                const opt = wrapSearchResult(data, t, props.global);
                 setOptions(opt.opts);
                 if (props.global) {
                     resize_global_height(opt.height, () => {
@@ -123,10 +128,11 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
         } catch (error) {
             console.error('Error fetching query result:', error);
         }
-    }, 250); // 设置防抖时间为500毫秒
+    }, 350); // 设置防抖时间为500毫秒
 
     const onSelect = (value: any, option: any) => {
-        console.log(`onSelect ${value} , ${option}`)
+        setSearchText(value);
+        console.log(`onSelect`, value, option)
     }
     return <>
         <AutoComplete
@@ -148,7 +154,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                 if (!open && props.global) {
                     if (searchText.length == 0) {
                         resize_global_height(0, () => {
-                            invoke('hide_spotlight_window', {}).then(_r => {
+                            invoke('hide_spotlight', {}).then(_r => {
                             });
                         });
                     }

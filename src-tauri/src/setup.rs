@@ -5,9 +5,11 @@ use redisstudio::indexer::simple_infer_pattern::PatternInferenceEngines;
 use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use redisstudio::menu::menu_manager;
 use redisstudio::menu::menu_manager::MenuContext;
+use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::storage::redis_pool::RedisPool;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
+use redisstudio::window::WebviewWindowExt;
 use redisstudio::Launcher;
 use serde_json::json;
 use sqlx::{Connection, Pool};
@@ -87,7 +89,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         let pool = RedisPool::new();
         let client = redis::Client::open("redis://172.31.72.5/10").unwrap();
         let con = client.get_multiplexed_async_connection().await.unwrap();
-        pool.add_new_connection("test".into(), con).await;
+        pool.add_new_connection("datasource01".into(), con).await;
         cloned_app_handler.manage(pool);
 
         // initialize your app here instead of sleeping :)
@@ -120,45 +122,13 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
 
 /// initialize main and spotlight windows.
 fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<Window> {
-    let spotlight_search_win = init_spotlight_search_window(app);
-    spotlight_search_win.hide()?;
+    init_spotlight_search_window(app);
+    //spotlight_search_win.hide()?;
     let main_window = app.get_window("main").unwrap();
     // all `Window` types now have the following additional method
     //main_window.restore_state(StateFlags::POSITION | StateFlags::SIZE).unwrap(); // will restore the window's state from disk
     main_window.hide()?;
-    let cloned_main_win = main_window.clone();
-    let cloned_search_win = spotlight_search_win.clone();
-    let reset_spotlight_search_win_pos = move || {
-        // 重新计算窗口的位置
-        let monitor = cloned_main_win.current_monitor().unwrap().unwrap();
-        let search_win_inner_size = cloned_search_win.inner_size().unwrap();
-        let screen = monitor.size();
-        let m_pos = monitor.position();
-        let semi_width = search_win_inner_size.width as i32 / 2;
-        let (new_x, new_y) = (
-            m_pos.x + (screen.width as i32 / 2).abs() - semi_width,
-            m_pos.y + (screen.height / 4) as i32,
-        );
-        let new_pos = PhysicalPosition { x: new_x, y: new_y };
-        cloned_search_win.set_position(new_pos).unwrap();
-    };
-    reset_spotlight_search_win_pos();
 
-    // register global spotlight search shortcut
-    let global_shortcut_manager = app.handle().global_shortcut();
-    let search_win = spotlight_search_win.clone();
-    global_shortcut_manager.on_shortcut("CmdOrCtrl+K", move |handle, hotkey, event| {
-        match event.state {
-            ShortcutState::Pressed => {
-                reset_spotlight_search_win_pos();
-                search_win.show().unwrap();
-                search_win.set_focus().unwrap();
-            }
-            ShortcutState::Released => {}
-        }
-    }).expect("failed to register global shortcut");
-
-    let app_handler = app.handle().clone();
     main_window.on_window_event(move |event| {
         match event {
             WindowEvent::Resized(_) => {}
@@ -242,24 +212,19 @@ fn init_database_selector_window(app: &mut App) -> TauriResult<()> {
 }
 
 
-fn init_spotlight_search_window(app: &mut App) -> Window {
-    let win = app.get_window("spotlight-search").unwrap();
-    let cloned_spotlight_win = win.clone();
-    win.on_window_event(move |event| match event {
-        WindowEvent::Resized(_) => {}
-        WindowEvent::Moved(_) => {}
-        WindowEvent::CloseRequested { .. } => {}
-        WindowEvent::Destroyed => {}
-        WindowEvent::Focused(focused) => {
-            if !focused {
-                //cloned_spotlight_win.hide().unwrap();
-            }
-        }
-        WindowEvent::ScaleFactorChanged { .. } => {}
-        WindowEvent::ThemeChanged(_) => {}
-        _ => {}
+fn init_spotlight_search_window(app: &mut App) {
+    let handle = app.app_handle();
+
+    let window = handle.get_webview_window(SPOTLIGHT_LABEL).unwrap();
+
+    // Convert the window to a spotlight panel
+    let panel = window.to_spotlight_panel().unwrap();
+
+    handle.listen(format!("{}_panel_did_resign_key", SPOTLIGHT_LABEL), move |_| {
+        // Hide the panel when it's no longer the key window
+        // This ensures the panel doesn't remain visible when it's not actively being used
+        panel.order_out(None);
     });
-    win
 }
 
 fn prepare_splashscreen_window(app: &mut App) -> Window {

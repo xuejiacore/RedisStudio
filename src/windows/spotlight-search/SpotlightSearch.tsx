@@ -1,22 +1,18 @@
-import React, {useEffect, useRef} from "react";
+import React from "react";
 import "./index.less";
-import {Flex, InputRef} from "antd";
+import {Flex} from "antd";
 import SpotlightAutoComplete from "../../components/titlebar/spotlight/SpotlightAutoComplete.tsx";
 import "../../utils/i18n.ts";
+import useEscape from "../../hooks/useEscape.tsx";
 
 interface SpotlightSearchProp {
 }
 
 const SpotlightSearch: React.FC<SpotlightSearchProp> = (props, context) => {
-    const searchInputRef = useRef<InputRef>(null);
-
-    useEffect(() => {
-        searchInputRef.current?.focus();
-    }, []);
+    useEscape();
 
     return <>
         <Flex className={'spotlight-container'} justify={"center"} align={"flex-start"}>
-            {/*<Input ref={searchInputRef} placeholder={'Search anything.'} className={'input-style'}/>*/}
             <SpotlightAutoComplete global={true}/>
         </Flex>
     </>

@@ -67,7 +67,7 @@ pub async fn dispatch_redis_cmd(
 
     debug!("cmd = {}, params = {}", &redis_cmd.cmd.clone(), cmd_data);
     let datasource_id = redis_cmd.datasource_id;
-    let arc = redis_pool.fetch_connection("test").await;
+    let arc = redis_pool.fetch_connection("datasource01").await;
     let mut con = arc.lock().await;
     match &redis_cmd.cmd as &str {
         "redis_list_datasource" => {
@@ -872,7 +872,7 @@ async fn execute_scan_cmd(
     params: ScanCmd,
     window: Window,
 ) -> Value {
-    let arc = redis_pool.fetch_connection("test").await;
+    let arc = redis_pool.fetch_connection("datasource01").await;
     tokio::spawn(async move {
         let mut con = arc.lock().await;
         // 使用 scan_match 方法迭代匹配指定模式的键

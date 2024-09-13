@@ -4,13 +4,15 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct RedisPool {
+    active_connection: Arc<Mutex<String>>,
     pool: Arc<Mutex<HashMap<String, Arc<Mutex<MultiplexedConnection>>>>>,
 }
 
 impl RedisPool {
     pub fn new() -> Self {
         Self {
-            pool: Arc::new(Mutex::new(HashMap::new()))
+            pool: Arc::new(Mutex::new(HashMap::new())),
+            active_connection: Arc::new(Mutex::new(String::from("datasource01"))),
         }
     }
 
@@ -20,6 +22,13 @@ impl RedisPool {
     }
 
     pub async fn fetch_connection(&self, datasource_id: &str) -> Arc<Mutex<MultiplexedConnection>> {
+        let mutex = self.pool.lock();
+        Arc::clone(mutex.await.get(datasource_id).unwrap())
+    }
+
+    pub async fn get_active_connection(&self) -> Arc<Mutex<MultiplexedConnection>> {
+        let act = self.active_connection.lock().await;
+        let datasource_id = act.as_str();
         let mutex = self.pool.lock();
         Arc::clone(mutex.await.get(datasource_id).unwrap())
     }

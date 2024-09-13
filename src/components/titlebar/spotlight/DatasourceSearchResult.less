@@ -3,7 +3,24 @@
   color: #ADAFB4;
 }
 
-.key-pattern-search-result {
+.datasource-search-result {
+  .host-port {
+    .status-info {
+      column-gap: 4px;
+
+      .connect-status {
+        width: 6px;
+        height: 6px;
+        border-radius: 4px;
+        background: gray;
+      }
+
+      .connect-status.connected {
+        background: darkgreen;
+      }
+    }
+  }
+
   .pattern-desc {
     text-align: right;
 
@@ -12,7 +29,9 @@
       font-size: 10px;
       color: #575859;
     }
+
   }
+
   .pattern {
     font-family: JetBrainsMonoBold, sans-serif;
     padding: 2px 7px;
@@ -24,7 +43,20 @@
 }
 
 .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-  .key-pattern-search-result {
+  .datasource-search-result {
+    .host-port {
+      .status-info {
+        .connect-status {
+          background: #9a9999;
+        }
+
+        .connect-status.connected {
+          background: #018501;
+        }
+      }
+    }
+
+
     .desc {
       color: #ffffff;
     }
