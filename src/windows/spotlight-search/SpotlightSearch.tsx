@@ -12,9 +12,12 @@ const SpotlightSearch: React.FC<SpotlightSearchProp> = (props, context) => {
     useEscape();
 
     return <>
-        <Flex className={'spotlight-container'} justify={"center"} align={"flex-start"}>
-            <SpotlightAutoComplete global={true}/>
-        </Flex>
+        <div className={'spotlight-panel'}>
+            <Flex id={'spotlight-search-input'} className={'spotlight-container'} justify={"center"}
+                  align={"flex-start"}>
+                <SpotlightAutoComplete global={true}/>
+            </Flex>
+        </div>
     </>
 }
 

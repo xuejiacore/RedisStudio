@@ -9,7 +9,9 @@ use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::storage::redis_pool::RedisPool;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
-use redisstudio::window::WebviewWindowExt;
+use redisstudio::win::pinned_windows;
+use redisstudio::win::pinned_windows::PinnedWindows;
+use redisstudio::win::window::WebviewWindowExt;
 use redisstudio::Launcher;
 use serde_json::json;
 use sqlx::{Connection, Pool};
@@ -21,11 +23,12 @@ use tauri::async_runtime::set;
 use tauri::menu::{Menu, MenuId};
 use tauri::utils::config::WindowConfig;
 use tauri::webview::PageLoadEvent;
-use tauri::{App, Emitter, Listener, Manager, PhysicalPosition, Window, WindowEvent, Wry};
+use tauri::{window, App, Emitter, Listener, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, Window, WindowEvent, Wry};
+use tauri_nspanel::cocoa::appkit::{NSMainMenuWindowLevel, NSWindowCollectionBehavior};
+use tauri_nspanel::{panel_delegate, WebviewWindowExt as WebWindowExt};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_sql::Error;
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
-use window_vibrancy::{self, NSVisualEffectMaterial, NSVisualEffectState};
 
 pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
 
@@ -36,6 +39,8 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         let handle = app.handle();
         tray::create_tray(handle)?;
     }
+
+    init_spotlight_search_window(app);
 
     let launcher = Launcher::new();
     let command_dispatcher = CommandDispatcher::new(launcher);
@@ -66,9 +71,13 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let cloned_app_handler = app_handler.clone();
+    let pinned_windows = PinnedWindows::new();
+    pinned_windows.init_pinned_windows(&cloned_app_handler);
 
     // we perform the initialization code on a new task so the app doesn't freeze
     tauri::async_runtime::spawn(async move {
+        cloned_app_handler.manage(pinned_windows);
+
         splashscreen_window.emit("splashscreen_progress", json!({
             "tips": "connect to sqlite"
         })).unwrap();
@@ -121,10 +130,9 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// initialize main and spotlight windows.
-fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<Window> {
-    init_spotlight_search_window(app);
+fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<WebviewWindow> {
     //spotlight_search_win.hide()?;
-    let main_window = app.get_window("main").unwrap();
+    let main_window = app.get_webview_window("main").unwrap();
     // all `Window` types now have the following additional method
     //main_window.restore_state(StateFlags::POSITION | StateFlags::SIZE).unwrap(); // will restore the window's state from disk
     main_window.hide()?;
@@ -152,13 +160,13 @@ fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<Window> {
         println!("点击了菜单：{:?}", &event);
     });
     // 仅在 macOS 下执行
-    #[cfg(target_os = "macos")]
-    window_vibrancy::apply_vibrancy(
-        &main_window,
-        NSVisualEffectMaterial::FullScreenUI,
-        Some(NSVisualEffectState::FollowsWindowActiveState),
-        Some(0.5),
-    ).expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+    // #[cfg(target_os = "macos")]
+    // window_vibrancy::apply_vibrancy(
+    //     &main_window,
+    //     NSVisualEffectMaterial::FullScreenUI,
+    //     Some(NSVisualEffectState::FollowsWindowActiveState),
+    //     Some(0.5),
+    // ).expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
     // 仅在 windows 下执行
     #[cfg(target_os = "windows")]
@@ -168,7 +176,7 @@ fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<Window> {
 }
 
 fn init_datasource_window(app: &mut App) -> TauriResult<()> {
-    let datasource_dropdown_win = app.get_window("datasource-dropdown").unwrap();
+    let datasource_dropdown_win = app.get_webview_window("datasource-dropdown").unwrap();
     datasource_dropdown_win.hide()?;
 
     let cloned_win = datasource_dropdown_win.clone();
@@ -190,7 +198,7 @@ fn init_datasource_window(app: &mut App) -> TauriResult<()> {
 }
 
 fn init_database_selector_window(app: &mut App) -> TauriResult<()> {
-    let datasource_dropdown_win = app.get_window("datasource-database-selector").unwrap();
+    let datasource_dropdown_win = app.get_webview_window("datasource-database-selector").unwrap();
     datasource_dropdown_win.hide()?;
 
     let cloned_win = datasource_dropdown_win.clone();
@@ -226,67 +234,68 @@ fn init_spotlight_search_window(app: &mut App) {
         panel.order_out(None);
     });
 }
+const WEBVIEW_URL: &str = "windows/redis-pin.html";
 
-fn prepare_splashscreen_window(app: &mut App) -> Window {
-    let handler = app.app_handle();
-    let label = String::from("splashscreen");
-    let mut config = WindowConfig::default();
-
-    // 预备一个窗口
-    config.label = label.clone();
-    config.title = label.clone();
-    config.decorations = false;
-    config.visible = true;
-    config.always_on_top = true;
-    config.width = 510f64;
-    config.height = 317f64;
-    config.min_width = Some(510f64);
-    config.min_height = Some(317f64);
-    config.transparent = true;
-    config.shadow = true;
-    config.hidden_title = true;
-
-    let webview_url = tauri::WebviewUrl::App("windows/splashscreen.html".into());
-    config.url = webview_url;
-    let window = tauri::window::WindowBuilder::from_config(handler, &config)
-        .unwrap()
+fn init_key_pin_window(app: &mut App) {
+    let url: WebviewUrl = WebviewUrl::App(WEBVIEW_URL.into());
+    let window = tauri::webview::WebviewWindowBuilder::new(app, "key_pinned_window2".to_string(), url)
+        .title(format!("pin_{}", 1))
+        .inner_size(410f64, 290f64)
+        .min_inner_size(410f64, 170f64)
+        .transparent(false)
+        .visible(false)
+        .decorations(false)
+        .always_on_top(true)
+        .shadow(true)
         .build()
         .unwrap();
-    window.on_window_event(move |event| match event {
-        WindowEvent::Resized(_v) => {}
-        WindowEvent::Moved(_) => {}
-        WindowEvent::CloseRequested { .. } => {}
-        WindowEvent::Destroyed => {}
-        WindowEvent::Focused(_focused) => {}
-        WindowEvent::ScaleFactorChanged { .. } => {}
-        WindowEvent::ThemeChanged(_) => {}
-        _ => {}
-    });
 
-    // creat new webview to the window.
-    let mut init_script: String = String::from(
-        r#""#,
+    // Convert window to panel
+    let panel = window.to_panel().unwrap();
+
+    // Set panel level
+    panel.set_level(NSMainMenuWindowLevel + 1);
+
+    // Allows the panel to display on the same space as the full screen window
+    panel.set_collection_behaviour(
+        NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary,
     );
 
-    let webview_builder = tauri::webview::WebviewBuilder::from_config(&config)
-        .initialization_script(init_script.as_str())
-        .on_page_load(move |_webview, payload| {
-            match payload.event() {
-                PageLoadEvent::Started => {
-                    // println!("{} Started loading", payload.url());
-                }
-                PageLoadEvent::Finished => {
-                    // println!("{} Finished loading", payload.url());
-                    //cloned_win.show().unwrap();
-                }
-            }
-        })
-        .auto_resize();
+    #[allow(non_upper_case_globals)]
+    const NSWindowStyleMaskNonActivatingPanel: i32 = 1 << 7;
 
-    let _ = window.add_child(
-        webview_builder,
-        tauri::LogicalPosition::new(0, 0),
-        window.inner_size().unwrap(),
-    ).unwrap();
-    window
+    // Ensures the panel cannot activate the App
+    panel.set_style_mask(NSWindowStyleMaskNonActivatingPanel);
+
+    // Set up a delegate to handle key window events for the panel
+    //
+    // This delegate listens for two specific events:
+    // 1. When the panel becomes the key window
+    // 2. When the panel resigns as the key window
+    //
+    // For each event, it emits a corresponding custom event to the app,
+    // allowing other parts of the application to react to these panel state changes.
+
+    let panel_delegate = panel_delegate!(SpotlightPanelDelegate {
+            window_did_resign_key,
+            window_did_become_key
+        });
+
+    panel_delegate.set_listener(Box::new(move |delegate_name: String| {
+        match delegate_name.as_str() {
+            "window_did_become_key" => {
+                // let _ = app_handle.emit(format!("{}_panel_did_become_key", label).as_str(), ());
+            }
+            "window_did_resign_key" => {
+                // let _ = app_handle.emit(format!("{}_panel_did_resign_key", label).as_str(), ());
+            }
+            _ => (),
+        }
+    }));
+
+    panel.set_delegate(panel_delegate);
+}
+
+fn prepare_splashscreen_window(app: &mut App) -> WebviewWindow {
+    app.get_webview_window("splashscreen").unwrap()
 }

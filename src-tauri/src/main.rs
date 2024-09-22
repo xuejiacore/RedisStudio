@@ -19,7 +19,7 @@ use redisstudio::spotlight_command;
 use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
-use redisstudio::window::WebviewWindowExt;
+use redisstudio::win::window::WebviewWindowExt;
 use tauri_nspanel::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
 
@@ -59,11 +59,11 @@ fn action(data: &str, dispatcher: tauri::State<'_, CommandDispatcher>) -> String
 #[tauri::command]
 async fn close_splashscreen(window: tauri::Window<Wry>) {
     // Close splashscreen
-    if let Some(splashscreen) = window.get_window("splashscreen") {
+    if let Some(splashscreen) = window.get_webview_window("splashscreen") {
         splashscreen.close().unwrap();
     }
     // Show main window
-    window.get_window("main").unwrap().show().unwrap();
+    window.get_webview_window("main").unwrap().show().unwrap();
 }
 
 #[tauri::command]
@@ -72,10 +72,12 @@ async fn resize_spotlight_window<R: Runtime>(
     handle: tauri::AppHandle<R>,
     window: tauri::Window<Wry>,
 ) {
-    let search_win = handle.get_window("spotlight-search").unwrap();
+    let search_win = handle.get_webview_window("spotlight-search").unwrap();
+    let scale_factor = window.scale_factor();
+
     let size = search_win.inner_size().unwrap();
-    let scale = 1;
-    search_win.set_size(PhysicalSize::new(size.width, height * scale)).unwrap();
+    let scale = scale_factor.unwrap_or(1f64);
+    search_win.set_size(PhysicalSize::new(size.width, (height as f64 * scale) as u32)).unwrap();
     search_win.set_focus().unwrap();
 }
 
@@ -104,8 +106,8 @@ fn main() {
             // Window
             window_controller::open_redis_pushpin_window,
             window_controller::close_redis_pushpin_window,
+            window_controller::resize_redis_pushpin_window,
             window_controller::on_redis_pushpin_window_shown,
-            window_controller::prepare_pin_window,
             window_controller::open_datasource_window,
             window_controller::open_database_selector_window,
 

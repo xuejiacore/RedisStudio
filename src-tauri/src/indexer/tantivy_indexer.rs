@@ -175,6 +175,16 @@ impl TantivyIndexer {
 
         search_params_builder(&index, &mut search_params);
 
+        if search_params.limit.is_some() {
+            let limit_val = search_params.limit.unwrap();
+            if limit_val == 0 {
+                return Ok(SearchResult {
+                    hits: 0,
+                    documents: vec![],
+                })
+            }
+        }
+
         let query = search_params.query.unwrap_or_else(|| match search_params.query_str {
             None => panic!("one of `query` or `query_str` must specified"),
             Some(query_str) => {

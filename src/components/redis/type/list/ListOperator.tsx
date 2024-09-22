@@ -5,7 +5,7 @@ import {Table} from "antd";
 import {ColumnsType} from "antd/es/table";
 import {useTranslation} from "react-i18next";
 import "./ListOperator.less";
-import RedisFooter, {FooterAction, ValueFilterParam} from "../../RedisFooter.tsx";
+import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
 import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
@@ -281,6 +281,7 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
             pageLength={dataRows}
             pageSize={pageSize}
             action={footerAction}
+            keyName={key}
             pinMode={props.pinMode}
             onNextPage={onNextPage}
             onPreviousPage={onPreviousPage}

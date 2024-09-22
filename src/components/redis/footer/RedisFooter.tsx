@@ -3,6 +3,9 @@ import React, {useEffect, useRef, useState} from "react";
 import {Button, Col, Flex, Input, InputRef, Row} from "antd";
 import {LeftOutlined, PlusOutlined, RightOutlined} from "@ant-design/icons";
 import {useTranslation} from "react-i18next";
+import "./RedisFooter.less";
+import StretchIcon from "../../icons/StretchIcon.tsx";
+import {invoke} from "@tauri-apps/api/core";
 
 export interface ValueFilterParam {
     query: string,
@@ -18,6 +21,7 @@ interface RedisFooterProps {
     total: number;
     pageSize?: number;
     data?: any;
+    keyName: string;
     pinMode?: boolean;
     pageNumberOnly?: boolean;
     noMoreDataPage?: boolean;
@@ -156,6 +160,27 @@ const RedisFooter: React.FC<RedisFooterProps> = (props, context) => {
     const leftDisabled = page == 1;
     const rightDisabled = props.pageNumberOnly ? props.noMoreDataPage : page == calPageTotal(props.total);
 
+    const [isDragging, setIsDragging] = useState(false);
+    const [position, setPosition] = useState({x: 0, y: 0});
+
+    const handleMouseDown = (e: any) => {
+        console.log('---------------')
+        setIsDragging(true);
+    };
+
+    const handleMouseMove = (e: any) => {
+        if (isDragging) {
+            // const touch = e.touches[0]; // 取第一个触点
+            // setPosition({x: touch.clientX, y: touch.clientY});
+            // invoke('resize_redis_pushpin_window', {keyName: props.keyName, x: e.screenX, y: e.screenY}).then(r => {
+            // });
+        }
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
     return (<>
         <div className={'redis-footer ' + pinModeClass}>
             <Row>
@@ -189,7 +214,8 @@ const RedisFooter: React.FC<RedisFooterProps> = (props, context) => {
                     </div>
                 </Col>
                 <Col span={8}>
-                    <div className={`redis-footer-pager ${pinModeClass} ${leftDisabled && rightDisabled ? 'disabled' : ''}`}>
+                    <div
+                        className={`redis-footer-pager ${pinModeClass} ${leftDisabled && rightDisabled ? 'disabled' : ''}`}>
                         <Flex gap="small" align="center" wrap="wrap">
                             <Button type="default"
                                     size="small"
@@ -215,6 +241,13 @@ const RedisFooter: React.FC<RedisFooterProps> = (props, context) => {
                     </div>
                 </Col>
             </Row>
+            <div className={`resize-icon ${props.pinMode ? 'pin-mode' : ' hidden'}`}>
+                <StretchIcon className={'icon'} style={{width: 10, color: '#efefef'}}
+                             onMouseDown={handleMouseDown}
+                             onMouseUp={handleMouseUp}
+                             onMouseMove={handleMouseMove}
+                />
+            </div>
         </div>
     </>)
 };

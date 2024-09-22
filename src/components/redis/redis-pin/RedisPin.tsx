@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import React, {useEffect, useState} from "react";
 import {invoke} from "@tauri-apps/api/core";
 import "./RedisPin.less";
@@ -5,7 +6,7 @@ import "../index.less";
 import HashOperator from "../type/hash/HashOperator.tsx";
 import {useTranslation} from "react-i18next";
 import "../../../utils/i18n.ts";
-import {Flex} from "antd";
+import {Flex, Skeleton} from "antd";
 import StringOperator from "../type/string/StringOperator.tsx";
 import ZSetOperator from "../type/zset/ZSetOperator.tsx";
 import ListOperator from "../type/list/ListOperator.tsx";
@@ -18,26 +19,42 @@ interface RedisPinProp {
 
 const RedisPin: React.FC<RedisPinProp> = (props, context) => {
     const {t} = useTranslation();
-    // @ts-ignore
-    const keyName = window._REDIS_PIN_WIN_ATTR['key_name'];
-    // @ts-ignore
-    const keyType = window._REDIS_PIN_WIN_ATTR['key_type'];
-
-    const [currKeyName, setCurrKeyName] = useState(keyName);
+    // const keyName = window._REDIS_PIN_WIN_ATTR['key_name'];
+    // const keyType = window._REDIS_PIN_WIN_ATTR['key_type'];
+    const [keyType, setKeyType] = useState('undefined');
+    const [currKeyName, setCurrKeyName] = useState('undefined');
     const [selectedField, setSelectedField] = useState<ValueChanged>();
 
+    // useEffect(() => {
+    //     // setTimeout(() => {
+    //     //
+    //     // }, 100);
+    //     // invoke('show_redis_pushpin_window', {keyName}).then(e => {
+    //     //     console.log('显示窗口，keyName = ' + keyName + ', keyType = ' + keyType);
+    //     // });
+    // }, []);
+
+    // 定义方法
+    const onKeyChange = (keyName: string, keyType: string) => {
+        console.log("keyName = ", keyName, " keyType = ", keyType);
+        setKeyType(keyType);
+        setCurrKeyName(keyName);
+    };
+
     useEffect(() => {
-        // setTimeout(() => {
-        //
-        // }, 100);
-        // invoke('show_redis_pushpin_window', {keyName}).then(e => {
-        //     console.log('显示窗口，keyName = ' + keyName + ', keyType = ' + keyType);
-        // });
+        // 将 funcFoo 绑定到 window 对象
+        // @ts-ignore
+        window.onKeyChange = onKeyChange;
+        return () => {
+            // @ts-ignore
+            delete window.onKeyChange;
+        };
     }, []);
+
 
     const onWindowClose = () => {
         const onlyHide = true;
-        invoke('close_redis_pushpin_window', {keyName, onlyHide}).then(() => {
+        invoke('close_redis_pushpin_window', {keyName: currKeyName, onlyHide}).then(() => {
         });
     };
 

@@ -15,8 +15,8 @@ pub mod view;
 pub mod constant;
 pub mod dao;
 pub mod menu;
-pub mod window;
 pub mod spotlight_command;
+pub mod win;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CmdError {

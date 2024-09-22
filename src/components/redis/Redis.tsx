@@ -1,6 +1,5 @@
 import {Col, Empty, Row} from "antd";
-import React from "react";
-import {Key, useEffect, useState} from "react";
+import React, {Key, useEffect, useState} from "react";
 import "./index.less";
 import RedisKeyTree, {CustomDataNode} from "./RedisKeyTree";
 import mac_cmd_icon from '../../assets/images/icons/mac_cmd_icon.svg';
@@ -12,7 +11,6 @@ import {ValueChanged} from "./watcher/ValueEditor.tsx";
 import no_data_svg from "../../assets/images/icons/no-data.svg";
 import ZSetOperator from "./type/zset/ZSetOperator.tsx";
 import ListOperator from "./type/list/ListOperator.tsx";
-import {invoke} from "@tauri-apps/api/core";
 import SetOperator from "./type/set/SetOperator.tsx";
 import {OutlineAction} from "./watcher/KeyOutline.tsx";
 
@@ -107,15 +105,6 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                     setContent(empty);
                     return;
             }
-            const keyType = nodeData.keyType;
-            const keyName = nodeData.key as string;
-            invoke('prepare_pin_window', {keyName, keyType}).then(e => {
-                //console.log("准备窗口完毕");
-            });
-            const onlyHide = false;
-            invoke('close_redis_pushpin_window', {'keyName': lastKeyName, onlyHide}).then(() => {
-                //console.log('关闭上一个窗口完成')
-            });
         }
     }, [nodeData]);
 

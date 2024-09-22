@@ -29,6 +29,9 @@ export interface SearchResultDto {
     results: SearchSceneResult[]
 }
 
+const TOP_HEIGHT = 53;
+const INDEX = ['key', 'key_pattern'];
+
 function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined>, global?: boolean): ResultOptions {
     if (result.hits == 0) {
         return {
@@ -37,12 +40,13 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
         };
     }
     let options: OptionItem[];
+    const cts = Date.now();
     switch (result.scene) {
         case "key_pattern":
             options = result.documents.map(t => {
                 return {
                     value: `${t.normalization}`,
-                    label: <KeyPatternSearchResult key={`${result.scene}-${t.normalization}`}
+                    label: <KeyPatternSearchResult key={`${result.scene}#${t.normalization}-${cts}`}
                                                    pattern={t.normalization}
                                                    desc={'t.desc'}/>
                 }
@@ -50,20 +54,22 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
             return {
                 label: <span className={'group-name'}>{t('redis.main.search.scene.key_pattern.label')}</span>,
                 options: options,
-                height: (options.length + 1) * 23 + 38
+                height: (options.length + 1) * 23 + TOP_HEIGHT
             };
         case "recently":
             options = [];
             return {
                 label: <span className={'group-name'}>{t('redis.main.search.scene.recently.label')}</span>,
                 options: options,
-                height: (options.length + 1) * 23 + 38
+                height: (options.length + 1) * 23 + TOP_HEIGHT
             };
         case "key":
-            options = result.documents.map(t => {
+            options = result.documents.sort((a: any, b: any) => {
+                return b.key.localeCompare(a.key);
+            }).map(t => {
                 return {
-                    value: `${t.hostport}`,
-                    label: <KeySearchResult key={`${result.scene}-${t.key}`}
+                    value: `${t.key}`,
+                    label: <KeySearchResult key={`${result.scene}#${t.key}-${cts}`}
                                             keyName={t.key}
                                             type={t.type}
                                             global={global}/>
@@ -72,13 +78,13 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
             return {
                 label: <span className={'group-name'}>{t('redis.main.search.scene.key.label')}</span>,
                 options: options,
-                height: (options.length + 1) * 23 + 38
+                height: (options.length + 1) * 23 + TOP_HEIGHT
             }
         case "datasource":
             options = result.documents.map(t => {
                 return {
                     value: `${t.hostport}`,
-                    label: <DatasourceSearchResult key={`${result.scene}-${t.hostport}`}
+                    label: <DatasourceSearchResult key={`${result.scene}#${t.hostport}-${cts}`}
                                                    hostport={t.hostport}
                                                    desc={t.desc}
                                                    connected={t.connected}
@@ -88,7 +94,7 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
             return {
                 label: <span className={'group-name'}>{t('redis.main.search.scene.datasource.label')}</span>,
                 options: options,
-                height: (options.length + 1) * 23 + 38
+                height: (options.length + 1) * 23 + TOP_HEIGHT
             }
     }
     return {
@@ -109,13 +115,15 @@ export function wrapSearchResult(data: SearchResultDto, t: TFunction<"translatio
             let height = 0;
             // @ts-ignore
             let ret: ResultOptions[] = [];
-            for (const result of data.results) {
+            data.results.sort((r1, r2) => {
+                return INDEX.indexOf(r1.scene) - INDEX.indexOf(r2.scene);
+            }).forEach(result => {
                 let unwrapped = unwrap(result, t, global);
                 if (unwrapped.options.length > 0) {
                     ret.push(unwrapped);
                     height += unwrapped.height;
                 }
-            }
+            })
             // @ts-ignore
             return {opts: ret, height: height};
         } else {

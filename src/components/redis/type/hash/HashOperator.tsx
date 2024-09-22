@@ -4,14 +4,14 @@ import {ColumnsType} from "antd/es/table";
 import "./HashOperator.less";
 import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
 import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
-import RedisFooter, {FooterAction, ValueFilterParam} from "../../RedisFooter.tsx";
+import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
 import {invoke} from "@tauri-apps/api/core";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {useTranslation} from "react-i18next";
 import {PushpinFilled} from "@ant-design/icons";
 import {TableRowSelection} from "antd/es/table/interface";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
-import SmartData from "../common/SmartData.tsx";
+import SmartData, {UpdateEvent} from "../common/SmartData.tsx";
 
 interface HashOperatorProps {
     data: any;
@@ -76,10 +76,6 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         || document.body.clientHeight) - (props.pinMode ? 100 : 140);
     const [comHeight, setComHeight] = useState(calParentHeight());
 
-    const renderCell = (text: string) => {
-        return <SmartData value={text}/>
-    };
-
     const onPushpinField = (e: React.MouseEvent<HTMLSpanElement>, field: string) => {
         e.stopPropagation();
         const op = pinnedFields.includes(field) ? 'remove' : 'add';
@@ -92,10 +88,17 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         })
     };
 
-    const renderField = (text: string) => {
+    const onFieldValueChange = (e: UpdateEvent) => {
+
+    }
+    const onContentValueChange = (e: UpdateEvent) => {
+
+    }
+
+    const renderField = (fieldName: string, text: string) => {
         return text ? <>
             <div className='field-toolkits'>
-                <div className='table-row-data'>{text}</div>
+                <SmartData value={text} keyName={key} fieldName={fieldName} onChange={onFieldValueChange}/>
                 <div className={'field-tool ' + (pinnedFields.includes(text) ? 'activated' : '')}>
                     <PushpinFilled
                         className={'toolbar-btn pushpin-btn ' + (pinnedFields.includes(text) ? 'selected' : '')}
@@ -107,6 +110,10 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         </>
     }
 
+    const renderCell = (field: string, text: string) => {
+        return <SmartData keyName={key} fieldName={field} value={text} onChange={onContentValueChange}/>
+    };
+
     const columns: ColumnsType<DataType> = [
         {
             title: <>
@@ -116,7 +123,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             key: 'field',
             width: props.pinMode ? 'calc(30vw)' : maxFieldWidth,
             ellipsis: true,
-            render: renderField,
+            render: val => renderField('field', val)
         },
         {
             title: <>
@@ -125,7 +132,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             dataIndex: 'content',
             key: 'content',
             ellipsis: true,
-            render: renderCell
+            render: val => renderCell('content', val)
         }
     ];
 
@@ -415,10 +422,6 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
 
                         });
                     },
-                    onDoubleClick: (e) => {
-                        console.log('双击了行数据：key = ' + key, record);
-                        invoke("open_key_detail_window").then(r => console.log("全局搜索窗口打开", r))
-                    }
                 }
             }}
         />
@@ -427,6 +430,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             total={length}
             pageLength={pageLength}
             pageSize={pageSize}
+            keyName={key}
             pinMode={props.pinMode}
             pageNumberOnly={pageOnly}
             noMoreDataPage={noMoreDataPage}

@@ -1,8 +1,8 @@
+@font-color: #ADAFB4;
+@font-size: 12px;
 .redis-datatable:where(.ant-table-wrapper) {
   @background: #1E1F22;
   @evn-background: #2728296F;
-  @font-color: #ADAFB4;
-  @font-size: 12px;
   @margin-left: 3px;
   @padding-left: 5px;
   @row-radius: 4px;
@@ -240,6 +240,7 @@
       display: block;
       opacity: 1;
     }
+
     .pushpin-btn:hover {
       background: #393b40;
       color: #E69808 !important;
@@ -272,9 +273,24 @@
 
 .ant-tooltip-content {
   height: 26px;
+
   .ant-tooltip-inner {
     font-size: 10px;
     height: 26px;
     min-height: 26px;
+  }
+}
+
+.table-row-data.editing {
+  height: 28px;
+  width: 98%;
+
+  input {
+    color: @font-color;
+    font-size: @font-size;
+    border-radius: 1px;
+    border-color: #375ca6;
+    caret-color: #375ca6;
+    background-color: transparent;
   }
 }

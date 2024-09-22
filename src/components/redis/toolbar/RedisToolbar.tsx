@@ -6,7 +6,7 @@ import {
     FieldTimeOutlined,
     HeartFilled,
     PushpinFilled,
-    ReloadOutlined,
+    ReloadOutlined, SaveOutlined,
     ShrinkOutlined
 } from "@ant-design/icons";
 import {Col, Row, Space} from "antd";
@@ -21,9 +21,6 @@ interface RedisToolbarProps {
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
 }
-
-let unlisten: any = null;
-let unlisten_focus: any = null;
 
 const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
     const currKeyName = useRef(props.keyName);
@@ -129,12 +126,13 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
         tools = (<>
             {/*<div className={props.keyType + (payAttentionState ? ' pin-attention' : ' ')}></div>*/}
             <ReloadOutlined className={`toolbar-btn refresh-btn`} onClick={props.onReload}/>
-            <ShrinkOutlined className={`toolbar-btn min-btn`}/>
+            <SaveOutlined className={'toolbar-btn save-btn'}/>
             <CloseOutlined className={`toolbar-btn close-btn`} onClick={props.onClose}/>
         </>);
     } else {
         tools = (<>
-            <ReloadOutlined className={`toolbar-btn refresh-btn`} onClick={props.onReload}/>
+            <ReloadOutlined className={'toolbar-btn refresh-btn'} onClick={props.onReload}/>
+            <SaveOutlined className={'toolbar-btn save-btn'}/>
             <FieldTimeOutlined className={`toolbar-btn auto-refresh-btn ${autoRefresh}`}
                                onClick={e => onAutoReloadClick(e, props.keyName)}/>
             <HeartFilled className={`toolbar-btn favor-btn ${favorBtnSelected}`}

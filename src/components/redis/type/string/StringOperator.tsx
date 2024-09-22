@@ -2,7 +2,7 @@ import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
 import React, {useEffect, useState} from "react";
 import ContentEditor from "../../../editor/ContentEditor/ContentEditor.tsx";
 import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
-import {FooterAction} from "../../RedisFooter.tsx";
+import {FooterAction} from "../../footer/RedisFooter.tsx";
 
 interface StringOperatorProps {
     data: any,

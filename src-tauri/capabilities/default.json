@@ -2,7 +2,7 @@
   "$schema": "../schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main", "redispin_win*", "datasource-dropdown", "splashscreen", "datasource-database-selector", "spotlight-search"],
+  "windows": ["main", "pinned_win_*", "datasource-dropdown", "splashscreen", "datasource-database-selector", "spotlight-search"],
   "permissions": [
     "core:path:default",
     "core:event:default",

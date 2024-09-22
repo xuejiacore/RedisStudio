@@ -16,11 +16,11 @@
     "@jridgewell/trace-mapping" "^0.3.9"
 
 "@ant-design/colors@^7.0.0":
-  version "7.0.0"
-  resolved "https://registry.npmmirror.com/@ant-design/colors/-/colors-7.0.0.tgz#eb7eecead124c3533aea05d61254f0a17f2b61b3"
-  integrity sha512-iVm/9PfGCbC0dSMBrz7oiEXZaaGH7ceU40OJEfKmyuzR9R5CRimJYPlRiFtMQGQcbNMea/ePcoIebi4ASGYXtg==
+  version "7.1.0"
+  resolved "https://registry.npmmirror.com/@ant-design/colors/-/colors-7.1.0.tgz#60eadfa2e21871d8948dac5d50b9f056062f8af3"
+  integrity sha512-MMoDGWn1y9LdQJQSHiCC20x3uZ3CwQnv9QMz6pCmJOrqdgM9YxsoVVY0wtrdXbmfSgnV0KNk6zi09NAhMR2jvg==
   dependencies:
-    "@ctrl/tinycolor" "^3.4.0"
+    "@ctrl/tinycolor" "^3.6.1"
 
 "@ant-design/cssinjs@^1.18.1":
   version "1.18.2"
@@ -35,19 +35,19 @@
     rc-util "^5.35.0"
     stylis "^4.0.13"
 
-"@ant-design/icons-svg@^4.3.0":
-  version "4.3.1"
-  resolved "https://registry.npmmirror.com/@ant-design/icons-svg/-/icons-svg-4.3.1.tgz#4b2f65a17d4d32b526baa6414aca2117382bf8da"
-  integrity sha512-4QBZg8ccyC6LPIRii7A0bZUk3+lEDCLnhB+FVsflGdcWPPmV+j3fire4AwwoqHV/BibgvBmR9ZIo4s867smv+g==
+"@ant-design/icons-svg@^4.4.0":
+  version "4.4.2"
+  resolved "https://registry.npmmirror.com/@ant-design/icons-svg/-/icons-svg-4.4.2.tgz#ed2be7fb4d82ac7e1d45a54a5b06d6cecf8be6f6"
+  integrity sha512-vHbT+zJEVzllwP+CM+ul7reTEfBR0vgxFe7+lREAsAA7YGsYpboiq2sQNeQeRvh09GfQgs/GyFEvZpJ9cLXpXA==
 
 "@ant-design/icons@^5.2.6":
-  version "5.2.6"
-  resolved "https://registry.npmmirror.com/@ant-design/icons/-/icons-5.2.6.tgz#2d4a9a37f531eb2a20cebec01d6fb69cf593900d"
-  integrity sha512-4wn0WShF43TrggskBJPRqCD0fcHbzTYjnaoskdiJrVHg86yxoZ8ZUqsXvyn4WUqehRiFKnaclOhqk9w4Ui2KVw==
+  version "5.5.1"
+  resolved "https://registry.npmmirror.com/@ant-design/icons/-/icons-5.5.1.tgz#4ff57b2a0d3bafae3d990c2781fd857ead36c935"
+  integrity sha512-0UrM02MA2iDIgvLatWrj6YTCYe0F/cwXvVE0E2SqGrL7PZireQwgEKTKBisWpZyal5eXZLvuM98kju6YtYne8w==
   dependencies:
     "@ant-design/colors" "^7.0.0"
-    "@ant-design/icons-svg" "^4.3.0"
-    "@babel/runtime" "^7.11.2"
+    "@ant-design/icons-svg" "^4.4.0"
+    "@babel/runtime" "^7.24.8"
     classnames "^2.2.6"
     rc-util "^5.31.1"
 
@@ -226,10 +226,17 @@
   dependencies:
     "@babel/helper-plugin-utils" "^7.22.5"
 
-"@babel/runtime@^7.10.1", "@babel/runtime@^7.10.4", "@babel/runtime@^7.11.1", "@babel/runtime@^7.11.2", "@babel/runtime@^7.12.5", "@babel/runtime@^7.16.7", "@babel/runtime@^7.18.0", "@babel/runtime@^7.18.3", "@babel/runtime@^7.20.0", "@babel/runtime@^7.20.7", "@babel/runtime@^7.21.0", "@babel/runtime@^7.22.5", "@babel/runtime@^7.23.2", "@babel/runtime@^7.23.4":
+"@babel/runtime@^7.10.1", "@babel/runtime@^7.10.4", "@babel/runtime@^7.11.1", "@babel/runtime@^7.12.5", "@babel/runtime@^7.16.7", "@babel/runtime@^7.18.0", "@babel/runtime@^7.20.0", "@babel/runtime@^7.20.7", "@babel/runtime@^7.21.0", "@babel/runtime@^7.22.5", "@babel/runtime@^7.23.2", "@babel/runtime@^7.23.4":
   version "7.23.6"
   resolved "https://registry.npmmirror.com/@babel/runtime/-/runtime-7.23.6.tgz#c05e610dc228855dc92ef1b53d07389ed8ab521d"
   integrity sha512-zHd0eUrf5GZoOWVCXp6koAKQTfZV07eit6bGPmJgnZdnSAvvZee6zniW2XMF7Cmc4ISOOnPy3QaSiIJGJkVEDQ==
+  dependencies:
+    regenerator-runtime "^0.14.0"
+
+"@babel/runtime@^7.11.2", "@babel/runtime@^7.18.3", "@babel/runtime@^7.24.8":
+  version "7.25.6"
+  resolved "https://registry.npmmirror.com/@babel/runtime/-/runtime-7.25.6.tgz#9afc3289f7184d8d7f98b099884c26317b9264d2"
+  integrity sha512-VBj9MYyDb9tuLq7yzqjgzt6Q+IBQLrGZfdjOekyEirZPHxXWoTSGUTMrpsfi58Up73d13NfYLv8HT9vmznjzhQ==
   dependencies:
     regenerator-runtime "^0.14.0"
 
@@ -274,7 +281,7 @@
     "@babel/helper-validator-identifier" "^7.22.20"
     to-fast-properties "^2.0.0"
 
-"@ctrl/tinycolor@^3.4.0", "@ctrl/tinycolor@^3.6.0", "@ctrl/tinycolor@^3.6.1":
+"@ctrl/tinycolor@^3.6.0", "@ctrl/tinycolor@^3.6.1":
   version "3.6.1"
   resolved "https://registry.npmmirror.com/@ctrl/tinycolor/-/tinycolor-3.6.1.tgz#b6c75a56a1947cc916ea058772d666a2c8932f31"
   integrity sha512-SITSV6aIXsuVNV3f3O0f2n/cgyEDWoSqtZMYiAmcsYHydcKrOz3gUxB/iXd/Qf08+IZX4KpgNbvUdMBmWz+kcA==
@@ -593,18 +600,6 @@
     rc-resize-observer "^1.3.1"
     rc-util "^5.38.0"
 
-"@react-buddy/ide-toolbox@^2.4.0":
-  version "2.4.0"
-  resolved "https://registry.npmmirror.com/@react-buddy/ide-toolbox/-/ide-toolbox-2.4.0.tgz#8c986491f061334c0da6e7c77b65b88ef915ef8d"
-  integrity sha512-TWHX6gwa0Gop7215uHhjFMbYLLdjM/b9rr0wYE3E0m7GNJ56gbPpbZiq86w9uI8zksl827acqGeT437MkuO64w==
-
-"@react-buddy/palette-antd@^5.3.0":
-  version "5.3.1"
-  resolved "https://registry.npmmirror.com/@react-buddy/palette-antd/-/palette-antd-5.3.1.tgz#3ded9b9cc44cfa14399c3b02bf754e9744978782"
-  integrity sha512-G75Pik29FnmyvANiGLSpMFpru4Uzv5woq/IFrkmfYmJb+5vW3lhc+Y/PftLqatSH9fjXs/UOszuSbPzlykT9cw==
-  dependencies:
-    "@react-buddy/ide-toolbox" "^2.4.0"
-
 "@rollup/rollup-android-arm-eabi@4.9.1":
   version "4.9.1"
   resolved "https://registry.npmmirror.com/@rollup/rollup-android-arm-eabi/-/rollup-android-arm-eabi-4.9.1.tgz#beaf518ee45a196448e294ad3f823d2d4576cf35"
@@ -670,81 +665,86 @@
   resolved "https://registry.npmmirror.com/@rollup/rollup-win32-x64-msvc/-/rollup-win32-x64-msvc-4.9.1.tgz#d146db7a5949e10837b323ce933ed882ac878262"
   integrity sha512-PyJsSsafjmIhVgaI1Zdj7m8BB8mMckFah/xbpplObyHfiXzKcI5UOUXRyOdHW7nz4DpMCuzLnF7v5IWHenCwYA==
 
-"@tauri-apps/api@>=2.0.0-rc", "@tauri-apps/api@^2.0.0-rc.0":
-  version "2.0.0-rc.3"
-  resolved "https://registry.npmmirror.com/@tauri-apps/api/-/api-2.0.0-rc.3.tgz#1dd17530de9cafd854f77d3feeca1732a985a81e"
-  integrity sha512-k1erUfnoOFJwL5VNFZz0BQZ2agNstG7CNOjwpdWMl1vOaVuSn4DhJtXB0Deh9lZaaDlfrykKOyZs9c3XXpMi5Q==
+"@tauri-apps/api@2.0.0-rc.4":
+  version "2.0.0-rc.4"
+  resolved "https://registry.npmmirror.com/@tauri-apps/api/-/api-2.0.0-rc.4.tgz#2b4c3493d86382981787c52006c6c9e5bf16bc08"
+  integrity sha512-UNiIhhKG08j4ooss2oEEVexffmWkgkYlC2M3GcX3VPtNsqFgVNL8Mcw/4Y7rO9M9S+ffAMnLOF5ypzyuyb8tyg==
 
 "@tauri-apps/api@^1.5.0":
   version "1.5.3"
   resolved "https://registry.npmmirror.com/@tauri-apps/api/-/api-1.5.3.tgz#f7b362b1f30aadb0a8bbeb7ae111755c0ed33d73"
   integrity sha512-zxnDjHHKjOsrIzZm6nO5Xapb/BxqUq1tc7cGkFXsFkGTsSWgCPH1D8mm0XS9weJY2OaR73I3k3S+b7eSzJDfqA==
 
-"@tauri-apps/cli-darwin-arm64@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-darwin-arm64/-/cli-darwin-arm64-2.0.0-rc.7.tgz#f4b581e5b39753a991a3047c7a8f793a2674c720"
-  integrity sha512-DUdO1TCj+cViFkOWtYotq4UNBGfHvl1xLK85n2rmpsCeveGxO9pf1CihOtADuVonHl6ETa9x/uaSTCMeMsKEbA==
+"@tauri-apps/api@^2.0.0-rc.0":
+  version "2.0.0-rc.3"
+  resolved "https://registry.npmmirror.com/@tauri-apps/api/-/api-2.0.0-rc.3.tgz#1dd17530de9cafd854f77d3feeca1732a985a81e"
+  integrity sha512-k1erUfnoOFJwL5VNFZz0BQZ2agNstG7CNOjwpdWMl1vOaVuSn4DhJtXB0Deh9lZaaDlfrykKOyZs9c3XXpMi5Q==
 
-"@tauri-apps/cli-darwin-x64@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-darwin-x64/-/cli-darwin-x64-2.0.0-rc.7.tgz#dd0db378ca0ef3ca31794e5eb682b25ee82933e3"
-  integrity sha512-T36ncxLyfgKBsPXdgCfw7WeOtHwDrfkvjJoovlBH5nAejlxZC4g4pYm7/Qvpc++FRmQhcHJXP8Y+fBOSEZrfog==
+"@tauri-apps/cli-darwin-arm64@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-darwin-arm64/-/cli-darwin-arm64-2.0.0-rc.13.tgz#78498188c37961c94c3c3aa0e92254fb0bfe2fd5"
+  integrity sha512-j2BTeqq0b5073SUr5jLUGWwmQ0Q7/T1uXQZd0hLynYgbL6ZR83afex2ct7i50Qui03er49188EoBWy3vDE/9Kg==
 
-"@tauri-apps/cli-linux-arm-gnueabihf@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-arm-gnueabihf/-/cli-linux-arm-gnueabihf-2.0.0-rc.7.tgz#c3f369cd90d8bb76816314adb93005b511d0a35a"
-  integrity sha512-afLBeWgpm++9oKsYNShqKsBCHLLgMJy+rodHIiUd9LB4VqjU/1bYfZdia0PxKjnEuOz27mG9Be5v0SDdsZsLww==
+"@tauri-apps/cli-darwin-x64@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-darwin-x64/-/cli-darwin-x64-2.0.0-rc.13.tgz#002363e76db726a3aed2eaddc912a6fe28427d1d"
+  integrity sha512-xj9O2G2aC4XdQtNefJRlk3M+mLchHphefMpkmhxAeeHIFspt24Cr15WO4FnUF/BcSkpIt1Pxdy3XTISECzx3eA==
 
-"@tauri-apps/cli-linux-arm64-gnu@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-arm64-gnu/-/cli-linux-arm64-gnu-2.0.0-rc.7.tgz#0fba0be82a261cd05e3f622e3e9db67ee2b20ea5"
-  integrity sha512-sjT/URsuJ2ImJGe9fH0b8reewGq5R1E5t4DZRF0ZVpCpUC1yTpml0kuPWt4S0rGws/beRICPaZWW8OuColIFtQ==
+"@tauri-apps/cli-linux-arm-gnueabihf@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-arm-gnueabihf/-/cli-linux-arm-gnueabihf-2.0.0-rc.13.tgz#6b07108d1eabb3d85ebf3c6aaa1dd62d57f0d616"
+  integrity sha512-n/moJC9pP1qDrqxgi825jjlubCQVRQ3D9VVriFaFOJ0mO4uPy+RTf27HLHWxe0MCk92Kxox2v3wzuDF5ldfy3A==
 
-"@tauri-apps/cli-linux-arm64-musl@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-arm64-musl/-/cli-linux-arm64-musl-2.0.0-rc.7.tgz#104d1eff19775bf02f75b89c369b548c4cb99b1c"
-  integrity sha512-s7OG30ffEBKF5BiMEIVmtd/UNHC956ihEOfZYRJwBZ9cL8qoPLjEMZYMCGB/767M4igXy1bhKaVnl8pZpk+RNw==
+"@tauri-apps/cli-linux-arm64-gnu@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-arm64-gnu/-/cli-linux-arm64-gnu-2.0.0-rc.13.tgz#64ae24113f3bdba9897102d9c5961bfff3926aae"
+  integrity sha512-dFIqAADRGjEiS4aTe02ZmVLXmrV/9b6K2vF3I+N/zaBLHQvfRiGfyooXr4EsmyHmen2hHWErUcHe27g17eB4pA==
 
-"@tauri-apps/cli-linux-x64-gnu@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-x64-gnu/-/cli-linux-x64-gnu-2.0.0-rc.7.tgz#93ddc89ba857af34cfaab70742fbce3324062bff"
-  integrity sha512-Qj9ibUvq2CwJE5JQ7M/DfOw44xcf59rUGsMGuku/bSKLPu6UXEFyUFjUURcnOgcZkq9o86no7ONoKdMxm4viKQ==
+"@tauri-apps/cli-linux-arm64-musl@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-arm64-musl/-/cli-linux-arm64-musl-2.0.0-rc.13.tgz#66af90ff539b04c9fafe054a9262f72f96cf3794"
+  integrity sha512-wc3lJNHfFB7ipux582i490h3uniGq2VakRZGvAIJXsUEWR4t4wcd2t77EXW1eaQMLA5UyiZJ7V3o7NiUJ5q0Hw==
 
-"@tauri-apps/cli-linux-x64-musl@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-x64-musl/-/cli-linux-x64-musl-2.0.0-rc.7.tgz#23ebd8bf9b627ef9cde9d78d229987fbd54fda76"
-  integrity sha512-75ucw3b7MVnyVNvoW+xqB1N8VGjx1vqP7HshAs+p1fSkeCOy2NvtMP7t8pdRlGQ59exH6vGvnQ/LxC5HgDP2Xg==
+"@tauri-apps/cli-linux-x64-gnu@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-x64-gnu/-/cli-linux-x64-gnu-2.0.0-rc.13.tgz#c312253456f7a44f7b8e7eebd357ec640322bc74"
+  integrity sha512-gC2Bmzqnb0R2lHgZ2tqwXJwaohz/kIBhmg1i+4UtNqJHNk96FSdWOPBX2fjvJsclks6WbI4u6y53jFFe9gzu4g==
 
-"@tauri-apps/cli-win32-arm64-msvc@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-win32-arm64-msvc/-/cli-win32-arm64-msvc-2.0.0-rc.7.tgz#04647bc7b06e86b5aed722ec89e08ef346f50809"
-  integrity sha512-KaWY7kVbpmJCn5INtcPX+tji7CqwmqtGechith65VIlEUUs+KyOkMdmgbsJvqe0N58VMHLFzEVfx1xtlaKGDUA==
+"@tauri-apps/cli-linux-x64-musl@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-linux-x64-musl/-/cli-linux-x64-musl-2.0.0-rc.13.tgz#fbacf9219712705ae73bb82a6c80903606fae87f"
+  integrity sha512-lh8qZ4UCt3314LPQgO6GxNtlsZs6M9yvUz6TmHo0SPfxQp4iiRVF/g032Bc1QUZEj7LUtvo9psyWRbzRA660/Q==
 
-"@tauri-apps/cli-win32-ia32-msvc@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-win32-ia32-msvc/-/cli-win32-ia32-msvc-2.0.0-rc.7.tgz#27bc34c30e04795edcee6031a7a4c3c64d3081ea"
-  integrity sha512-J2xVw7gcP1JY1Pj6lE+MuAUKtanD7tXyjBD6W8R2S7sD06Job9PHoonOQhm/vWlhQVtRkWPNX7K7MXbdoI/Z9w==
+"@tauri-apps/cli-win32-arm64-msvc@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-win32-arm64-msvc/-/cli-win32-arm64-msvc-2.0.0-rc.13.tgz#b49159f5caf4aa1a0eaa9896f359d0bfa9d4a858"
+  integrity sha512-09kTW5EPB1Q/Vnnnqu5v32UcPOjaA/+hey7fG1zIvNjjI4C0SZewvlPpffVpn9CQf9HTeBjPFFcadUu5pfFKAg==
 
-"@tauri-apps/cli-win32-x64-msvc@2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli-win32-x64-msvc/-/cli-win32-x64-msvc-2.0.0-rc.7.tgz#a893da9e87e982c33589d4a4ae43f274c83a8882"
-  integrity sha512-0dQzFCUGjrpJBsj/JpV2XRUbH6nDbhW4NKpx6DUnFrwPe7YQwz2eexo7FAu2pLTW8HEPCPd0NvXGOCUrWM/klg==
+"@tauri-apps/cli-win32-ia32-msvc@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-win32-ia32-msvc/-/cli-win32-ia32-msvc-2.0.0-rc.13.tgz#c48a9cb3cdb7683e8175fe53099d2ba55f385d49"
+  integrity sha512-LCSeYLqtcNGIax1GD+ss1JbMDN02Xv2Yg6J54exE7xYG8POD5kS6ZRYxpPeKOSr/tAA6OHBb0EOiZyq4T+mn1g==
+
+"@tauri-apps/cli-win32-x64-msvc@2.0.0-rc.13":
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli-win32-x64-msvc/-/cli-win32-x64-msvc-2.0.0-rc.13.tgz#2c101ef78e10732d8fc21a1765e15d5b04e5bd1d"
+  integrity sha512-lx0QS0pb0jP94k0nzAjd4IdKbchamC0jpfwQ5V0wW7DcW9e2EVGM0HIpQSh2hJgY5M2DBx+ZDnehvzeBxxz3BA==
 
 "@tauri-apps/cli@^2.0.0-rc.7":
-  version "2.0.0-rc.7"
-  resolved "https://registry.npmmirror.com/@tauri-apps/cli/-/cli-2.0.0-rc.7.tgz#e8b106d691d8bcbf4eea592023ca8ee6f63643dd"
-  integrity sha512-FdNcr75EIPfA69gWxpk3xv78og8CVbEa8ih2Rvp9k1tyAyryOth0Ps+jNEqP/WtfFwITWTYm4JqOubSCHoFjpQ==
+  version "2.0.0-rc.13"
+  resolved "https://registry.npmmirror.com/@tauri-apps/cli/-/cli-2.0.0-rc.13.tgz#5299e6413139f02c3039bb866c0c2c86b6f4cd07"
+  integrity sha512-Pqn7uqMu3C2X1vnP//dU5TDaE6/PIFH5cbl2FjZiVJErKsjhlIbZMFzrWJTSSBTAK42ZxiEAh+dfw2erTBTjrQ==
   optionalDependencies:
-    "@tauri-apps/cli-darwin-arm64" "2.0.0-rc.7"
-    "@tauri-apps/cli-darwin-x64" "2.0.0-rc.7"
-    "@tauri-apps/cli-linux-arm-gnueabihf" "2.0.0-rc.7"
-    "@tauri-apps/cli-linux-arm64-gnu" "2.0.0-rc.7"
-    "@tauri-apps/cli-linux-arm64-musl" "2.0.0-rc.7"
-    "@tauri-apps/cli-linux-x64-gnu" "2.0.0-rc.7"
-    "@tauri-apps/cli-linux-x64-musl" "2.0.0-rc.7"
-    "@tauri-apps/cli-win32-arm64-msvc" "2.0.0-rc.7"
-    "@tauri-apps/cli-win32-ia32-msvc" "2.0.0-rc.7"
-    "@tauri-apps/cli-win32-x64-msvc" "2.0.0-rc.7"
+    "@tauri-apps/cli-darwin-arm64" "2.0.0-rc.13"
+    "@tauri-apps/cli-darwin-x64" "2.0.0-rc.13"
+    "@tauri-apps/cli-linux-arm-gnueabihf" "2.0.0-rc.13"
+    "@tauri-apps/cli-linux-arm64-gnu" "2.0.0-rc.13"
+    "@tauri-apps/cli-linux-arm64-musl" "2.0.0-rc.13"
+    "@tauri-apps/cli-linux-x64-gnu" "2.0.0-rc.13"
+    "@tauri-apps/cli-linux-x64-musl" "2.0.0-rc.13"
+    "@tauri-apps/cli-win32-arm64-msvc" "2.0.0-rc.13"
+    "@tauri-apps/cli-win32-ia32-msvc" "2.0.0-rc.13"
+    "@tauri-apps/cli-win32-x64-msvc" "2.0.0-rc.13"
 
 "@tauri-apps/plugin-clipboard-manager@>=2.0.0-rc":
   version "2.0.0-rc.0"
@@ -826,14 +826,14 @@
   resolved "https://registry.npmmirror.com/@types/prop-types/-/prop-types-15.7.11.tgz#2596fb352ee96a1379c657734d4b913a613ad563"
   integrity sha512-ga8y9v9uyeiLdpKddhxYQkxNDrfvuPrlFb0N1qnZZByvcElJaXthF1UhvCh9TLWJBEHeNtdnbysW7Y6Uq8CVng==
 
-"@types/react-dom@^18.2.7":
-  version "18.2.18"
-  resolved "https://registry.npmmirror.com/@types/react-dom/-/react-dom-18.2.18.tgz#16946e6cd43971256d874bc3d0a72074bb8571dd"
-  integrity sha512-TJxDm6OfAX2KJWJdMEVTwWke5Sc/E/RlnPGvGfS0W7+6ocy2xhDVQVh/KvC2Uf7kACs+gDytdusDSdWfWkaNzw==
+"@types/react-dom@^18.3.0":
+  version "18.3.0"
+  resolved "https://registry.npmmirror.com/@types/react-dom/-/react-dom-18.3.0.tgz#0cbc818755d87066ab6ca74fbedb2547d74a82b0"
+  integrity sha512-EhwApuTmMBmXuFOikhQLIBUn6uFg81SwLMOAUgodJF14SOBOCMdU04gDoYi0WOJJHD144TL32z4yDqCW3dnkQg==
   dependencies:
     "@types/react" "*"
 
-"@types/react@*", "@types/react@^18.2.15":
+"@types/react@*":
   version "18.2.46"
   resolved "https://registry.npmmirror.com/@types/react/-/react-18.2.46.tgz#f04d6c528f8f136ea66333bc66abcae46e2680df"
   integrity sha512-nNCvVBcZlvX4NU1nRRNV/mFl1nNRuTuslAJglQsq+8ldXe5Xv0Wd2f7WTE3jOxhLH2BFfiZGC6GCp+kHQbgG+w==
@@ -842,15 +842,18 @@
     "@types/scheduler" "*"
     csstype "^3.0.2"
 
+"@types/react@^18.3.5":
+  version "18.3.5"
+  resolved "https://registry.npmmirror.com/@types/react/-/react-18.3.5.tgz#5f524c2ad2089c0ff372bbdabc77ca2c4dbadf8f"
+  integrity sha512-WeqMfGJLGuLCqHGYRGHxnKrXcTitc6L/nBUWfWPcTarG3t9PsquqUMuVeXZeca+mglY4Vo5GZjCi0A3Or2lnxA==
+  dependencies:
+    "@types/prop-types" "*"
+    csstype "^3.0.2"
+
 "@types/scheduler@*":
   version "0.16.8"
   resolved "https://registry.npmmirror.com/@types/scheduler/-/scheduler-0.16.8.tgz#ce5ace04cfeabe7ef87c0091e50752e36707deff"
   integrity sha512-WZLiwShhwLRmeV6zH+GkbOFT6Z6VklCItrDioxUnv+u4Ll+8vKeFySoFyK/0ctcRpOmwAicELfmys1sDc/Rw+A==
-
-"@types/use-sync-external-store@^0.0.3":
-  version "0.0.3"
-  resolved "https://registry.npmmirror.com/@types/use-sync-external-store/-/use-sync-external-store-0.0.3.tgz#b6725d5f4af24ace33b36fafd295136e75509f43"
-  integrity sha512-EwmlvuaxPNej9+T4v5AuBPJa2x2UOJVdjCtDHgcDqitUeOtjnJKJ+apYjVcAoBEMjKW1VVFGZLUb5+qqa09XFA==
 
 "@typescript-eslint/eslint-plugin@^7.13.0":
   version "7.13.0"
@@ -1264,15 +1267,15 @@ chalk@^4.0.0:
     ansi-styles "^4.1.0"
     supports-color "^7.1.0"
 
-classnames@2.x, classnames@^2.2.1, classnames@^2.2.3, classnames@^2.2.5, classnames@^2.2.6, classnames@^2.3.1, classnames@^2.3.2:
+classnames@2.x, classnames@^2.2.1, classnames@^2.2.3, classnames@^2.2.5, classnames@^2.3.1, classnames@^2.3.2:
   version "2.5.0"
   resolved "https://registry.npmmirror.com/classnames/-/classnames-2.5.0.tgz#9304d63d8d7135989e33e1ffb0bcc65178f92c2a"
   integrity sha512-FQuRlyKinxrb5gwJlfVASbSrDlikDJ07426TrfPsdGLvtochowmkbnSFdQGJ2aoXrSetq5KqGV9emvWpy+91xA==
 
-codemirror@5.2.0:
-  version "5.2.0"
-  resolved "https://registry.npmmirror.com/codemirror/-/codemirror-5.2.0.tgz#8257d46948c68430e1d50b1aeb58c306895d5183"
-  integrity sha512-zW/dhlfZbwX/zsQOZm2KfJsYT+n7tkFK93yDRlxAV4osiaKMCHWENHY6C/sDD0pCiFfncNyUXC9NZqKmZc0mtg==
+classnames@^2.2.6:
+  version "2.5.1"
+  resolved "https://registry.npmmirror.com/classnames/-/classnames-2.5.1.tgz#ba774c614be0f016da105c858e7159eae8e7687b"
+  integrity sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==
 
 color-convert@^1.9.0:
   version "1.9.3"
@@ -3135,10 +3138,18 @@ rc-upload@~4.3.5:
     classnames "^2.2.5"
     rc-util "^5.2.0"
 
-rc-util@^5.0.1, rc-util@^5.16.1, rc-util@^5.17.0, rc-util@^5.18.1, rc-util@^5.2.0, rc-util@^5.20.1, rc-util@^5.21.0, rc-util@^5.24.4, rc-util@^5.25.2, rc-util@^5.27.0, rc-util@^5.28.0, rc-util@^5.30.0, rc-util@^5.31.1, rc-util@^5.32.2, rc-util@^5.34.1, rc-util@^5.35.0, rc-util@^5.36.0, rc-util@^5.37.0, rc-util@^5.38.0, rc-util@^5.38.1:
+rc-util@^5.0.1, rc-util@^5.16.1, rc-util@^5.17.0, rc-util@^5.18.1, rc-util@^5.2.0, rc-util@^5.20.1, rc-util@^5.21.0, rc-util@^5.24.4, rc-util@^5.25.2, rc-util@^5.27.0, rc-util@^5.28.0, rc-util@^5.30.0, rc-util@^5.32.2, rc-util@^5.34.1, rc-util@^5.35.0, rc-util@^5.36.0, rc-util@^5.37.0, rc-util@^5.38.0, rc-util@^5.38.1:
   version "5.38.1"
   resolved "https://registry.npmmirror.com/rc-util/-/rc-util-5.38.1.tgz#4915503b89855f5c5cd9afd4c72a7a17568777bb"
   integrity sha512-e4ZMs7q9XqwTuhIK7zBIVFltUtMSjphuPPQXHoHlzRzNdOwUxDejo0Zls5HYaJfRKNURcsS/ceKVULlhjBrxng==
+  dependencies:
+    "@babel/runtime" "^7.18.3"
+    react-is "^18.2.0"
+
+rc-util@^5.31.1:
+  version "5.43.0"
+  resolved "https://registry.npmmirror.com/rc-util/-/rc-util-5.43.0.tgz#bba91fbef2c3e30ea2c236893746f3e9b05ecc4c"
+  integrity sha512-AzC7KKOXFqAdIBqdGWepL9Xn7cm3vnAmjlHqUnoQaTMZYhM4VlXGLkkHHxj/BZ7Td0+SOPKB4RGPboBVKT9htw==
   dependencies:
     "@babel/runtime" "^7.18.3"
     react-is "^18.2.0"
@@ -3153,11 +3164,6 @@ rc-virtual-list@^3.11.1, rc-virtual-list@^3.5.1, rc-virtual-list@^3.5.2:
     rc-resize-observer "^1.0.0"
     rc-util "^5.36.0"
 
-react-codemirror2@^8.0.0:
-  version "8.0.0"
-  resolved "https://registry.npmmirror.com/react-codemirror2/-/react-codemirror2-8.0.0.tgz#0ce624d024ba4ac7bab8979c2fd6596500d6bf51"
-  integrity sha512-JIbhXoghvX0BrasIoCQvRxBPIU78plfjF1Buz0gaMFvZXwEDjkCYBkQhucoOtudQ7ikbB1jJUnmCsutElti7yA==
-
 react-dom@^16.2.0:
   version "16.14.0"
   resolved "https://registry.npmmirror.com/react-dom/-/react-dom-16.14.0.tgz#7ad838ec29a777fb3c75c3a190f661cf92ab8b89"
@@ -3168,13 +3174,13 @@ react-dom@^16.2.0:
     prop-types "^15.6.2"
     scheduler "^0.19.1"
 
-react-dom@^18.2.0:
-  version "18.2.0"
-  resolved "https://registry.npmmirror.com/react-dom/-/react-dom-18.2.0.tgz#22aaf38708db2674ed9ada224ca4aa708d821e3d"
-  integrity sha512-6IMTriUmvsjHUjNtEDudZfuDQUoWXVxKHhlEGSk81n4YFS+r/Kl99wXiwlVXtPBtJenozv2P+hxDsw9eA7Xo6g==
+react-dom@^18.3.1:
+  version "18.3.1"
+  resolved "https://registry.npmmirror.com/react-dom/-/react-dom-18.3.1.tgz#c2265d79511b57d479b3dd3fdfa51536494c5cb4"
+  integrity sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==
   dependencies:
     loose-envify "^1.1.0"
-    scheduler "^0.23.0"
+    scheduler "^0.23.2"
 
 react-html-attributes@^1.4.2:
   version "1.4.6"
@@ -3204,9 +3210,9 @@ react-is@^16.13.1:
   integrity sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==
 
 react-is@^18.2.0:
-  version "18.2.0"
-  resolved "https://registry.npmmirror.com/react-is/-/react-is-18.2.0.tgz#199431eeaaa2e09f86427efbb4f1473edb47609b"
-  integrity sha512-xWGDIW6x921xtzPkhiULtthJHoJvBbF3q26fzloPCK0hsvxtPVelvftw3zjbHWSkR2km9Z+4uxbDDK/6Zw9B8w==
+  version "18.3.1"
+  resolved "https://registry.npmmirror.com/react-is/-/react-is-18.3.1.tgz#e83557dc12eae63a99e003a46388b1dcbb44db7e"
+  integrity sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==
 
 react-monaco-editor@0.47.0:
   version "0.47.0"
@@ -3214,14 +3220,6 @@ react-monaco-editor@0.47.0:
   integrity sha512-uXZMzYJReIHSA41Qjka2LZckEEawPQC0smpeUgkUvyaMiT8y9qFodIcQtLmSUj3g7gd/6W15a73jBs1d6sr+Mw==
   dependencies:
     prop-types "^15.8.1"
-
-react-redux@^9.1.1:
-  version "9.1.1"
-  resolved "https://registry.npmmirror.com/react-redux/-/react-redux-9.1.1.tgz#852ec13084bd7375e26db697d2fc9027ffada204"
-  integrity sha512-5ynfGDzxxsoV73+4czQM56qF43vsmgJsO22rmAvU5tZT2z5Xow/A2uhhxwXuGTxgdReF3zcp7A80gma2onRs1A==
-  dependencies:
-    "@types/use-sync-external-store" "^0.0.3"
-    use-sync-external-store "^1.0.0"
 
 react-refresh@^0.14.0:
   version "0.14.0"
@@ -3251,10 +3249,10 @@ react@^16.2.0:
     object-assign "^4.1.1"
     prop-types "^15.6.2"
 
-react@^18.2.0:
-  version "18.2.0"
-  resolved "https://registry.npmmirror.com/react/-/react-18.2.0.tgz#555bd98592883255fa00de14f1151a917b5d77d5"
-  integrity sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==
+react@^18.3.1:
+  version "18.3.1"
+  resolved "https://registry.npmmirror.com/react/-/react-18.3.1.tgz#49ab892009c53933625bd16b2533fc754cab2891"
+  integrity sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==
   dependencies:
     loose-envify "^1.1.0"
 
@@ -3381,10 +3379,10 @@ scheduler@^0.19.1:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
 
-scheduler@^0.23.0:
-  version "0.23.0"
-  resolved "https://registry.npmmirror.com/scheduler/-/scheduler-0.23.0.tgz#ba8041afc3d30eb206a487b6b384002e4e61fdfe"
-  integrity sha512-CtuThmgHNg7zIZWAXi3AsyIzA3n4xx7aNyjwC2VJldO2LMVDhFK+63xGqq6CsJH4rTAt6/M+N4GhZiDYPx9eUw==
+scheduler@^0.23.2:
+  version "0.23.2"
+  resolved "https://registry.npmmirror.com/scheduler/-/scheduler-0.23.2.tgz#414ba64a3b282892e944cf2108ecc078d115cdc3"
+  integrity sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ==
   dependencies:
     loose-envify "^1.1.0"
 
@@ -3759,11 +3757,6 @@ uri-js@^4.2.2:
   integrity sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==
   dependencies:
     punycode "^2.1.0"
-
-use-sync-external-store@^1.0.0:
-  version "1.2.1"
-  resolved "https://registry.npmmirror.com/use-sync-external-store/-/use-sync-external-store-1.2.1.tgz#8a64ce640415ae9944ec9e8336a8544bb77dcff2"
-  integrity sha512-6MCBDr76UJmRpbF8pzP27uIoTocf3tITaMJ52mccgAhMJycuh5A/RL6mDZCTwTisj0Qfeq69FtjMCUX27U78oA==
 
 vite@^5.0.0:
   version "5.0.10"

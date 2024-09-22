@@ -4,7 +4,7 @@ import {Table} from "antd";
 import {ColumnsType} from "antd/es/table";
 import {useTranslation} from "react-i18next";
 import "./SetOperator.less";
-import RedisFooter, {FooterAction, ValueFilterParam} from "../../RedisFooter.tsx";
+import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
 import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {ValueChanged} from "../../watcher/ValueEditor.tsx";
@@ -199,6 +199,7 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
             pageLength={dataRows}
             action={footerAction}
             pageSize={pageSize}
+            keyName={key}
             pinMode={props.pinMode}
             onNextPage={onNextPage}
             onPreviousPage={onPreviousPage}

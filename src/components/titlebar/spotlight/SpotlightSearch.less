@@ -1,16 +1,65 @@
+@border-radius: 6px !important;
+
+.spotlight-loading {
+  position: fixed;
+  z-index: 10000;
+
+  @keyframes animate {
+    0% {
+      transform: translate(-300px, 0px);
+    }
+    100% {
+      transform: translate(700px, 0px);
+    }
+  }
+
+  .loading-bar {
+    --clr: cyan;
+    width: calc(98vw);
+    height: 1px;
+    margin-top: 35px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .loading-bar::before {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    top: -150px;
+    background: radial-gradient(var(--clr), transparent, transparent);
+    animation: animate 1.2s linear infinite;
+  }
+
+  .loading-bar::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    right: 700px;
+    background: rgba(45, 45, 45, 1);
+  }
+
+}
+
 .spotlight-search-input {
-  width: 500px;
+  width: 600px;
 
   .ant-select-selector {
-    background-color: #2A2A2A !important;
-    color: #A8A8A8 !important;
+    background-color: #2B2B29 !important;
+    height: 37px !important;
+    color: #FFFFFF !important;
     border-color: #353535 !important;
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 -1px 4px 1px rgba(0, 0, 0, 0.35) !important;
     font-size: 12px !important;
+    border-radius: @border-radius;
 
     input {
-      height: 20px !important;
-      border-radius: 0 !important;
+      font-size: 18px !important;
+      font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+      font-weight: bold;
+      line-height: 36px !important;
+      border-radius: @border-radius;
       box-shadow: none !important;
       caret-color: #375ca6;
     }
@@ -46,9 +95,20 @@
   }
 }
 
+.ant-select-single.ant-select-sm:not(.ant-select-customize-input) .ant-select-selector .ant-select-selection-search-input {
+  line-height: 35px !important;
+  border-radius: @border-radius;
+  height: 35px !important;
+}
+
+.ant-select-single.ant-select-sm {
+  line-height: 35px !important;
+  border-radius: @border-radius;
+  height: 35px !important;
+}
+
 .spotlight-search-input.global {
   .ant-select-selector {
-    border-color: rgba(99, 101, 104, 0.62) !important;
 
     input {
       caret-color: #3478F6;
@@ -58,7 +118,9 @@
 
 .ant-select-dropdown {
   background: #2B2D30 !important;
-  border-radius: 4px;
+  border-radius: @border-radius;
+  inset: 38px auto auto 0 !important;
+  box-shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.35) !important;
 
   .ant-select-item {
     color: #DCDFE2 !important;

@@ -68,10 +68,10 @@ impl<R: Runtime> WebviewWindowExt for WebviewWindow<R> {
         panel_delegate.set_listener(Box::new(move |delegate_name: String| {
             match delegate_name.as_str() {
                 "window_did_become_key" => {
-                    let _ = app_handle.emit(format!("{}_panel_did_become_key", label).as_str(), ());
+                    // let _ = app_handle.emit(format!("{}_panel_did_become_key", label).as_str(), ());
                 }
                 "window_did_resign_key" => {
-                    let _ = app_handle.emit(format!("{}_panel_did_resign_key", label).as_str(), ());
+                    // let _ = app_handle.emit(format!("{}_panel_did_resign_key", label).as_str(), ());
                 }
                 _ => (),
             }
@@ -100,7 +100,7 @@ impl<R: Runtime> WebviewWindowExt for WebviewWindow<R> {
             origin: NSPoint {
                 x: (monitor_position.x + (monitor_size.width / 2.0))
                     - (window_frame.size.width / 2.0),
-                y: (monitor_position.y + (monitor_size.height / 2.0))
+                y: (monitor_position.y + (monitor_size.height * 0.74))
                     - (window_frame.size.height / 2.0),
             },
             size: window_frame.size,

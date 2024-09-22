@@ -77,7 +77,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                 </Col>
                 <Col span={12}>
                     <div className={'window-title-bar'} data-tauri-drag-region>
-                        <SpotlightAutoComplete/>
+                        {/*<SpotlightAutoComplete/>*/}
                     </div>
                 </Col>
                 <Col span={6}>

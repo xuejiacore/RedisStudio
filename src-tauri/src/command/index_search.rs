@@ -1,22 +1,15 @@
 use crate::indexer::redis_indexer::RedisIndexer;
-use crate::indexer::simple_infer_pattern::InferResult;
-use crate::indexer::tantivy_indexer::{SearchResult, TantivyIndexer};
+use crate::indexer::tantivy_indexer::TantivyIndexer;
 use crate::storage::redis_pool::RedisPool;
 use crate::CmdError;
 use redis::{cmd, RedisResult};
 use serde::{Deserialize, Serialize, Serializer};
-use serde_json::map::Values;
 use serde_json::{json, Value};
-use sqlx::query;
+use std::collections::HashMap;
 use std::future::Future;
 use std::ops::DerefMut;
-use std::sync::{Arc, Mutex, MutexGuard};
-use tantivy::query::{FuzzyTermQuery, RegexQuery};
-use tantivy::{TantivyError, Term};
-use tauri::ipc::InvokeError;
+use tantivy::query::RegexQuery;
 use tauri::{Runtime, State, Wry};
-use tauri_plugin_sql::Error;
-use tokio::time;
 
 type Result<T> = std::result::Result<T, CmdError>;
 
@@ -50,6 +43,7 @@ pub async fn search<R: Runtime>(
     index_name: &str,
     query: &str,
     limit: usize,
+    scan_size: usize,
     offset: usize,
     indexer: State<'_, TantivyIndexer>,
     redis_pool: State<'_, RedisPool>,
@@ -57,7 +51,6 @@ pub async fn search<R: Runtime>(
     _window: tauri::Window<Wry>,
 ) -> Result<String> {
     let mut search_result = SearchResultDto::new();
-
     let search_from_index = indexer.search_with_params(index_name, |index, params_builder| {
         let schema = index.schema();
         let normalize_field = schema.get_field("normalization").unwrap();
@@ -65,17 +58,21 @@ pub async fn search<R: Runtime>(
         let mut query_str = String::from(".*");
         query_str.push_str(query);
         query_str.push_str(".*");
-        let regex_query = RegexQuery::from_pattern(query_str.as_str(), normalize_field).unwrap();
-        params_builder
-            .with_limit_offset(limit, offset)
-            .with_query(Box::new(regex_query));
+        match RegexQuery::from_pattern(query_str.as_str(), normalize_field) {
+            Ok(regex_query) => {
+                params_builder
+                    .with_limit_offset(limit, offset)
+                    .with_query(Box::new(regex_query));
+            }
+            Err(err) => {}
+        }
     });
 
     let search_from_datasource = datasource_search(query);
-    let key_exactly_match = key_exactly_match(query, redis_pool);
+    let scanned_keys = key_scan_match(query, redis_pool, scan_size);
 
-    let (index_result, datasource_result, exactly_key)
-        = tokio::join!(search_from_index, search_from_datasource, key_exactly_match);
+    let (index_result, datasource_result, scanned_keys)
+        = tokio::join!(search_from_index, search_from_datasource, scanned_keys);
 
     // datasource result
     if let Some(result) = datasource_result {
@@ -90,15 +87,10 @@ pub async fn search<R: Runtime>(
     }
 
     // exactly matched key
-    if let Ok(tp) = exactly_key {
-        if !tp.eq("none") {
-            search_result.add("key".to_string(), 1, vec![
-                json!({"key": query, "type": tp})
-            ]);
-        }
+    if let Ok(tp) = scanned_keys {
+        let t = tp.len();
+        search_result.add("key".to_string(), t, tp);
     }
-
-    println!("result {}", search_result.results.len());
     Ok(json!(search_result).to_string())
 }
 
@@ -115,12 +107,74 @@ async fn datasource_search(query: &str) -> Option<Vec<Value>> {
 }
 
 /// exactly matched key name and type.
-async fn key_exactly_match(query: &str, redis_pool: State<'_, RedisPool>) -> RedisResult<String> {
+async fn key_scan_match(query: &str, redis_pool: State<'_, RedisPool>, limit: usize) -> anyhow::Result<Vec<Value>> {
     let arc = redis_pool.get_active_connection();
     let binding = arc.await;
     let mut mutex = binding.lock().await;
-    let ret: RedisResult<String> = cmd("TYPE").arg(query).query_async(mutex.deref_mut()).await;
-    ret
+
+    let replaced = query.replace("*", "");
+    if query.contains("*") && replaced.len() > 0 {
+        let mut remain_expect_count = limit;
+        let page_size = 400;
+        let mut cursor = 0;
+
+        let mut final_results = vec![];
+        loop {
+            let (new_cursor, results): (u64, Vec<String>) = cmd("SCAN")
+                .arg(cursor)
+                .arg("MATCH")
+                .arg(query)
+                .arg("COUNT")
+                .arg(page_size)
+                .query_async(mutex.deref_mut())
+                .await
+                .unwrap();
+
+            remain_expect_count = if remain_expect_count > results.len() {
+                remain_expect_count - results.len()
+            } else {
+                0
+            };
+            cursor = new_cursor;
+
+            final_results.extend(results);
+            if remain_expect_count == 0 || cursor == 0 {
+                break;
+            }
+        }
+
+        if final_results.len() > limit {
+            final_results.truncate(limit);
+        }
+        let mut pipe = redis::pipe();
+        let cloned_keys = final_results.clone();
+        final_results.iter().for_each(|k| {
+            pipe.cmd("TYPE").arg(k);
+        });
+        let types: Vec<String> = pipe.query_async(mutex.deref_mut()).await.unwrap();
+        let mut map = HashMap::new();
+        for idx in 0..cloned_keys.len() {
+            let key = &cloned_keys[idx];
+            let t = &types[idx];
+            map.insert(key, t);
+        }
+
+        anyhow::Ok(map.iter().map(|(key, tp)| {
+            json!({"key": key, "type": tp})
+        }).collect::<Vec<Value>>())
+    } else {
+        let ret: RedisResult<String> = cmd("TYPE").arg(query).query_async(mutex.deref_mut()).await;
+        match &ret {
+            Ok(tp) => {
+                if !tp.eq("none") {
+                    anyhow::Result::Ok(vec![json!({"key": query, "type": tp})])
+                } else {
+                    anyhow::Result::Ok(vec![])
+                }
+            }
+            Err(e) => anyhow::Result::Ok(vec![])
+        }
+    }
 }
 
 /// add document to index.
