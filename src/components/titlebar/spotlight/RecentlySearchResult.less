@@ -1,0 +1,62 @@
+.recently-search-result {
+  color: #f6f6f6;
+
+  .key {
+    margin: 6px;
+    padding: 1px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 4px;
+  }
+
+  .key.hash {
+    background: #B162C960;
+  }
+
+  .key.zset {
+    background: #EB433460;
+  }
+
+  .key.string {
+    background: #35AA5360;
+  }
+
+  .key.set {
+    background: #4586F360;
+  }
+
+  .key.list {
+    background: #FBBD0660;
+  }
+
+  .key.not-exist {
+    background: #494949;
+    color: #6f7178;
+    text-decoration: line-through;
+  }
+
+  .type {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: JetBrainsMonoBold, sans-serif;
+  }
+
+  .type.not-exist {
+    color: #6f7178;
+  }
+
+  .export-icon {
+    color: transparent;
+    width: 12px;
+  }
+
+}
+
+.ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  .key-search-result {
+    color: #f6f6f6;
+    .export-icon {
+      color: #f6f6f6;
+    }
+  }
+}

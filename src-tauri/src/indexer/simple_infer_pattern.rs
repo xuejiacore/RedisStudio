@@ -100,7 +100,6 @@ impl PatternInferenceEngine {
             .map(|p| (p.0.unwrap(), p.1))
             .collect();
         patterns.append(&mut tmp);
-        println!("初始化完成:{}", patterns.len());
         (*patterns).sort_by(|a, b| a.1.total_cmp(&b.1))
     }
 

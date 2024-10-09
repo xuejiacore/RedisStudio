@@ -14,36 +14,6 @@ interface SpotlightSearchProp {
     global?: boolean;
 }
 
-interface SearchData {
-    text: string;
-    type: number;
-}
-
-const useHotkeys = (keys: string, callback: any) => {
-    useEffect(() => {
-        const handleKeyDown = (event: any) => {
-            const keysPressed = keys.split('+').map(k => k.trim().toLowerCase());
-            const key = event.key.toLowerCase();
-
-            const isCtrl = keysPressed.includes('ctrl') ? event.ctrlKey : true;
-            const isAlt = keysPressed.includes('alt') ? event.altKey : true;
-            const isShift = keysPressed.includes('shift') ? event.shiftKey : true;
-
-            if (isCtrl && isAlt && isShift && keysPressed.includes(key)) {
-                event.preventDefault();
-                callback(event);
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [keys, callback]);
-};
-
-
 const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
     const {t} = useTranslation();
     const [options, setOptions] = useState<any>();
@@ -52,12 +22,6 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
     const [searchText, setSearchText] = useState('');
     const [searching, setSearching] = useState(false);
     const [stillSearching, setStillSearching] = useState(false);
-    useHotkeys('command+p', (event: any) => {
-        if (autoCompleteRef) {
-            autoCompleteRef.current?.focus();
-            // autoCompleteRef.current?.blur();
-        }
-    });
     useEffect(() => {
         if (props.global) {
             resize_global_height(0, () => {
@@ -91,6 +55,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
         } else if (height == 0) {
             height = 128;
         }
+        height = Math.min(height, 316);
         invoke("resize_spotlight_window", {
             height: height,
         }).then(r => {
@@ -116,13 +81,12 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
             } else {
                 setSearching(true);
                 timeout = setTimeout(() => {
-                    console.log('still searching ', searchingStatus)
                     if (searchingStatus) {
                         setStillSearching(true);
                     }
                 }, 500);
             }
-            invoke("search", {
+            invoke("spotlight_search", {
                 indexName: 'key_pattern',
                 query: `${val}`,
                 limit: limit,
@@ -151,7 +115,15 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
         let updateSearchText = true;
         console.log(`onSelect`, value, option.label);
         if (props.global) {
-            if (option.label.key.startsWith("key#")) {
+            const isKey = option.label.key.startsWith("key\x01");
+            const isFavor = option.label.key.startsWith("favor\x01");
+            const isRecently = option.label.key.startsWith("recently\x01");
+            if (isKey || isFavor || isRecently) {
+                if (isFavor || isRecently) {
+                    if (!option.label.props.exist) {
+                        return;
+                    }
+                }
                 updateSearchText = false;
                 setSearchText('');
                 const keyName = option.label.props.keyName;
@@ -159,12 +131,22 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                 invoke('open_redis_pushpin_window', {keyName, keyType}).then(e => {
                     resize_global_height(0, () => {
                         invoke('hide_spotlight', {}).then(_r => {
+                            invoke('record_key_access_history', {
+                                key: keyName,
+                                keyType,
+                                datasource: "datasource01"
+                            }).then(r => {
+                                console.log("record finished")
+                            })
                         });
                     });
                 });
             }
         }
         if (updateSearchText) {
+            if (value.indexOf("\x01") > 0) {
+                value = value.split('\x01')[1];
+            }
             setSearchText(value);
             debouncedQuery(searchingStatus, value);
         }

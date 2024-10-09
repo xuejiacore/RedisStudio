@@ -117,6 +117,27 @@ async fn test_infer_new_pattern() {
     // simple_test(&indexer, datasource_id, "42:foo:12").await;
 }
 
+#[tokio::test]
+async fn test_record_key_access_history() {
+    let datasource_id = "datasource01";
+    let indexer = initialize_redis_indexer().await;
+    indexer.record_key_access_history(datasource_id, "user:10001904:attr", "hash").await;
+}
+
+#[tokio::test]
+async fn test_record_favor_key() {
+    let datasource_id = "datasource01";
+    let indexer = initialize_redis_indexer().await;
+
+    let op_add_favor = 1;
+    let op_rm_favor = -1;
+    // add new favor key
+    indexer.operate_favor(datasource_id, "user:10001904:attr", "hash", op_add_favor).await;
+
+    // remove favor key
+    indexer.operate_favor(datasource_id, "user:10001904:attr", "hash", op_rm_favor).await;
+}
+
 async fn simple_test(redis_indexer: &RedisIndexer, datasource: &str, key: &str) {
     let result = &redis_indexer.infer(datasource, key).await;
     match result {

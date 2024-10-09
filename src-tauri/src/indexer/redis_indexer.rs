@@ -1,18 +1,18 @@
 use crate::constant;
-use crate::indexer::indexer_initializer::{IDX_NAME_KEY_PATTERN, IDX_NAME_UNRECOGNIZED_PATTERN};
+use crate::indexer::indexer_initializer::{IDX_NAME_FAVOR, IDX_NAME_KEY_PATTERN, IDX_NAME_RECENTLY_ACCESS, IDX_NAME_UNRECOGNIZED_PATTERN};
 use crate::indexer::key_tokenize::RedisKeyTokenizer;
-use crate::indexer::simple_infer_pattern::{InferResult, PatternInferenceEngine, PatternInferenceEngines, REGX_ALPHABET};
+use crate::indexer::simple_infer_pattern::{InferResult, PatternInferenceEngine, PatternInferenceEngines};
 use crate::indexer::tantivy_indexer::{SearchResult, TantivyIndexer};
 use chrono::Utc;
 use regex::Regex;
 use serde_json::{json, Value};
 use std::fmt::Display;
-use std::sync::{Arc, Mutex, MutexGuard};
-use tantivy::query::{BooleanQuery, FuzzyTermQuery, Occur, Query, TermQuery};
+use std::sync::{Arc, Mutex};
+use tantivy::query::{BooleanQuery, Occur, Query, TermQuery};
 use tantivy::schema::{IndexRecordOption, Schema};
 use tantivy::tokenizer::Tokenizer;
-use tantivy::{Index, IndexWriter, TantivyDocument, Term};
-use uuid::{uuid, Uuid};
+use tantivy::{IndexWriter, TantivyDocument, Term};
+use uuid::Uuid;
 
 const SCOPE_SYS: u64 = 0;
 const SCOPE_SUER: u64 = 1;
@@ -147,7 +147,6 @@ impl RedisIndexer {
                     // combine current key to history for inferring.
                     keys.push(key_ref.to_string());
 
-                    println!("合并后 test 数组：{:?}", &keys);
                     match self.fast_infer(datasource_id, &keys).await {
                         None => None,
                         Some(result) => self.save_new_recognized_pattern(datasource_id, &mut keys, &doc_ids, result).await
@@ -219,7 +218,7 @@ impl RedisIndexer {
             };
             let pattern_ref = pattern.as_str();
 
-            let query_exists_result = TantivyIndexer::searching_with_params(index.clone(), |index, search_params| {
+            let query_exists_result = TantivyIndexer::searching_with_params(&index, |index, search_params| {
                 let schema = index.schema();
                 let query = build_text_term(&schema, "pattern.keyword", pattern_ref);
                 search_params.with_limit_offset(1, 0).with_query(Box::new(query));
@@ -315,7 +314,7 @@ impl RedisIndexer {
             idx.get(IDX_NAME_UNRECOGNIZED_PATTERN).unwrap().clone()
         };
 
-        TantivyIndexer::searching_with_params(index, |index, search_params| {
+        TantivyIndexer::searching_with_params(&index, |index, search_params| {
             let schema = index.schema();
             let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource_id);
             let key_kw_term_query = build_text_term(&schema, "key.keyword", key_ref);
@@ -385,6 +384,136 @@ impl RedisIndexer {
         }).await {
             Ok(result) => Ok(result),
             Err(err) => Err(IndexError::SystemErr(err.to_string())),
+        }
+    }
+
+    //noinspection ALL
+    /// record key access history
+    ///
+    /// ## Parameters
+    /// * `datasource` - id of datasource
+    /// * `key` - key name
+    /// * `key_type` - type of key
+    pub async fn record_key_access_history(&self, datasource: &str, key: &str, key_type: &str) {
+        let now = Utc::now();
+        let timestamp_millis = now.timestamp_millis();
+        let doc_id = Uuid::new_v4().to_string();
+        let doc = json!({
+            "doc_id": doc_id,
+            "key.keyword": key,
+            "key": key,
+            "datasource.keyword": datasource,
+            "ts": timestamp_millis,
+            "key_type": key_type
+        });
+        let idx = {
+            let indexer = self.tantivy_indexer.lock().unwrap();
+            let index_map = indexer.indexes.lock().unwrap();
+            index_map.get(IDX_NAME_RECENTLY_ACCESS).cloned()
+        };
+
+        match idx {
+            None => {}
+            Some(index) => {
+                // check data exists
+                let result = TantivyIndexer::searching_with_params(&index, |idx, params| {
+                    let schema = index.schema();
+                    let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource);
+                    let key_kw_term_query = build_text_term(&schema, "key.keyword", key);
+                    let mut sub_query = vec![
+                        (Occur::Must, datasource_term_query),
+                        (Occur::Must, key_kw_term_query),
+                    ];
+                    let query = BooleanQuery::new(sub_query);
+                    params.with_query(Box::new(query));
+                }).await;
+                match result {
+                    Ok(r) => {
+                        if r.hits > 0 {
+                            let doc_id_value = r.documents.first().unwrap().get("doc_id").unwrap()
+                                .as_array().expect("not array")[0].as_str().expect("not string");
+                            let schema = index.schema();
+                            let doc_id_field = schema.get_field("doc_id").unwrap();
+                            let delete_term = Term::from_field_text(doc_id_field, doc_id_value);
+                            let mut writer: IndexWriter<TantivyDocument> = index.writer(15000000).unwrap();
+                            writer.delete_term(delete_term);
+                            writer.commit().unwrap();
+                        }
+                    }
+                    Err(_) => {}
+                }
+
+                let doc_json = doc.to_string();
+                TantivyIndexer::write_json_doc(&doc_json, &index).unwrap();
+            }
+        }
+    }
+
+    //noinspection ALL
+    /// record user favor key
+    /// ## Parameters
+    /// * `datasource` - id of datasource
+    /// * `key` - key name
+    /// * `key_type` - type of key
+    /// * `op_type` - operate type, -1: delete, 1: add
+    pub async fn operate_favor(&self, datasource: &str, key: &str, key_type: &str, op_type: i16) {
+        let now = Utc::now();
+        let timestamp_millis = now.timestamp_millis();
+        let doc_id = Uuid::new_v4().to_string();
+        let doc = json!({
+            "doc_id": doc_id,
+            "key.keyword": key,
+            "key": key,
+            "datasource.keyword": datasource,
+            "ts": timestamp_millis,
+            "key_type": key_type
+        });
+        let idx = {
+            let indexer = self.tantivy_indexer.lock().unwrap();
+            let index_map = indexer.indexes.lock().unwrap();
+            index_map.get(IDX_NAME_FAVOR).cloned()
+        };
+
+        match idx {
+            None => {}
+            Some(index) => {
+                // check data exists
+                let result = TantivyIndexer::searching_with_params(&index, |idx, params| {
+                    let schema = index.schema();
+                    let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource);
+                    let key_kw_term_query = build_text_term(&schema, "key.keyword", key);
+                    let mut sub_query = vec![
+                        (Occur::Must, datasource_term_query),
+                        (Occur::Must, key_kw_term_query),
+                    ];
+                    let query = BooleanQuery::new(sub_query);
+                    params.with_query(Box::new(query));
+                }).await;
+
+                match result {
+                    Ok(r) => {
+                        if r.hits > 0 {
+                            if op_type == -1 {
+                                let doc_id_value = r.documents.first().unwrap().get("doc_id").unwrap()
+                                    .as_array().expect("not array")[0].as_str().expect("not string");
+                                let schema = index.schema();
+                                let doc_id_field = schema.get_field("doc_id").unwrap();
+                                let delete_term = Term::from_field_text(doc_id_field, doc_id_value);
+                                let mut writer: IndexWriter<TantivyDocument> = index.writer(15000000).unwrap();
+                                writer.delete_term(delete_term);
+                                writer.commit().unwrap();
+                            }
+                        } else {
+                            if op_type == 1 {
+                                // add new document
+                                let doc_json = doc.to_string();
+                                TantivyIndexer::write_json_doc(&doc_json, &index).unwrap();
+                            }
+                        }
+                    }
+                    Err(_) => {}
+                }
+            }
         }
     }
 }

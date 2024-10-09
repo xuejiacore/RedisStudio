@@ -17,6 +17,10 @@ const C_INDEX_DIRECTORY: &str = "tantivy_index";
 pub const IDX_NAME_KEY_PATTERN: &str = "key_pattern";
 /// unrecognized key pattern, temporary index.
 pub const IDX_NAME_UNRECOGNIZED_PATTERN: &str = "key_unrecognized";
+/// recently accessed keys history
+pub const IDX_NAME_RECENTLY_ACCESS: &str = "key_recently_access";
+/// user favor keys
+pub const IDX_NAME_FAVOR: &str = "key_favor";
 
 fn create_tantivy_index(index_directory: PathBuf, schema_builder: SchemaBuilder) -> Option<Index> {
     if !index_directory.exists() {
@@ -40,8 +44,17 @@ fn create_tantivy_index(index_directory: PathBuf, schema_builder: SchemaBuilder)
 impl TantivyIndexer {
     /// initializer the indexer schema
     pub async fn init_indexer(self) -> Self {
+        // key pattern
         self.initialize_key_pattern().await;
+
+        // unrecognized keys
         self.initialize_unrecognized_keys().await;
+
+        // recently accessed keys
+        self.initialize_recently_accessed_key().await;
+
+        // favor keys
+        self.initialize_favor_index().await;
         self
     }
 
@@ -62,7 +75,7 @@ impl TantivyIndexer {
     async fn initialize_unrecognized_keys(&self) {
         let mut schema_builder = Schema::builder();
         let text_field_indexing = TextFieldIndexing::default()
-            .set_tokenizer("redis_key_tokenize") // 使用自定义分词器
+            .set_tokenizer("redis_key_tokenize")
             .set_index_option(IndexRecordOption::WithFreqsAndPositions);
         let text_options: TextOptions = TextOptions::default()
             .set_indexing_options(text_field_indexing)
@@ -76,6 +89,69 @@ impl TantivyIndexer {
         schema_builder.add_u64_field("ts", FAST | STORED);
         schema_builder.add_text_field("segment", exactly_options);
         self.open_or_create_index(IDX_NAME_UNRECOGNIZED_PATTERN, schema_builder).await;
+    }
+
+    /// initialize recently accessed keys index.
+    ///
+    /// ## Document structure
+    ///
+    /// ```json
+    /// {
+    ///     "doc_id": "foo001",
+    ///     "datasource.keyword": "ds01",
+    ///     "key": "12:commodity:31",
+    ///     "key.keyword": "12:commodity:31",
+    ///     "key_type": "hash",
+    ///     "ts": 1724217484327
+    /// }
+    /// ```
+    async fn initialize_recently_accessed_key(&self) {
+        let mut schema_builder = Schema::builder();
+        let text_field_indexing = TextFieldIndexing::default()
+            .set_tokenizer("redis_key_tokenize")
+            .set_index_option(IndexRecordOption::WithFreqsAndPositions);
+        let text_options: TextOptions = TextOptions::default()
+            .set_indexing_options(text_field_indexing)
+            .set_stored();
+        let exactly_options = STRING | STORED | FAST;
+        schema_builder.add_text_field("doc_id", exactly_options.clone());
+        schema_builder.add_text_field("datasource.keyword", exactly_options.clone());
+        schema_builder.add_text_field("key", text_options);
+        schema_builder.add_text_field("key.keyword", exactly_options.clone());
+        schema_builder.add_text_field("key_type", exactly_options.clone());
+        schema_builder.add_u64_field("ts", FAST | STORED);
+        self.open_or_create_index(IDX_NAME_RECENTLY_ACCESS, schema_builder).await;
+    }
+
+    /// initialize user favor keys index.
+    /// ## Document structure
+    ///
+    /// ```json
+    /// {
+    ///     "doc_id": "foo01",
+    ///     "datasource.keyword": "ds01",
+    ///     "key": "12:commodity:31",
+    ///     "key.keyword": "12:commodity:31",
+    ///     "key_type": "hash",
+    ///     "ts": 1724217484327
+    /// }
+    /// ```
+    async fn initialize_favor_index(&self) {
+        let mut schema_builder = Schema::builder();
+        let text_field_indexing = TextFieldIndexing::default()
+            .set_tokenizer("redis_key_tokenize")
+            .set_index_option(IndexRecordOption::WithFreqsAndPositions);
+        let text_options: TextOptions = TextOptions::default()
+            .set_indexing_options(text_field_indexing)
+            .set_stored();
+        let exactly_options = STRING | STORED | FAST;
+        schema_builder.add_text_field("doc_id", exactly_options.clone());
+        schema_builder.add_text_field("datasource.keyword", exactly_options.clone());
+        schema_builder.add_text_field("key", text_options);
+        schema_builder.add_text_field("key.keyword", exactly_options.clone());
+        schema_builder.add_text_field("key_type", exactly_options.clone());
+        schema_builder.add_u64_field("ts", FAST | STORED);
+        self.open_or_create_index(IDX_NAME_FAVOR, schema_builder).await;
     }
 
     /// initialize core key pattern index.

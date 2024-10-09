@@ -146,7 +146,7 @@ impl TantivyIndexer {
     }
 
     pub async fn searching_with_params<F>(
-        index: Index,
+        index: &Index,
         mut search_params_builder: F,
     ) -> Result<SearchResult>
     where
@@ -181,7 +181,7 @@ impl TantivyIndexer {
                 return Ok(SearchResult {
                     hits: 0,
                     documents: vec![],
-                })
+                });
             }
         }
 
@@ -249,12 +249,12 @@ impl TantivyIndexer {
     {
         let index_opt: Option<Index> = {
             let res = self.indexes.lock()?;
-            res.get(index_name).cloned() // 假设 `index_name` 是 `&str` 类型，并且 `res` 是 `HashMap<String, Index>` 类型
+            res.get(index_name).cloned()
         };
 
         match index_opt {
             Some(index) => {
-                TantivyIndexer::searching_with_params(index, search_params_builder).await
+                TantivyIndexer::searching_with_params(&index, search_params_builder).await
             }
             None => Err(TantivyError::FieldNotFound(String::from(
                 "index not exists.",

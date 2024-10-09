@@ -38,7 +38,7 @@ impl PinnedWindows {
         let window = tauri::webview::WebviewWindowBuilder::new(manager, label.clone(), url)
             .inner_size(410f64, 290f64)
             .min_inner_size(410f64, 170f64)
-            .transparent(false)
+            .transparent(true)
             .visible(false)
             .decorations(false)
             .always_on_top(true)
@@ -100,7 +100,6 @@ impl PinnedWindows {
             map.insert(label.clone(), None);
         }
 
-        println!("Created pinned window {}", &label);
         label
     }
 
@@ -113,7 +112,6 @@ impl PinnedWindows {
             }
         };
         if let Some(win_label) = exists_win {
-            println!("{}", &win_label);
             return handle.get_webview_window(win_label.as_str()).unwrap();
         }
         let mut window_label: Option<String> = None;

@@ -1,3 +1,4 @@
+use rand::Rng;
 use tauri::{Emitter, Manager, Runtime, WebviewWindow};
 use tauri_nspanel::{
     cocoa::{
@@ -24,6 +25,8 @@ pub trait WebviewWindowExt {
     fn to_spotlight_panel(&self) -> tauri::Result<Panel>;
 
     fn center_at_cursor_monitor(&self) -> tauri::Result<()>;
+
+    fn random_center_at_cursor_monitor(&self, offset_x: f64, offset_y: f64) -> tauri::Result<()>;
 }
 
 impl<R: Runtime> WebviewWindowExt for WebviewWindow<R> {
@@ -102,6 +105,35 @@ impl<R: Runtime> WebviewWindowExt for WebviewWindow<R> {
                     - (window_frame.size.width / 2.0),
                 y: (monitor_position.y + (monitor_size.height * 0.74))
                     - (window_frame.size.height / 2.0),
+            },
+            size: window_frame.size,
+        };
+
+        let _: () = unsafe { msg_send![window_handle, setFrame: rect display: YES] };
+
+        Ok(())
+    }
+
+    fn random_center_at_cursor_monitor(&self, offset_x: f64, offset_y: f64) -> tauri::Result<()> {
+        let monitor = monitor::get_monitor_with_cursor()
+            .ok_or(TauriError::Anyhow(Error::MonitorNotFound.into()))?;
+
+        let monitor_scale_factor = monitor.scale_factor();
+
+        let monitor_size = monitor.size().to_logical::<f64>(monitor_scale_factor);
+
+        let monitor_position = monitor.position().to_logical::<f64>(monitor_scale_factor);
+
+        let window_handle: id = self.ns_window().unwrap() as _;
+
+        let window_frame: NSRect = unsafe { window_handle.frame() };
+
+        let rect = NSRect {
+            origin: NSPoint {
+                x: (monitor_position.x + (monitor_size.width / 2.0))
+                    - (window_frame.size.width / 2.0) + offset_x,
+                y: (monitor_position.y + (monitor_size.height * 0.64))
+                    - (window_frame.size.height / 2.0) + offset_y,
             },
             size: window_frame.size,
         };

@@ -1,14 +1,15 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::any::Any;
-
+use chrono::Local;
 use sqlx::{Connection, Row};
+use std::any::Any;
 use tauri::ipc::private::FutureKind;
 use tauri::ipc::IpcResponse;
 use tauri::{Manager, PhysicalSize, Runtime, State, Wry};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
+use redisstudio::command::common_cmd;
 use redisstudio::command::index_search;
 use redisstudio::command::menu_controller;
 use redisstudio::command::pattern_manager;
@@ -91,14 +92,17 @@ fn main() {
             greet,
             close_splashscreen,
             resize_spotlight_window,
+            common_cmd::key_favor_status,
+            common_cmd::operate_key_favor,
 
             spotlight_command::show_spotlight,
             spotlight_command::hide_spotlight,
 
             // Searching
-            index_search::search,
+            index_search::spotlight_search,
             index_search::write_index,
             index_search::infer_redis_key_pattern,
+            index_search::record_key_access_history,
 
             // Pattern Manager
             pattern_manager::pattern_add_tag,
@@ -122,6 +126,24 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_log::Builder::new()
+            .level(log::LevelFilter::Info)
+            // verbose logs only for the commands module
+            .level_for("tantivy", log::LevelFilter::Info)
+            .format(|out, message, record| {
+                let now = Local::now();
+                let milliseconds = now.timestamp_millis() % 1000;
+                let formatted_without_millis = now.format("%Y-%m-%d %H:%M:%S");
+                let formatted_with_millis = format!("{}.{:03}", formatted_without_millis, milliseconds);
+                out.finish(format_args!(
+                    "[{}] [{}] [{}] {}",
+                    formatted_with_millis,
+                    record.level(),
+                    record.target(),
+                    message
+                ))
+            })
+            .build())
         .plugin(tauri_nspanel::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()

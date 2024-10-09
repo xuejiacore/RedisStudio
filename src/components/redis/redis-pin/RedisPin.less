@@ -1,5 +1,27 @@
 .redis-push-pin-main {
-  background: #4E5157;
+  background: transparent;
+  padding: 5px;
+
+  .redis-main-panel .main-container {
+    box-shadow: 0 1px 2px 1px rgba(0, 0, 0, 0.40) !important;
+    border: 1px #353535 solid;
+    width: calc(100vw - 11px);
+    height: calc(100vh - 11px);
+    border-radius: 4px !important;
+
+    .redis-datatable {
+      height: calc(100vh - 68px);
+    }
+
+    .redis-footer {
+      position: relative;
+    }
+
+    .redis-footer.pinned {
+      bottom: 6px !important;
+    }
+
+  }
 }
 
 .pin-draggable {

@@ -43,6 +43,7 @@ ssh2 = "0.9.4"
 futures = "0.3.30"
 uuid = { version = "1.8.0", features = ["v4"] }
 bitflags = "2.4.1"
+tauri-plugin-log = "2.0.0-rc.2"
 
 [dependencies.tauri-plugin-sql]
 features = ["sqlite"] # or "postgres", or "mysql"

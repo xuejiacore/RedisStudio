@@ -3,6 +3,7 @@
 
 use crate::win::pinned_windows::PinnedWindows;
 use crate::win::window::WebviewWindowExt;
+use rand::Rng;
 use tauri::{LogicalPosition, LogicalSize, Manager, Position, Runtime, Size, State, Wry};
 use tauri_nspanel::ManagerExt;
 
@@ -53,7 +54,12 @@ pub fn open_redis_pushpin_window<R: Runtime>(
     window.eval(format!("window.onKeyChange('{}', '{}')", key_name, key_type).as_str()).unwrap();
     let label = window.label();
     let panel = handle.get_webview_panel(label).unwrap();
-    window.center_at_cursor_monitor().unwrap();
+
+    let mut rng = rand::thread_rng();
+
+    let random_x: f64 = rng.gen_range(-30f64..=300f64);
+    let random_y: f64 = rng.gen_range(-300f64..=300f64);
+    window.random_center_at_cursor_monitor(random_x, random_y).unwrap();
     panel.show();
 }
 

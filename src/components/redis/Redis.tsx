@@ -34,7 +34,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
         <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%'}}>
             <Empty
                 image={no_data_svg}
-                imageStyle={{height: 130}}
+                imageStyle={{height: 150}}
                 description={
                     <>
                         <div style={{

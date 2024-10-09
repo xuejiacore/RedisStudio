@@ -4,6 +4,8 @@ import KeyPatternSearchResult from "./KeyPatternSearchResult.tsx";
 import React from "react";
 import DatasourceSearchResult from "./DatasourceSearchResult.tsx";
 import KeySearchResult from "./KeySearchResult.tsx";
+import FavorSearchResult from "./FavorSearchResult.tsx";
+import RecentlySearchResult from "./RecentlySearchResult.tsx";
 
 interface OptionItem {
     value: any;
@@ -30,7 +32,8 @@ export interface SearchResultDto {
 }
 
 const TOP_HEIGHT = 53;
-const INDEX = ['key', 'key_pattern'];
+const ITEM_HEIGHT = 23;
+const INDEX = ['key', 'datasource', 'favor', "recently", 'key_pattern'];
 
 function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined>, global?: boolean): ResultOptions {
     if (result.hits == 0) {
@@ -44,47 +47,64 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
     switch (result.scene) {
         case "key_pattern":
             options = result.documents.map(t => {
+                const unique_key = `${result.scene}\x01${t.normalization}\x01${cts}`;
                 return {
-                    value: `${t.normalization}`,
-                    label: <KeyPatternSearchResult key={`${result.scene}#${t.normalization}-${cts}`}
+                    value: `${unique_key}`,
+                    label: <KeyPatternSearchResult key={unique_key}
                                                    pattern={t.normalization}
                                                    desc={'t.desc'}/>
                 }
             });
             return {
-                label: <span className={'group-name'}>{t('redis.main.search.scene.key_pattern.label')}</span>,
+                label: <span key={'key_pattern_label'}
+                             className={'group-name'}>{t('redis.main.search.scene.key_pattern.label')}</span>,
                 options: options,
-                height: (options.length + 1) * 23 + TOP_HEIGHT
+                height: (options.length + 1) * ITEM_HEIGHT + TOP_HEIGHT
             };
         case "recently":
-            options = [];
+            options = result.documents.sort((a: any, b: any) => {
+                return b.key[0].localeCompare(a.key[0]);
+            }).map(t => {
+                const unique_key = `${result.scene}\x01${t.key[0]}\x01${cts}`;
+                return {
+                    value: `${unique_key}`,
+                    label: <RecentlySearchResult key={`${unique_key}`}
+                                                 keyName={t.key[0]}
+                                                 type={t.key_type[0]}
+                                                 global={global}
+                                                 exist={t.exist}/>
+                }
+            });
             return {
-                label: <span className={'group-name'}>{t('redis.main.search.scene.recently.label')}</span>,
+                label: <span key={'recently-label'}
+                             className={'group-name'}>{t('redis.main.search.scene.recently.label')}</span>,
                 options: options,
-                height: (options.length + 1) * 23 + TOP_HEIGHT
+                height: (options.length + 1) * ITEM_HEIGHT + TOP_HEIGHT
             };
         case "key":
             options = result.documents.sort((a: any, b: any) => {
                 return b.key.localeCompare(a.key);
             }).map(t => {
+                const unique_key = `${result.scene}\x01${t.key}\x01${cts}`;
                 return {
-                    value: `${t.key}`,
-                    label: <KeySearchResult key={`${result.scene}#${t.key}-${cts}`}
+                    value: `${unique_key}`,
+                    label: <KeySearchResult key={unique_key}
                                             keyName={t.key}
                                             type={t.type}
                                             global={global}/>
                 }
             });
             return {
-                label: <span className={'group-name'}>{t('redis.main.search.scene.key.label')}</span>,
+                label: <span key={'key-label'} className={'group-name'}>{t('redis.main.search.scene.key.label')}</span>,
                 options: options,
-                height: (options.length + 1) * 23 + TOP_HEIGHT
+                height: (options.length + 1) * ITEM_HEIGHT + TOP_HEIGHT
             }
         case "datasource":
             options = result.documents.map(t => {
+                const unique_key = `${result.scene}\x01${t.hostport}\x01${cts}`;
                 return {
-                    value: `${t.hostport}`,
-                    label: <DatasourceSearchResult key={`${result.scene}#${t.hostport}-${cts}`}
+                    value: `${unique_key}`,
+                    label: <DatasourceSearchResult key={`${unique_key}`}
                                                    hostport={t.hostport}
                                                    desc={t.desc}
                                                    connected={t.connected}
@@ -92,9 +112,29 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
                 }
             });
             return {
-                label: <span className={'group-name'}>{t('redis.main.search.scene.datasource.label')}</span>,
+                label: <span key={'datasource-label'}
+                             className={'group-name'}>{t('redis.main.search.scene.datasource.label')}</span>,
                 options: options,
-                height: (options.length + 1) * 23 + TOP_HEIGHT
+                height: (options.length + 1) * ITEM_HEIGHT + TOP_HEIGHT
+            }
+        case "favor":
+            options = result.documents.sort((a: any, b: any) => {
+                return b.key[0].localeCompare(a.key[0]);
+            }).map(t => {
+                const unique_key = `${result.scene}\x01${t.key[0]}\x01${cts}`;
+                return {
+                    value: `${unique_key}`,
+                    label: <FavorSearchResult key={unique_key}
+                                              keyName={t.key[0]}
+                                              type={t.key_type[0]}
+                                              exist={t.exist}/>
+                }
+            });
+            return {
+                label: <span key={'favor-label'}
+                             className={'group-name'}>{t('redis.main.search.scene.favor.label')}</span>,
+                options: options,
+                height: (options.length + 1) * ITEM_HEIGHT + TOP_HEIGHT
             }
     }
     return {

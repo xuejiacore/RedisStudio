@@ -34,7 +34,7 @@
 
     .ant-table-row {
       .ant-table-cell-row-hover {
-        @row-hover-background: #393B4035 !important;
+        @row-hover-background: rgba(57, 59, 64, 0.55) !important;
         @row-hover-color: #FFFFFF !important;
 
         background: @row-hover-background;
@@ -42,12 +42,12 @@
         color: @row-hover-color;
 
         .table-row-data {
-          background: @row-hover-background;
+          background: transparent;
           color: @row-hover-color;
         }
 
         .field-toolkits {
-          background: @row-hover-background;
+          background: transparent;
           color: @row-hover-color;
         }
       }
@@ -101,7 +101,7 @@
 
       :nth-child(1) {
         .table-row-data {
-          background: @evn-background;
+          background: transparent;
           margin-left: @margin-left;
           padding-left: @padding-left;
           border-bottom-left-radius: @row-radius;

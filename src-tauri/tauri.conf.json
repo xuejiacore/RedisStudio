@@ -73,7 +73,7 @@
         "alwaysOnTop": true,
         "minWidth": 410,
         "minHeight": 170,
-        "transparent": false,
+        "transparent": true,
         "shadow": true,
         "label": "key_pinned_window",
         "url": "windows/redis-pin.html",

@@ -6,8 +6,8 @@ import {
     FieldTimeOutlined,
     HeartFilled,
     PushpinFilled,
-    ReloadOutlined, SaveOutlined,
-    ShrinkOutlined
+    ReloadOutlined,
+    SaveOutlined
 } from "@ant-design/icons";
 import {Col, Row, Space} from "antd";
 import {writeText} from "@tauri-apps/plugin-clipboard-manager";
@@ -81,6 +81,10 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
         invoke('on_redis_pushpin_window_shown', {keyName}).then(r => {
             setPushpinBtnSelected((r === 'true') ? 'selected' : '');
         });
+        invoke('key_favor_status', {datasource: 'datasource01', key: keyName}).then(r => {
+            const favored: boolean = JSON.parse(r as string).favored;
+            setFavorBtnSelected(favored ? 'selected' : '');
+        })
         currKeyName.current = keyName;
     }, [props.keyName]);
 
@@ -115,9 +119,23 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
 
     const onFavorClick = (e: React.MouseEvent, keyName: string) => {
         if (favorBtnSelected == 'selected') {
-            setFavorBtnSelected('');
+            invoke('operate_key_favor', {
+                datasource: 'datasource01',
+                key: keyName,
+                keyType: props.keyType,
+                opType: -1
+            }).then(r => {
+                setFavorBtnSelected('');
+            })
         } else {
-            setFavorBtnSelected('selected');
+            invoke('operate_key_favor', {
+                datasource: 'datasource01',
+                key: keyName,
+                keyType: props.keyType,
+                opType: 1
+            }).then(r => {
+                setFavorBtnSelected('selected');
+            })
         }
     };
 

@@ -28,16 +28,19 @@
       "search": {
         "scene": {
           "key_pattern": {
-            "label": "Matched Pattern"
+            "label": "MATCHED PATTERN"
           },
           "recently": {
-            "label": "Recently"
+            "label": "RECENTLY"
           },
           "datasource": {
-            "label": "Datasource"
+            "label": "DATASOURCE"
           },
           "key": {
-            "label": "Key"
+            "label": "KEY"
+          },
+          "favor": {
+            "label": "FAVOR"
           }
         }
       },
