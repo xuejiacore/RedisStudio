@@ -10,7 +10,7 @@ import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {useTranslation} from "react-i18next";
 import {PushpinFilled} from "@ant-design/icons";
 import {TableRowSelection} from "antd/es/table/interface";
-import {listen, UnlistenFn} from "@tauri-apps/api/event";
+import {emitTo, listen, UnlistenFn} from "@tauri-apps/api/event";
 import SmartData, {UpdateEvent} from "../common/SmartData.tsx";
 
 interface HashOperatorProps {
@@ -73,9 +73,10 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     // 父组件的高度，用于计算树的最大高度
     const calParentHeight = () => (window.innerHeight
         || document.documentElement.clientHeight
-        || document.body.clientHeight) - (props.pinMode ? 100 : 140);
+        || document.body.clientHeight) - (props.pinMode ? 107 : 140);
     const [comHeight, setComHeight] = useState(calParentHeight());
 
+    console.log("comHeight = ", comHeight)
     const onPushpinField = (e: React.MouseEvent<HTMLSpanElement>, field: string) => {
         e.stopPropagation();
         const op = pinnedFields.includes(field) ? 'remove' : 'add';
@@ -89,10 +90,49 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     };
 
     const onFieldValueChange = (e: UpdateEvent) => {
+        console.log('Field changed:', e);
 
+        const req: UpdateRequest = {
+            key: e.keyName,
+            type: 'hash',
+            field: e.value,
+            oldField: e.oldValue,
+            fieldRename: true,
+        };
+        const payload = {
+            key: e.keyName,
+            key_type: 'hash',
+            old_field: e.oldValue,
+            field: e.value,
+            datasource_id: 'datasource01'
+        };
+        rust_invoke('redis_update', payload).then(r => {
+
+        });
+        emitTo('main', 'redis/update-value', req).finally();
     }
     const onContentValueChange = (e: UpdateEvent) => {
-
+        const req: UpdateRequest = {
+            key: e.keyName,
+            type: 'hash',
+            field: e.fieldName,
+            value: e.value,
+        };
+        const payload = {
+            key: e.keyName,
+            key_type: 'hash',
+            field: e.fieldName,
+            value: e.value,
+            datasource_id: 'datasource01'
+        };
+        rust_invoke('redis_update', payload).then(r => {
+            const ret: any = JSON.parse(r as string);
+            if (ret.success) {
+                emitTo('main', 'redis/update-value', req).finally();
+            } else {
+                console.error(`fail to update redis value, key = ${e.keyName}, keyType = hash, field = ${e.fieldName}, value = ${e.value}, msg = ${ret.msg}`);
+            }
+        })
     }
 
     const renderField = (fieldName: string, text: string) => {
@@ -111,7 +151,8 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     }
 
     const renderCell = (field: string, text: string) => {
-        return <SmartData keyName={key} fieldName={field} value={text} onChange={onContentValueChange}/>
+        return <SmartData key={`${Date.now()}-${key}-${field}`} keyName={key} fieldName={field} value={text}
+                          onChange={onContentValueChange}/>
     };
 
     const columns: ColumnsType<DataType> = [
@@ -123,7 +164,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             key: 'field',
             width: props.pinMode ? 'calc(30vw)' : maxFieldWidth,
             ellipsis: true,
-            render: val => renderField('field', val)
+            render: (val, record) => renderField(record.field!, val)
         },
         {
             title: <>
@@ -132,7 +173,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             dataIndex: 'content',
             key: 'content',
             ellipsis: true,
-            render: val => renderCell('content', val)
+            render: (val, record) => renderCell(record.field!, val)
         }
     ];
 
@@ -160,9 +201,17 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                     if (pl.type == 'hash' && pl.key == currentKey.current) {
                         let isNewItem = true;
                         const newDs = data.map(v => {
-                            if (v.key == pl.field) {
-                                v.content = pl.value;
-                                isNewItem = false;
+                            if (pl.fieldRename) {
+                                if (v.key == pl.oldField) {
+                                    v.field = pl.field;
+                                    v.key = pl.field;
+                                    isNewItem = false;
+                                }
+                            } else {
+                                if (v.key == pl.field) {
+                                    v.content = pl.value;
+                                    isNewItem = false;
+                                }
                             }
                             return v;
                         });
@@ -388,7 +437,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         />
         {/*<RedisTableView columns={columns}/>*/}
         <Table
-            key={tableUniqueId}
+            // key={tableUniqueId}
             columns={columns}
             dataSource={dataSource}
             size={"small"}
@@ -417,7 +466,11 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                         // 调用 Rust 代码显示右键菜单
                         invoke('show_content_editor_menu', {
                             x: e.clientX,
-                            y: e.clientY
+                            y: e.clientY,
+                            datasource: 'datasource01',
+                            field: record.field,
+                            value: record.content,
+                            key: props.data.key,
                         }).then(r => {
 
                         });

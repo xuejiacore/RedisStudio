@@ -3,7 +3,7 @@ use std::sync::atomic::AtomicI16;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow};
 use tauri_nspanel::cocoa::appkit::{NSMainMenuWindowLevel, NSWindowCollectionBehavior};
-use tauri_nspanel::{panel_delegate, WebviewWindowExt as WebWindowExt};
+use tauri_nspanel::{panel_delegate, ManagerExt, WebviewWindowExt as WebWindowExt};
 
 const WEBVIEW_URL: &str = "windows/redis-pin.html";
 const CORE_SIZE: usize = 2;
@@ -101,6 +101,22 @@ impl PinnedWindows {
         }
 
         label
+    }
+
+    pub fn window_shown<R: Runtime>(&self, runtime_label: String, handle: &AppHandle<R>) -> bool {
+        let exists_win = {
+            let mut rlm = self.runtime_label_mapping.lock().unwrap();
+            match rlm.get(&runtime_label) {
+                None => None,
+                Some(l) => Some(l.clone())
+            }
+        };
+        if let Some(win_label) = exists_win {
+            let panel = handle.get_webview_panel(win_label.as_str()).unwrap();
+            panel.is_visible()
+        } else {
+            false
+        }
     }
 
     pub fn fetch_idle_window<R: Runtime>(&self, runtime_label: String, handle: &AppHandle<R>) -> WebviewWindow<R> {

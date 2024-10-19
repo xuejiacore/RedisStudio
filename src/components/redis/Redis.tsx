@@ -128,7 +128,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
         <Row>
             {/* 左侧面板 */}
             <Col span={5}>
-                <RedisKeyTree datasourceId={'localhost'}
+                <RedisKeyTree datasourceId={'datasource01'}
                               parentHeight={parentHeight}
                               onSelect={onKeyNodeSelected}
                               onCmdOpen={onCommandQueryOpen}/>

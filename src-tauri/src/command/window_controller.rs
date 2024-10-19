@@ -5,6 +5,8 @@ use crate::win::pinned_windows::PinnedWindows;
 use crate::win::window::WebviewWindowExt;
 use rand::Rng;
 use tauri::{LogicalPosition, LogicalSize, Manager, Position, Runtime, Size, State, Wry};
+use tauri_nspanel::cocoa::appkit::NSEvent;
+use tauri_nspanel::cocoa::base::nil;
 use tauri_nspanel::ManagerExt;
 
 const REDIS_PIN_LABEL_PREFIX: &str = "redispin_win:";
@@ -57,9 +59,11 @@ pub fn open_redis_pushpin_window<R: Runtime>(
 
     let mut rng = rand::thread_rng();
 
-    let random_x: f64 = rng.gen_range(-30f64..=300f64);
-    let random_y: f64 = rng.gen_range(-300f64..=300f64);
-    window.random_center_at_cursor_monitor(random_x, random_y).unwrap();
+    if !panel.is_visible() {
+        let random_x: f64 = rng.gen_range(-30f64..=100f64);
+        let random_y: f64 = rng.gen_range(-30f64..=100f64);
+        window.random_center_at_cursor_monitor(random_x, random_y).unwrap();
+    }
     panel.show();
 }
 
@@ -93,21 +97,34 @@ pub fn resize_redis_pushpin_window<R: Runtime>(
     let window = pin_win_man.fetch_idle_window(key_name.to_string(), &handle);
     let pos = window.outer_position().unwrap();
     println!("pos: {:?}, x={}, y={}", pos, x, y);
+
+    // 获得鼠标的位置
+    unsafe {
+        // 获取鼠标位置
+        let event = NSEvent::mouseLocation(nil);
+        let mut mouse_x = event.x;
+        let mut mouse_y = event.y; // Flip y-coordinate for macOS
+
+        let aft_x = mouse_x as f64 - pos.x as f64 + 4f64;
+        let aft_y = mouse_y as f64 - pos.y as f64 + 4f64;
+        println!("mouse ({}, {}), afterSize = ({}, {})", mouse_x, mouse_y, aft_x, aft_y);
+        // window.set_size(Size::Logical(LogicalSize::new(af_width, af_height))).unwrap();
+    }
+
     let af_width = x - pos.x as f64;
     let af_height = y - pos.y as f64;
-    window.set_size(Size::Logical(LogicalSize::new(af_width, af_height))).unwrap();
+    // window.set_size(Size::Logical(LogicalSize::new(af_width, af_height))).unwrap();
 }
 
 #[tauri::command]
 pub fn on_redis_pushpin_window_shown<R: Runtime>(
     key_name: &str,
     handle: tauri::AppHandle<R>,
+    pin_win_man: State<'_, PinnedWindows>,
 ) -> String {
-    let label = get_window_label(key_name);
-    let window = handle.get_webview_window(label.clone().as_str());
-    match window {
-        None => "false".to_string(),
-        Some(w) => w.is_visible().unwrap().to_string(),
+    match pin_win_man.window_shown(key_name.to_string(), &handle) {
+        true => String::from("true"),
+        false => String::from("false")
     }
 }
 

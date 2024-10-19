@@ -188,7 +188,7 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
     }
 
     useEffect(() => {
-        rust_invoke("redis_key_info", {key: props.selectedKey, key_type: props.selectedKeyType}).then(r => {
+        rust_invoke("redis_key_info", {datasource_id: 'datasource01', key: props.selectedKey, key_type: props.selectedKeyType}).then(r => {
             const keyInfo: KeyInfo = JSON.parse(r as string);
             setOutlineInfo(keyInfo);
         });

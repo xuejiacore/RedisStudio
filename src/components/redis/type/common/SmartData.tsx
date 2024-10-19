@@ -7,12 +7,13 @@ export interface UpdateEvent {
     keyName: string;
     fieldName: string;
     value: string;
+    oldValue: string;
 }
 
 interface SmartDataProp {
     value: any;
     keyName: string;
-    fieldName: string;
+    fieldName?: string;
     editable?: boolean;
     onChange?: (event: UpdateEvent) => void;
 }
@@ -20,6 +21,7 @@ interface SmartDataProp {
 const SmartData: React.FC<SmartDataProp> = (props, context) => {
     const [editing, setEditing] = useState(false);
     const [inputValue, setInputValue] = useState(props.value);
+    const [beforeValue, setBeforeValue] = useState(props.value);
     const inputRef = useRef<InputRef>(null);
     useEffect(() => {
         if (editing) {
@@ -32,13 +34,15 @@ const SmartData: React.FC<SmartDataProp> = (props, context) => {
     const save = async () => {
         try {
             toggleEdit();
-            props.onChange?.({keyName: props.keyName, fieldName: props.fieldName, value: props.value});
+            props.onChange?.({keyName: props.keyName, fieldName: props.fieldName ?? '', value: inputValue, oldValue: beforeValue});
+
+            setBeforeValue(inputValue);
         } catch (errInfo) {
             console.log('Save failed:', errInfo);
         }
     };
     let node;
-    if (inputValue == '') {
+    if (inputValue === '') {
         node = <i className={'empty-data'}>&lt;Empty&gt;</i>
     } else if (inputValue) {
         if (inputValue == 'null') {

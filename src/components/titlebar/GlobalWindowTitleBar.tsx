@@ -47,9 +47,14 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
         const leftBottomY = rect.top + rect.height;
 
         console.log(`点击的位置：(${leftBottomX}, ${leftBottomY})`);
-        invoke('open_database_selector_window', {x: leftBottomX, y: leftBottomY}).then(r => {
+        invoke('open_datasource_window', {x: leftBottomX, y: leftBottomY}).then(r => {
             console.log(`========>> 打开数据源 ${r}`)
         })
+        // invoke('show_database_list_menu', {
+        //     datasource: 'datasource01',
+        // }).then(r => {
+        //
+        // });
     }
     return (
         <>

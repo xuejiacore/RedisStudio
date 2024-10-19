@@ -162,7 +162,9 @@ const ZkNodeTree: React.FC<KeyTreeProp> = (props, context) => {
             });
         }
         if (unlisten == null) {
-            rust_invoke("redis_list_datasource", {}).then(r => {
+            rust_invoke("redis_list_datasource", {
+                datasource_id: 'datasource01'
+            }).then(r => {
                 if (typeof r === "string") {
                     const result = JSON.parse(r)
                     setDataSources(result.map((item: any) => item.name));

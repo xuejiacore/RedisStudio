@@ -1,0 +1,141 @@
+body {
+  background: #2B2D30;
+}
+
+.create-new-key-window {
+
+  .title-area {
+    width: 100%;
+    border-bottom: 1px solid #DFE1E510;
+
+    .title {
+      text-align: center;
+      height: 28px;
+      line-height: 28px;
+      color: #DCDDDD;
+      font-size: 12px;
+      font-family: JetBrainsMonoBold, sans-serif;
+      cursor: default;
+    }
+
+    .tips {
+      text-align: center;
+      color: white;
+      font-size: 10px;
+      font-family: JetBrainsMonoBold, sans-serif;
+      width: 14px;
+      height: 14px;
+      line-height: 14px;
+      border-radius: 14px;
+    }
+
+    .tips.success {
+      background: #35AA53;
+    }
+
+    .tips.success:after {
+      content: '✓';
+    }
+
+    .tips.warn {
+      background: #9e792b;
+    }
+
+    .tips.warn:after {
+      content: '!';
+    }
+  }
+
+  .container {
+    margin-top: 10px;
+
+    .input-area {
+      width: 100%;
+
+      .label {
+        color: #f6f6f6;
+        font-size: 12px;
+        font-family: JetBrainsMonoBold, sans-serif;
+      }
+
+      .input {
+        color: #f6f6f6;
+        width: calc(60vw);
+        border-radius: 4px;
+        background: #43454A;
+        border-color: #1661cf;
+        caret-color: #f6f6f6;
+      }
+    }
+
+    .key {
+      width: 36px;
+      text-align: center;
+      border-radius: 3px;
+      font-weight: bold;
+      font-size: 12px;
+      color: #f6f6f6;
+      padding: 2px 4px;
+    }
+
+    .key.hash {
+      background: linear-gradient(to top, #B162C9C0, #B162C9);
+    }
+
+    .key.zset {
+      background: linear-gradient(to top, #EB4334C0, #EB4334);
+    }
+
+    .key.string {
+      background: linear-gradient(to top, #35AA53C0, #35AA53);
+    }
+
+    .key.set {
+      background: linear-gradient(to top, #4586F3C0, #4586F3);
+    }
+
+    .key.list {
+      background: linear-gradient(to top, #FBBD06C0, #FBBD06);
+    }
+
+    .form {
+      position: absolute;
+      bottom: 10px;
+      right: 16px;
+
+      .button {
+        color: #dfdfdf;
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        transition: background 0.1s;
+      }
+
+      .button:hover {
+        cursor: pointer;
+        color: white;
+      }
+
+      .button.submit {
+        background: linear-gradient(to top, #3875F6A0, #3875F6);
+      }
+
+      .button.submit.disabled {
+        cursor: not-allowed;
+        background: #5f6063;
+      }
+
+      .button.cancel {
+        background: linear-gradient(to top, #5f6063A0, #5f6063);
+      }
+
+      .button.submit:hover {
+        background: linear-gradient(to top, #4581fdA0, #4581fd);
+      }
+
+      .button.cancel:hover {
+        background: linear-gradient(to top, #6c6d70A0, #6c6d70);
+      }
+    }
+  }
+}

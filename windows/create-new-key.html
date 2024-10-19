@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>SplashScreen</title>
+</head>
+
+<body style="margin: 0; -webkit-user-select: none; overflow: hidden;">
+<div id="root"></div>
+</body>
+<script type="module" src="/src/windows/create-new-key/index.tsx"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(() => {
+            // 关闭所有输入框的拼写检查
+            document.querySelectorAll("input").forEach(function (input) {
+                input.setAttribute("spellcheck", "false");
+                input.setAttribute("autocorrect", "off");
+                input.setAttribute("autocomplete", "off");
+            });
+        }, 200);
+    });
+</script>
+</html>

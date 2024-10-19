@@ -21,17 +21,17 @@ function hash(str: string): number {
 }
 
 const colors = [
-    '#3960b760',
-    '#8c76ce60',
-    '#b44fa060',
-    '#FF634760',
-    '#4682B460',
-    '#32CD3260',
-    '#FFD70060',
-    '#FF69B460',
-    '#FF8C0060',
-    '#8A2BE260',
-    '#20B2AA60',
+    '#3960b7',
+    '#8c76ce',
+    '#b44fa0',
+    '#FF6347',
+    '#4682B4',
+    '#32CD32',
+    '#FFD700',
+    '#FF69B4',
+    '#FF8C00',
+    '#8A2BE2',
+    '#20B2AA',
 ]
 
 const RedisKeyTags: React.FC<RedisKeyTagsProp> = (props, context) => {
@@ -48,7 +48,8 @@ const RedisKeyTags: React.FC<RedisKeyTagsProp> = (props, context) => {
                         <Tooltip overlayClassName={'pattern-full-name'} placement="topLeft" color={'#424449'}
                                  title={normalized}>
                             <Tag className={'key-tag'}
-                                 color={colors[hashMod]}
+                                 // color={}
+                                style={{background: `linear-gradient(to top, ${colors[hashMod]}40, ${colors[hashMod]}4F)`}}
                                  key={'1'}
                                 // onClose={preventDefault}
                                 // onClick={e => showTagVars(c.id)}

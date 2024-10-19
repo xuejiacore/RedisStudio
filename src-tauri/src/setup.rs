@@ -1,34 +1,22 @@
 use crate::tray;
-use log::{debug, info};
 use redisstudio::indexer::redis_indexer::RedisIndexer;
 use redisstudio::indexer::simple_infer_pattern::PatternInferenceEngines;
 use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
-use redisstudio::menu::menu_manager;
+use redisstudio::menu::main_menu;
 use redisstudio::menu::menu_manager::MenuContext;
 use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::storage::redis_pool::RedisPool;
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
-use redisstudio::win::pinned_windows;
 use redisstudio::win::pinned_windows::PinnedWindows;
 use redisstudio::win::window::WebviewWindowExt;
 use redisstudio::Launcher;
 use serde_json::json;
 use sqlx::{Connection, Pool};
-use ssh2::HostKeyType;
-use std::process;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
-use tauri::async_runtime::set;
-use tauri::menu::{Menu, MenuId};
-use tauri::utils::config::WindowConfig;
-use tauri::webview::PageLoadEvent;
-use tauri::{window, App, Emitter, Listener, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, Window, WindowEvent, Wry};
-use tauri_nspanel::cocoa::appkit::{NSMainMenuWindowLevel, NSWindowCollectionBehavior};
-use tauri_nspanel::{panel_delegate, WebviewWindowExt as WebWindowExt};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri::Theme::Dark;
+use tauri::{App, AppHandle, Emitter, Listener, Manager, TitleBarStyle, WebviewUrl, WebviewWindow, WindowEvent, Wry};
 use tauri_plugin_sql::Error;
-use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
 
@@ -91,10 +79,15 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         drop(lock);
         cloned_app_handler.manage(instance);
 
+        // menu context manager
+        let menu_context = MenuContext::new();
+        cloned_app_handler.manage(menu_context);
+
         splashscreen_window.emit("splashscreen_progress", json!({
             "tips": "connect to redis"
         })).unwrap();
-        // prepare redis connection manager.
+
+        // TODO: prepare redis connection manager.
         let pool = RedisPool::new();
         let client = redis::Client::open("redis://172.31.72.5/10").unwrap();
         let con = client.get_multiplexed_async_connection().await.unwrap();
@@ -113,19 +106,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         splashscreen_window.emit("splashscreen_progress", json!({
             "tips": "connect to redis2"
         })).unwrap();
-        //sqlite.initialize();
-        // match sqlite.initialize().await {
-        //     Ok(()) => {
-        //
-        //     }
-        //     Err(err) => {}
-        // };
     });
-    //
-    // #[cfg(desktop)]
-    // app.handle()
-    //     .plugin(tauri_plugin_global_shortcut::Builder::new().build())?;
-
     Ok(())
 }
 
@@ -144,7 +125,6 @@ fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<WebviewWin
                 //reset_spotlight_search_win_pos();
             }
             WindowEvent::CloseRequested { .. } => {
-                info!("--------------- 主窗口关闭 ---------------");
                 // `tauri::AppHandle` now has the following additional method
                 //&app_handler.save_window_state(StateFlags::POSITION | StateFlags::SIZE); // will save the state of all open windows to disk
                 // app_handler.exit(0);
@@ -156,8 +136,10 @@ fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<WebviewWin
             _ => {}
         }
     });
+
     main_window.on_menu_event(move |window, event| {
-        println!("点击了菜单：{:?}", &event);
+        // process main window's menu event.
+        main_menu::process_main_menu(window, event);
     });
     // 仅在 macOS 下执行
     // #[cfg(target_os = "macos")]
@@ -219,7 +201,6 @@ fn init_database_selector_window(app: &mut App) -> TauriResult<()> {
     Ok(())
 }
 
-
 fn init_spotlight_search_window(app: &mut App) {
     let handle = app.app_handle();
 
@@ -233,67 +214,6 @@ fn init_spotlight_search_window(app: &mut App) {
         // This ensures the panel doesn't remain visible when it's not actively being used
         panel.order_out(None);
     });
-}
-const WEBVIEW_URL: &str = "windows/redis-pin.html";
-
-fn init_key_pin_window(app: &mut App) {
-    let url: WebviewUrl = WebviewUrl::App(WEBVIEW_URL.into());
-    let window = tauri::webview::WebviewWindowBuilder::new(app, "key_pinned_window2".to_string(), url)
-        .title(format!("pin_{}", 1))
-        .inner_size(410f64, 290f64)
-        .min_inner_size(410f64, 170f64)
-        .transparent(false)
-        .visible(false)
-        .decorations(false)
-        .always_on_top(true)
-        .shadow(true)
-        .build()
-        .unwrap();
-
-    // Convert window to panel
-    let panel = window.to_panel().unwrap();
-
-    // Set panel level
-    panel.set_level(NSMainMenuWindowLevel + 1);
-
-    // Allows the panel to display on the same space as the full screen window
-    panel.set_collection_behaviour(
-        NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary,
-    );
-
-    #[allow(non_upper_case_globals)]
-    const NSWindowStyleMaskNonActivatingPanel: i32 = 1 << 7;
-
-    // Ensures the panel cannot activate the App
-    panel.set_style_mask(NSWindowStyleMaskNonActivatingPanel);
-
-    // Set up a delegate to handle key window events for the panel
-    //
-    // This delegate listens for two specific events:
-    // 1. When the panel becomes the key window
-    // 2. When the panel resigns as the key window
-    //
-    // For each event, it emits a corresponding custom event to the app,
-    // allowing other parts of the application to react to these panel state changes.
-
-    let panel_delegate = panel_delegate!(SpotlightPanelDelegate {
-            window_did_resign_key,
-            window_did_become_key
-        });
-
-    panel_delegate.set_listener(Box::new(move |delegate_name: String| {
-        match delegate_name.as_str() {
-            "window_did_become_key" => {
-                // let _ = app_handle.emit(format!("{}_panel_did_become_key", label).as_str(), ());
-            }
-            "window_did_resign_key" => {
-                // let _ = app_handle.emit(format!("{}_panel_did_resign_key", label).as_str(), ());
-            }
-            _ => (),
-        }
-    }));
-
-    panel.set_delegate(panel_delegate);
 }
 
 fn prepare_splashscreen_window(app: &mut App) -> WebviewWindow {

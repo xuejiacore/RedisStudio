@@ -67,75 +67,22 @@ pub async fn dispatch_redis_cmd(
 
     debug!("cmd = {}, params = {}", &redis_cmd.cmd.clone(), cmd_data);
     let datasource_id = redis_cmd.datasource_id;
-    let arc = redis_pool.fetch_connection("datasource01").await;
+    let arc = redis_pool.fetch_connection(datasource_id.as_str()).await;
     let mut con = arc.lock().await;
     match &redis_cmd.cmd as &str {
-        "redis_list_datasource" => {
-            json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}])
-        }
+        "redis_list_datasource" => json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}]),
         "redis_get_database_info" => execute_get_database_info(con).await,
-        "redis_key_scan" => execute_scan_cmd(
-            redis_pool,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
-        "redis_key_type" => execute_type_cmd(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
-        "redis_get_hash" => execute_get_hash(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-            redis_indexer,
-            sqlite,
-        ).await,
-        "redis_get_string" => execute_get_string(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
-        "redis_key_info" => execute_key_info(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
-        "redis_zrange_members" => execute_zrange_members(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
-        "redis_lrange_members" => execute_lrange_members(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
-        "redis_sscan" => execute_sscan(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
-        "redis_update" => update_value(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
-        "run_redis_command" => execute_redis_command(
-            con,
-            datasource_id,
-            serde_json::from_str(cmd_data).unwrap(),
-            window,
-        ).await,
+        "redis_key_scan" => execute_scan_cmd(redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_key_type" => execute_type_cmd(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_get_hash" => execute_get_hash(con, datasource_id, serde_json::from_str(cmd_data).unwrap(), window, redis_indexer, sqlite).await,
+        "redis_get_string" => execute_get_string(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_key_info" => execute_key_info(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_zrange_members" => execute_zrange_members(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_lrange_members" => execute_lrange_members(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_sscan" => execute_sscan(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_update" => update_value(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "run_redis_command" => execute_redis_command(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_new_key" => execute_redis_new_key(con, serde_json::from_str(cmd_data).unwrap(), window).await,
         _ => unimplemented!(),
     }
 }
@@ -143,6 +90,7 @@ pub async fn dispatch_redis_cmd(
 #[derive(Serialize, Deserialize, Debug)]
 struct UpdateCmd {
     value: Option<String>,
+    old_field: Option<String>,
     field: Option<String>,
     old_value: Option<String>,
     key: String,
@@ -158,7 +106,6 @@ struct ExecuteScriptSmd {
 
 async fn execute_redis_command(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
     params: ExecuteScriptSmd,
     _window: Window,
 ) -> Value {
@@ -167,9 +114,45 @@ async fn execute_redis_command(
     json!({"success": true, "data": result})
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct CreateNewKey {
+    key: String,
+    key_type: String,
+}
+async fn execute_redis_new_key(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    params: CreateNewKey,
+    _window: Window,
+) -> Value {
+    match params.key_type.as_str() {
+        "string" => {
+            let _: String = cmd("SET").arg(params.key).arg("New String")
+                .query_async(connection.deref_mut()).await.unwrap();
+        }
+        "hash" => {
+            let _: i32 = cmd("HSET").arg(params.key).arg("New Field").arg("New Value")
+                .query_async(connection.deref_mut()).await.unwrap();
+        }
+        "list" => {
+            let _: i32 = cmd("LPUSH").arg(params.key).arg("New Element")
+                .query_async(connection.deref_mut()).await.unwrap();
+        }
+        "zset" => {
+            let _: i32 = cmd("ZADD").arg(params.key).arg(0.0).arg("New Member")
+                .query_async(connection.deref_mut()).await.unwrap();
+        }
+        "set" => {
+            let _: i32 = cmd("SADD").arg(params.key).arg("New Member")
+                .query_async(connection.deref_mut()).await.unwrap();
+        }
+        &_ => {}
+    }
+
+    json!({"success": true})
+}
+
 async fn update_value(
     connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
     params: UpdateCmd,
     _window: Window,
 ) -> Value {
@@ -184,15 +167,43 @@ async fn update_value(
 }
 
 async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
-    let field = params.field.unwrap();
-    let value = params.value.unwrap();
-    let _result: i32 = cmd("HSET")
-        .arg(params.key)
-        .arg(field)
-        .arg(value)
-        .query_async(connection.deref_mut())
-        .await
-        .unwrap();
+    match params.old_field {
+        None => {
+            let field = params.field.unwrap();
+            let value = params.value.unwrap();
+            let _result: i32 = cmd("HSET")
+                .arg(params.key)
+                .arg(field)
+                .arg(value)
+                .query_async(connection.deref_mut())
+                .await
+                .unwrap();
+        }
+        Some(old_filed) => {
+            let value: String = cmd("HGET")
+                .arg(&params.key)
+                .arg(old_filed.clone())
+                .query_async(connection.deref_mut())
+                .await
+                .unwrap();
+
+            let _result: i32 = cmd("HDEL")
+                .arg(&params.key)
+                .arg(old_filed)
+                .query_async(connection.deref_mut())
+                .await
+                .unwrap();
+
+            let field = params.field.unwrap();
+            let _result: i32 = cmd("HSET")
+                .arg(params.key)
+                .arg(field)
+                .arg(value)
+                .query_async(connection.deref_mut())
+                .await
+                .unwrap();
+        }
+    };
 
     json!({"success": true})
 }
@@ -449,7 +460,6 @@ async fn execute_get_hash(
 
 async fn execute_get_string(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
     params: GetStringCmd,
     _window: Window,
 ) -> Value {
@@ -467,7 +477,6 @@ struct KeyInfoParam {
 
 async fn execute_key_info(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
     params: KeyInfoParam,
     _window: Window,
 ) -> Value {
@@ -556,7 +565,6 @@ struct TypeCmd {
 
 async fn execute_type_cmd(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
     params: TypeCmd,
     _window: Window,
 ) -> Value {
@@ -595,7 +603,6 @@ struct MemberScoreValue {
 
 async fn execute_zrange_members(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
     params: ZRangeParam,
     _window: Window,
 ) -> Value {
@@ -754,7 +761,6 @@ struct ListMemberScoreValue {
 
 async fn execute_lrange_members(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
     params: LRangeParam,
     _window: Window,
 ) -> Value {
@@ -830,7 +836,6 @@ struct SScanParam {
 
 async fn execute_sscan(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    _ds: String,
     params: SScanParam,
     _window: Window,
 ) -> Value {
@@ -868,7 +873,6 @@ struct ScanCmd {
 
 async fn execute_scan_cmd(
     mut redis_pool: State<'_, RedisPool>,
-    _ds: String,
     params: ScanCmd,
     window: Window,
 ) -> Value {

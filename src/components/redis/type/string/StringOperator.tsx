@@ -23,6 +23,7 @@ const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
             setKeyType(props.data.keyType);
             rust_invoke("redis_get_string", {
                 key: props.data.key,
+                datasource_id: 'datasource01'
             }).then(r => {
                 const obj = JSON.parse(r as string);
                 let languageTmp = "text";

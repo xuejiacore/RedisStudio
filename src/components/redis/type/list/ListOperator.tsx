@@ -9,9 +9,9 @@ import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFoo
 import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
-import {listen, UnlistenFn} from "@tauri-apps/api/event";
+import {emitTo, listen, UnlistenFn} from "@tauri-apps/api/event";
 import {toHexString} from "../../../../utils/Util.ts";
-import SmartData from "../common/SmartData.tsx";
+import SmartData, {UpdateEvent} from "../common/SmartData.tsx";
 
 interface ListOperatorProp {
     data: any,
@@ -68,6 +68,35 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
             </div>
         </>
     };
+
+    const onMemberChange = (e: UpdateEvent) => {
+        console.log('change ', e);
+        const req: UpdateRequest = {
+            key: key,
+            type: keyType,
+            field: e.fieldName,
+            value: e.value,
+        };
+
+        const payload = {
+            key: key,
+            key_type: keyType,
+            field: e.fieldName,
+            value: e.value,
+            old_value: e.oldValue,
+            datasource_id: 'datasource01'
+        };
+
+        rust_invoke('redis_update', payload).then(r => {
+            const ret: any = JSON.parse(r as string);
+            if (ret.success) {
+                emitTo('main', 'redis/update-value', req).finally();
+            } else {
+                console.error(`fail to update redis value, key = ${req.key}, keyType = ${req.type}, field = ${req.field}, value = ${req.value}, msg = ${ret.msg}`);
+            }
+        })
+    };
+
     const columns: ColumnsType<DataType> = [
         {
             title: <>
@@ -90,7 +119,9 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
                 if (record.bytes?.length! > 0) {
                     return renderBytesCell(record);
                 } else {
-                    return <SmartData value={value as string}/>;
+                    const index = record.idx?.toString();
+                    return <SmartData keyName={key} fieldName={index} value={value as string}
+                                      onChange={onMemberChange}/>;
                 }
             }
         }
@@ -167,6 +198,7 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
     function queryData() {
         if (start >= 0) {
             rust_invoke("redis_lrange_members", {
+                datasource_id: 'datasource01',
                 key: props.data.key,
                 start: start,
                 size: pageSize,

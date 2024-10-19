@@ -81,7 +81,8 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
                 key: props.data.key,
                 start: start,
                 size: pageSize,
-                pattern: scanPattern
+                pattern: scanPattern,
+                datasource_id: 'datasource01'
             }).then(r => {
                 const obj: SetMemberResult = JSON.parse(r as string);
                 const data = obj.data.map<DataType>(t => {

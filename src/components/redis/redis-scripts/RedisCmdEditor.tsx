@@ -64,7 +64,7 @@ const RedisCmdEditor = forwardRef<RedisCmdEditorRef, RedisCmdEditorProp>((props,
                 scripts = selectedLinesContent.trim(); // 移除最后的换行符
             }
         }
-        rust_invoke('run_redis_command', {'script': scripts}).then(r => {
+        rust_invoke('run_redis_command', {'script': scripts, datasource_id: 'datasource01'}).then(r => {
             const resp: CmdExecuteResult = JSON.parse(r as string);
             if (resp.success) {
                 let idx = 0;

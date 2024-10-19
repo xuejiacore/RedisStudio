@@ -120,6 +120,7 @@ fn main() {
             menu_controller::show_auto_refresh_menu,
             menu_controller::show_add_new_key_menu,
             menu_controller::show_key_tree_right_menu,
+            menu_controller::show_database_list_menu,
         ])
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_shell::init())

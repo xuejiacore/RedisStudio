@@ -71,10 +71,10 @@ impl<R: Runtime> WebviewWindowExt for WebviewWindow<R> {
         panel_delegate.set_listener(Box::new(move |delegate_name: String| {
             match delegate_name.as_str() {
                 "window_did_become_key" => {
-                    // let _ = app_handle.emit(format!("{}_panel_did_become_key", label).as_str(), ());
+                    let _ = app_handle.emit(format!("{}_panel_did_become_key", label).as_str(), ());
                 }
                 "window_did_resign_key" => {
-                    // let _ = app_handle.emit(format!("{}_panel_did_resign_key", label).as_str(), ());
+                    let _ = app_handle.emit(format!("{}_panel_did_resign_key", label).as_str(), ());
                 }
                 _ => (),
             }

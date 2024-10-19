@@ -1,4 +1,5 @@
-import {Button, Collapse, Divider, Empty, Flex, Input, MenuProps, Space} from 'antd';
+/* eslint-disable */
+import {Button, Collapse, Divider, Empty, Flex, Input, Space} from 'antd';
 import type {DataNode, EventDataNode} from 'antd/es/tree';
 import React, {Key, useEffect, useMemo, useRef, useState} from "react";
 import "./RedisKeyTree.less";
@@ -34,7 +35,7 @@ interface KeyTreeProp {
 
 interface ScanItem {
     key: string | number,
-    keyType: string,
+    keyType?: string,
 }
 
 interface TreeDataParseContext {
@@ -60,46 +61,6 @@ function formatNumber(num: number): string {
     return num.toString();
 }
 
-const items: MenuProps['items'] = [
-    {
-        label: <span className={'menu-simple-text'}>String</span>,
-        key: 'string',
-    },
-    {
-        label: <span className={'menu-simple-text'}>Hash</span>,
-        key: 'hash',
-    },
-    {
-        label: <span className={'menu-simple-text'}>List</span>,
-        key: 'list',
-    },
-    {
-        label: <span className={'menu-simple-text'}>Set</span>,
-        key: 'set',
-    },
-    {
-        label: <span className={'menu-simple-text'}>ZSet</span>,
-        key: 'zset',
-    },
-    {
-        type: 'divider',
-    },
-    {
-        label: 'Import',
-        key: '3',
-        children: [
-            {
-                key: '1-1',
-                label: <span className={'menu-simple-text'}>Json</span>,
-            },
-            {
-                key: '1-2',
-                label: <span className={'menu-simple-text'}>Raw</span>,
-            },
-        ],
-    },
-];
-
 const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     const {t} = useTranslation();
@@ -114,7 +75,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const [dbsize, setDbsize] = useState('0');
     const [databases, setDatabases] = useState<any[]>([]);
     const [selectedDBIndex, setSelectedDBIndex] = useState(0);
-    const [dataSources, setDataSources] = useState([]);
+    const [dataSources, setDataSources] = useState<any>([]);
     const set = new Set<string>();
     const [deletedKeys, setDeletedKeys] = useState<Set<string>>(set);
     const [databasePopupMatchSelectWidth, setDatabasePopupMatchSelectWidth] = useState(140);
@@ -131,8 +92,65 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             setComHeight(newHeight);
         }
         window.addEventListener("resize", handleResize);
+
+        const ts = Date.now();
+        const addListenerAsync = async () => {
+            return new Promise<UnlistenFn>(resolve => {
+                listen('key-tree/new-key', (event) => {
+                    console.log("接收到创建新 key", event);
+                    receiveDataQueue.push({
+                        // @ts-ignore
+                        key: event.payload!.key,
+                        // @ts-ignore
+                        keyType: event.payload!.keyType,
+                    });
+                    const copy: CustomDataNode[] = cleaned ? [] : [...cachedTreeData];
+                    if (cleaned) {
+                        cleaned = false;
+
+                        treeDataContext.cacheData.clear();
+                    }
+                    let dataItem: ScanItem | undefined;
+                    // eslint-disable-next-line no-cond-assign
+                    while (dataItem = receiveDataQueue.shift()) {
+                        if (dataItem) {
+                            const array = (dataItem.key as string).split(splitSymbol);
+                            treeDataContext.keyTotal += packageDataNode(copy, array, dataItem, '', 0, treeDataContext);
+                        }
+                    }
+
+                    setTreeData(copy);
+                    cachedTreeData = copy;
+                    clearInterval(refreshTimer);
+                    setScannedKeyCount(treeDataContext.keyTotal);
+                }).then(unlistenFn => {
+                    if (removeListenerIdRef.current != ts) {
+                        //loadData();
+                        resolve(unlistenFn);
+                    } else {
+                        unlistenFn();
+                    }
+                })
+            })
+        }
+        (async () => {
+            removeListenerRef.current = await addListenerAsync();
+        })();
         return () => {
             window.removeEventListener("resize", handleResize);
+            removeListenerIdRef.current = ts;
+            const removeListenerAsync = async () => {
+                return new Promise<void>(resolve => {
+                    if (removeListenerRef.current) {
+                        removeListenerRef.current();
+                    }
+                    resolve();
+                })
+            }
+
+            removeListenerAsync().then(t => {
+                console.log('移除>>');
+            });
         }
     }, []);
     const [treeData, setTreeData] = useState<CustomDataNode[]>([]);
@@ -175,25 +193,27 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         const currentNodeTitle = array[0];
         const currPath = prePath.length > 0 ? prePath + splitSymbol + currentNodeTitle : array[0];
         if (array.length == 1) {
-            // 叶子节点
-            const node: CustomDataNode = {
-                title: currentNodeTitle,
-                key: currPath,
-                isLeaf: true,
-                total: 1
-            };
-            if (lv == 0) {
-                rust_invoke("redis_key_type", {
-                    datasource_id: props.datasourceId,
-                    keys: [node.key]
-                }).then(ret => {
-                    const obj = JSON.parse(ret as string);
-                    node.keyType = obj.types[node.key as string];
-                });
+            if (data.filter((d: any) => d.key === currPath).length == 0) {
+                // 叶子节点
+                const node: CustomDataNode = {
+                    title: currentNodeTitle,
+                    key: currPath,
+                    isLeaf: true,
+                    total: 1
+                };
+                if (lv == 0) {
+                    rust_invoke("redis_key_type", {
+                        datasource_id: props.datasourceId,
+                        keys: [node.key]
+                    }).then(ret => {
+                        const obj = JSON.parse(ret as string);
+                        node.keyType = obj.types[node.key as string];
+                    });
+                }
+                const lv0LeafIdx = context.lv0LeafIndex.get(lv) ?? 0;
+                context.lv0LeafIndex.set(lv, lv0LeafIdx - 1);
+                data.push(node);
             }
-            const lv0LeafIdx = context.lv0LeafIndex.get(lv) ?? 0;
-            context.lv0LeafIndex.set(lv, lv0LeafIdx - 1);
-            data.push(node);
             return 1;
         } else {
             const existsNodes = context.cacheData.get(`${currPath}\u0001`);
@@ -227,7 +247,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         const addListenerAsync = async () => {
             return new Promise<UnlistenFn>(resolve => {
                 const loadData = () => {
-                    rust_invoke("redis_list_datasource", {}).then(r => {
+                    rust_invoke("redis_list_datasource", {
+                        datasource_id: 'datasource01'
+                    }).then(r => {
                         if (typeof r === "string") {
                             const result = JSON.parse(r)
                             setDataSources(result.map((item: any) => item.name));
@@ -247,8 +269,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
                         payload.keys.forEach((key: any) => {
                             receiveDataQueue.push({
-                                key: key,
-                                keyType: 'hash'
+                                key: key
                             });
                         })
                         const copy: CustomDataNode[] = cleaned ? [] : [...cachedTreeData];
@@ -443,7 +464,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         setNoMoreData(false);
         cleanTreeData();
         rust_invoke("redis_key_scan", {
-            datasource_id: 'datasourceId',
+            datasource_id: 'datasource01',
             pattern: finalSearchVal,
             page_size: pageSize,
             cursor: cursor,
@@ -459,7 +480,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         } else {
             setScanning(true);
             rust_invoke("redis_key_scan", {
-                datasource_id: 'datasourceId',
+                datasource_id: 'datasource01',
                 pattern: searchValue ? searchValue : "*",
                 page_size: pageSize,
                 cursor: cursor,
@@ -475,7 +496,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         node: EventDataNode<CustomDataNode>;
     }) => {
         if (info.node.isLeaf) {
-            invoke("show_key_tree_right_menu", {}).then(r => {
+            invoke("show_key_tree_right_menu", {datasource: 'datasource01'}).then(r => {
             });
         }
     }
@@ -534,7 +555,8 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const onAddClick = (e: React.MouseEvent) => {
         invoke('show_add_new_key_menu', {
             x: e.clientX,
-            y: e.clientY
+            y: e.clientY,
+            datasource: 'datasource01'
         }).then(r => {
         })
     }

@@ -7,6 +7,7 @@ export default defineConfig(async () => ({
     build: {
         rollupOptions: {
             input: {
+                createnewkey: 'windows/create-new-key.html',
                 splashscreen: 'windows/splashscreen.html',
                 datasourcedropdown: 'windows/datasource-dropdown.html',
                 datasourcedatabaseselector: 'windows/datasource-database-selector.html',

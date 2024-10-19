@@ -97,10 +97,10 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
             </div>
         </>
     };
-    const scoreRender = (text: string) => {
+    const scoreRender = (text: string, member: string | undefined) => {
         const val = convertTimestampToDateWithMillis(text);
         if (val !== text.toString()) {
-            return <SmartData value={text}/>
+            return <SmartData keyName={key} fieldName={member ?? ''} value={text}/>
         }
         const scoreVal = parseFloat(text);
         const integerPart = Math.trunc(scoreVal);
@@ -143,7 +143,7 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
             key: 'score',
             width: props.pinMode ? 'auto' : 'auto',
             ellipsis: true,
-            render: scoreRender
+            render: (value: any, record: DataType, index: number) => scoreRender(value as string, record.member)
         },
         {
             title: <>
@@ -156,7 +156,7 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
                 if (record.bytes?.length! > 0) {
                     return renderBytesCell(record);
                 } else {
-                    return <SmartData value={value as string}/>;
+                    return <SmartData keyName={key} fieldName={record.member ?? ''} value={value as string}/>;
                 }
             }
         }
@@ -250,7 +250,8 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
                 sorted: sortType,
                 start: cursor,
                 size: ps,
-                pattern: filterPattern
+                pattern: filterPattern,
+                datasource_id: 'datasource01'
             }).then(r => {
                 const obj: ZRangeMemberResult = JSON.parse(r as string);
                 obj.data.forEach(t => t.key = t.member);

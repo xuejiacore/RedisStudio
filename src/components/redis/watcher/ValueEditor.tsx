@@ -20,12 +20,14 @@ export interface ValueChanged {
 }
 
 export interface UpdateRequest {
-    ts?: number,
-    field: string | undefined,
-    value: string,
-    key: string,
-    type: string,
-    transmission?: any,
+    ts?: number;
+    field: string | undefined;
+    oldField?: string;
+    value?: string;
+    key: string;
+    type: string;
+    transmission?: any;
+    fieldRename?: boolean;
 }
 
 interface UpdateResult {
@@ -107,8 +109,8 @@ const ValueEditor: React.FC<ValueViewerProp> = (props, context) => {
 
     const saveChanged = (editorVal: string, transmission: any) => {
         const req: UpdateRequest = {
-            key: props.data?.redisKey!,
-            type: props.data?.dataType!,
+            key: props.data!.redisKey!,
+            type: props.data!.dataType!,
             field: fieldValueRef.current?.input?.value,
             value: editorVal,
             transmission: transmission
@@ -119,10 +121,10 @@ const ValueEditor: React.FC<ValueViewerProp> = (props, context) => {
             key_type: req.type,
             field: req.field,
             value: req.value,
-            old_value: oldValue.current
+            old_value: oldValue.current,
+            datasource_id: 'datasource01'
         };
-        console.log('payload = ', payload);
-        console.log('req = ', req);
+
         rust_invoke('redis_update', payload).then(r => {
             const ret: UpdateResult = JSON.parse(r as string);
             if (ret.success) {

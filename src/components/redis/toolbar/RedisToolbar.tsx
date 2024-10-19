@@ -7,7 +7,7 @@ import {
     HeartFilled,
     PushpinFilled,
     ReloadOutlined,
-    SaveOutlined
+    SaveOutlined, StarFilled
 } from "@ant-design/icons";
 import {Col, Row, Space} from "antd";
 import {writeText} from "@tauri-apps/plugin-clipboard-manager";
@@ -144,16 +144,16 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
         tools = (<>
             {/*<div className={props.keyType + (payAttentionState ? ' pin-attention' : ' ')}></div>*/}
             <ReloadOutlined className={`toolbar-btn refresh-btn`} onClick={props.onReload}/>
-            <SaveOutlined className={'toolbar-btn save-btn'}/>
+            {/*<SaveOutlined className={'toolbar-btn save-btn'}/>*/}
             <CloseOutlined className={`toolbar-btn close-btn`} onClick={props.onClose}/>
         </>);
     } else {
         tools = (<>
             <ReloadOutlined className={'toolbar-btn refresh-btn'} onClick={props.onReload}/>
-            <SaveOutlined className={'toolbar-btn save-btn'}/>
+            {/*<SaveOutlined className={'toolbar-btn save-btn'}/>*/}
             <FieldTimeOutlined className={`toolbar-btn auto-refresh-btn ${autoRefresh}`}
                                onClick={e => onAutoReloadClick(e, props.keyName)}/>
-            <HeartFilled className={`toolbar-btn favor-btn ${favorBtnSelected}`}
+            <StarFilled className={`toolbar-btn favor-btn ${favorBtnSelected}`}
                          onClick={e => onFavorClick(e, props.keyName)}/>
             <PushpinFilled className={`toolbar-btn pushpin-btn ${pushpinBtnSelected}`}
                            onClick={e => onPushpin(e, props.keyName)}/>

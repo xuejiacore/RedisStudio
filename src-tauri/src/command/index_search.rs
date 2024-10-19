@@ -161,13 +161,17 @@ async fn recently_search(query: &str, indexer: &State<'_, TantivyIndexer>, redis
                     let mut mutex = binding.lock().await;
                     mutex.deref_mut().clone()
                 };
-                let exists_result: Vec<bool> = pipe.query_async(&mut conn).await.unwrap();
-                let mut documents = search_result.documents;
-                for (idx, val) in documents.iter_mut().enumerate() {
-                    let exist = &exists_result[idx];
-                    val["exist"] = Value::Bool(*exist);
+                match pipe.query_async::<Vec<bool>>(&mut conn).await {
+                    Ok(exists_result) => {
+                        let mut documents = search_result.documents;
+                        for (idx, val) in documents.iter_mut().enumerate() {
+                            let exist = &exists_result[idx];
+                            val["exist"] = Value::Bool(*exist);
+                        }
+                        Some(documents)
+                    }
+                    _ => None
                 }
-                Some(documents)
             } else {
                 None
             }
@@ -309,24 +313,28 @@ async fn search_favor(query: &str, indexer: &State<'_, TantivyIndexer>, redis_po
     match result {
         Ok(search_result) => {
             if search_result.hits > 0 {
-                let mut pipe = redis::pipe();
-                search_result.documents.iter().for_each(|k| {
-                    pipe.cmd("EXISTS").arg(k.get("key").unwrap().as_array().unwrap()[0].as_str().unwrap());
-                });
-
                 let mut conn = {
                     let arc = redis_pool.get_active_connection();
                     let binding = arc.await;
                     let mut mutex = binding.lock().await;
                     mutex.deref_mut().clone()
                 };
-                let exists_result: Vec<bool> = pipe.query_async(&mut conn).await.unwrap();
-                let mut documents = search_result.documents;
-                for (idx, val) in documents.iter_mut().enumerate() {
-                    let exist = &exists_result[idx];
-                    val["exist"] = Value::Bool(*exist);
+
+                let mut pipe = redis::pipe();
+                search_result.documents.iter().for_each(|k| {
+                    pipe.cmd("EXISTS").arg(k.get("key").unwrap().as_array().unwrap()[0].as_str().unwrap());
+                });
+                match pipe.query_async::<Vec<bool>>(&mut conn).await {
+                    Ok(exists_result) => {
+                        let mut documents = search_result.documents;
+                        for (idx, val) in documents.iter_mut().enumerate() {
+                            let exist = &exists_result[idx];
+                            val["exist"] = Value::Bool(*exist);
+                        }
+                        Some(documents)
+                    }
+                    _ => None
                 }
-                Some(documents)
             } else {
                 None
             }
