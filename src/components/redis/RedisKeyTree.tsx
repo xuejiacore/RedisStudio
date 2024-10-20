@@ -40,7 +40,7 @@ interface ScanItem {
 
 interface TreeDataParseContext {
     lv0LeafIndex: Map<number, number>,
-    cacheData: Map<string, CustomDataNode>,
+    parentMapping: Map<string, CustomDataNode>,
     keyTotal: number
 }
 
@@ -79,81 +79,24 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const set = new Set<string>();
     const [deletedKeys, setDeletedKeys] = useState<Set<string>>(set);
     const [databasePopupMatchSelectWidth, setDatabasePopupMatchSelectWidth] = useState(140);
-    const [treeUniqueId, setTreeUniqueId] = useState(Date.now())
+    const [treeUniqueId, setTreeUniqueId] = useState(Date.now());
+    const [treeData, setTreeData] = useState<CustomDataNode[] | DataNode[]>([]);
+    const [selectedKeys, setSelectedKeys] = useState<Key[]>()
+    const selectedKeysRef = useRef(selectedKeys);
+    const treeDataRef = useRef(treeData);
+
+    useEffect(() => {
+        treeDataRef.current = treeData
+    }, [treeData]);
+    useEffect(() => {
+        selectedKeysRef.current = selectedKeys;
+    }, [selectedKeys]);
 
     const calParentHeight = () => (window.innerHeight
         || document.documentElement.clientHeight
         || document.body.clientHeight) - 198;
     const [comHeight, setComHeight] = useState(calParentHeight());
 
-    useEffect(() => {
-        const handleResize = () => {
-            const newHeight = calParentHeight();
-            setComHeight(newHeight);
-        }
-        window.addEventListener("resize", handleResize);
-
-        const ts = Date.now();
-        const addListenerAsync = async () => {
-            return new Promise<UnlistenFn>(resolve => {
-                listen('key-tree/new-key', (event) => {
-                    console.log("接收到创建新 key", event);
-                    receiveDataQueue.push({
-                        // @ts-ignore
-                        key: event.payload!.key,
-                        // @ts-ignore
-                        keyType: event.payload!.keyType,
-                    });
-                    const copy: CustomDataNode[] = cleaned ? [] : [...cachedTreeData];
-                    if (cleaned) {
-                        cleaned = false;
-
-                        treeDataContext.cacheData.clear();
-                    }
-                    let dataItem: ScanItem | undefined;
-                    // eslint-disable-next-line no-cond-assign
-                    while (dataItem = receiveDataQueue.shift()) {
-                        if (dataItem) {
-                            const array = (dataItem.key as string).split(splitSymbol);
-                            treeDataContext.keyTotal += packageDataNode(copy, array, dataItem, '', 0, treeDataContext);
-                        }
-                    }
-
-                    setTreeData(copy);
-                    cachedTreeData = copy;
-                    clearInterval(refreshTimer);
-                    setScannedKeyCount(treeDataContext.keyTotal);
-                }).then(unlistenFn => {
-                    if (removeListenerIdRef.current != ts) {
-                        //loadData();
-                        resolve(unlistenFn);
-                    } else {
-                        unlistenFn();
-                    }
-                })
-            })
-        }
-        (async () => {
-            removeListenerRef.current = await addListenerAsync();
-        })();
-        return () => {
-            window.removeEventListener("resize", handleResize);
-            removeListenerIdRef.current = ts;
-            const removeListenerAsync = async () => {
-                return new Promise<void>(resolve => {
-                    if (removeListenerRef.current) {
-                        removeListenerRef.current();
-                    }
-                    resolve();
-                })
-            }
-
-            removeListenerAsync().then(t => {
-                console.log('移除>>');
-            });
-        }
-    }, []);
-    const [treeData, setTreeData] = useState<CustomDataNode[]>([]);
     const [scannedKeyCount, setScannedKeyCount] = useState(0);
     let redisSeparator = SystemProperties.value(FIELD_SYS_REDIS_SEPARATOR);
     if (!redisSeparator) {
@@ -162,12 +105,12 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     }
     const [splitSymbol, setSplitSymbol] = useState(redisSeparator);
 
-    let cachedTreeData: CustomDataNode[] = [...treeData];
+    let cachedTreeData: CustomDataNode[] | DataNode[] = [...treeData];
     let refreshTimer: any = undefined;
     const treeDataContext = useMemo((): TreeDataParseContext => {
         return {
             lv0LeafIndex: new Map<number, number>(),
-            cacheData: new Map<string, CustomDataNode>,
+            parentMapping: new Map<string, CustomDataNode>,
             keyTotal: 0
         }
     }, []);
@@ -180,10 +123,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         receiveDataQueue = [];
         treeDataContext.lv0LeafIndex = new Map<number, number>();
         treeDataContext.keyTotal = 0;
-        treeDataContext.cacheData = new Map<string, CustomDataNode>;
+        treeDataContext.parentMapping = new Map<string, CustomDataNode>;
         setScannedKeyCount(0);
         setDeletedKeys(new Set<string>);
-        setTreeUniqueId(Date.now());
     }
 
     const packageDataNode = (data: CustomDataNode[] | any, array: string[], item: ScanItem, prePath: string, lv: number, context: TreeDataParseContext): number => {
@@ -216,7 +158,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             }
             return 1;
         } else {
-            const existsNodes = context.cacheData.get(`${currPath}\u0001`);
+            const existsNodes = context.parentMapping.get(`${currPath}\u0001`);
             if (existsNodes != undefined) {
                 const cnt = packageDataNode(existsNodes.children, array.slice(1), item, currPath, lv + 1, context);
                 existsNodes.total += cnt;
@@ -230,7 +172,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     children: children,
                     total: 0
                 };
-                context.cacheData.set(`${currPath}\u0001`, parent);
+                context.parentMapping.set(`${currPath}\u0001`, parent);
                 const cnt = packageDataNode(children, array.slice(1), item, currPath, lv + 1, context);
                 parent.total += cnt;
                 const leafIdx = context.lv0LeafIndex.get(lv) ?? 0;
@@ -240,9 +182,43 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         }
     };
 
+    // 递归删除指定 key 的节点
+    const deleteNodeByKey = (key: string, data: CustomDataNode[] | DataNode[]) => {
+        return data
+            .map(node => {
+                if (node.children) {
+                    node.children = deleteNodeByKey(key, node.children);
+                    // @ts-ignore
+                    node.total = node.children.length;
+                }
+                return node;
+            })
+            .filter(node => node.key !== key); // 过滤掉匹配的节点
+    };
+
+    const findKey = (keyNames: string[], tree: CustomDataNode[] | DataNode[]): CustomDataNode | DataNode | undefined => {
+        const currNodePath = keyNames[0];
+        for (const node of tree) {
+            if (node.title === currNodePath) {
+                if (node.children) {
+                    return findKey(keyNames.slice(1), node.children);
+                } else {
+                    return node;
+                }
+            }
+        }
+        return undefined;
+    };
+
     const removeListenerRef = useRef<UnlistenFn>();
     const removeListenerIdRef = useRef(0);
     useEffect(() => {
+        const handleResize = () => {
+            const newHeight = calParentHeight();
+            setComHeight(newHeight);
+        }
+        window.addEventListener("resize", handleResize);
+
         const ts = Date.now();
         const addListenerAsync = async () => {
             return new Promise<UnlistenFn>(resolve => {
@@ -259,6 +235,70 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     });
                 };
 
+                listen('key-tree/new-key', (event) => {
+                    // @ts-ignore
+                    const newKeyName = event.payload!.key;
+                    receiveDataQueue.push({
+                        key: newKeyName,
+                        // @ts-ignore
+                        keyType: event.payload!.keyType,
+                    });
+                    const afterTree = cleaned ? [] : [...cachedTreeData];
+                    if (cleaned) {
+                        cleaned = false;
+                        treeDataContext.parentMapping.clear();
+                    }
+                    let dataItem: ScanItem | undefined;
+                    // eslint-disable-next-line no-cond-assign
+                    while (dataItem = receiveDataQueue.shift()) {
+                        if (dataItem) {
+                            const array = (dataItem.key as string).split(splitSymbol);
+                            treeDataContext.keyTotal += packageDataNode(afterTree, array, dataItem, '', 0, treeDataContext);
+                        }
+                    }
+
+                    setTreeData(afterTree);
+                    cachedTreeData = afterTree;
+                    clearInterval(refreshTimer);
+                    setScannedKeyCount(treeDataContext.keyTotal);
+                    setSelectedKeys([newKeyName]);
+
+                    const keySplits = (newKeyName as string).split(splitSymbol);
+                    const nodeInfo = findKey(keySplits, afterTree);
+                    setTimeout(() => {
+                        props.onSelect?.([newKeyName], {node: nodeInfo});
+                    }, 700)
+                }).then(unlistenFn => {
+                    if (removeListenerIdRef.current != ts) {
+                        //loadData();
+                        resolve(unlistenFn);
+                    } else {
+                        unlistenFn();
+                    }
+                });
+
+                listen("key_tree/delete", (event) => {
+                    if (removeListenerIdRef.current != ts) {
+                        const payload: any = event.payload;
+                        const key: string = payload.key;
+                        const success: boolean = payload.success;
+                        if (success) {
+                            const afterTree = deleteNodeByKey(key, treeDataRef.current);
+                            cachedTreeData = afterTree;
+                            setTreeData(afterTree);
+                            // @ts-ignore
+                            const total = afterTree.reduce((acc, item) => acc + item.total, 0);
+                            setScannedKeyCount(total);
+                        }
+                    }
+                }).then(unlistenFn => {
+                    if (removeListenerIdRef.current != ts) {
+                        resolve(unlistenFn);
+                    } else {
+                        unlistenFn();
+                    }
+                });
+
                 listen('redis_scan_event', (event) => {
                     if (removeListenerIdRef.current != ts) {
                         const payload: any = event.payload;
@@ -272,11 +312,11 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                                 key: key
                             });
                         })
-                        const copy: CustomDataNode[] = cleaned ? [] : [...cachedTreeData];
+                        const copy = cleaned ? [] : [...cachedTreeData];
                         if (cleaned) {
                             cleaned = false;
 
-                            treeDataContext.cacheData.clear();
+                            treeDataContext.parentMapping.clear();
                         }
                         let dataItem: ScanItem | undefined;
                         // eslint-disable-next-line no-cond-assign
@@ -314,6 +354,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
          */
         return () => {
+            window.removeEventListener("resize", handleResize);
             removeListenerIdRef.current = ts;
             const removeListenerAsync = async () => {
                 return new Promise<void>(resolve => {
@@ -370,6 +411,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     const handleDataSourceChanged = (datasourceId: string) => {
         cleanTreeData();
+        setTreeUniqueId(Date.now());
         rust_invoke("redis_get_database_info", {
             datasource_id: datasourceId
         }).then(r => {
@@ -390,10 +432,6 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 })
             }
         });
-    };
-
-    const onDatabaseSelected = (value: number) => {
-        setSelectedDBIndex(value);
     };
 
     const onTitleRender = (data: CustomDataNode): React.ReactNode => {
@@ -463,6 +501,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         setCursor(0);
         setNoMoreData(false);
         cleanTreeData();
+        setTreeUniqueId(Date.now());
+        selectedKeysRef.current = [];
+        setSelectedKeys([]);
         rust_invoke("redis_key_scan", {
             datasource_id: 'datasource01',
             pattern: finalSearchVal,
@@ -491,14 +532,61 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         }
     };
 
+    const collectAllLeaf = (keys: Key[], leaves: Key[]) => {
+        for (const key of keys) {
+            const parents = treeDataContext.parentMapping.get(key as string);
+            if (parents) {
+                if (parents.children) {
+                    for (const child of parents.children) {
+                        if (child.isLeaf) {
+                            if (leaves.indexOf(child.key) < 0) {
+                                leaves.push(child.key);
+                            }
+                        } else {
+                            collectAllLeaf([child.key], leaves)
+                        }
+                    }
+                } else {
+                    if (parents.isLeaf) {
+                        if (leaves.indexOf(parents.key) < 0) {
+                            leaves.push(parents.key);
+                        }
+                    }
+                }
+            } else {
+                if (leaves.indexOf(key) < 0) {
+                    leaves.push(key);
+                }
+            }
+        }
+    };
+
     const onKeyTreeRightClick = (info: {
         event: React.MouseEvent;
         node: EventDataNode<CustomDataNode>;
     }) => {
-        if (info.node.isLeaf) {
-            invoke("show_key_tree_right_menu", {datasource: 'datasource01'}).then(r => {
-            });
+        let leaves: Key[] | null | undefined = [];
+        let currentSelected = selectedKeysRef.current ?? [];
+        collectAllLeaf(currentSelected, leaves);
+        const notDirSelected = !info.node.isLeaf && leaves.length > 0;
+        const containSelectedTarget = currentSelected.indexOf(info.node.key) >= 0 && leaves.indexOf(info.node.key) >= 0;
+
+        let key: Key | undefined;
+        if (notDirSelected || containSelectedTarget) {
+            key = info.node.isLeaf ? info.node.key : undefined;
+            leaves = leaves.length == 1 ? undefined : leaves;
+        } else {
+            leaves = [];
+            setSelectedKeys([info.node.key]);
+            collectAllLeaf([info.node.key], leaves);
+            key = info.node.isLeaf ? info.node.key : undefined;
+            leaves = leaves.length == 1 ? undefined : leaves;
         }
+        invoke("show_key_tree_right_menu", {
+            datasource: 'datasource01',
+            key: key,
+            keys: leaves
+        }).finally();
     }
 
     if (treeData) {
@@ -511,10 +599,14 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 showLine={false}
                 showIcon={false}
                 onExpand={onExpand}
-                treeData={treeData}
+                treeData={treeData as CustomDataNode[]}
                 checkable={false}
                 height={comHeight}
-                onSelect={props.onSelect}
+                selectedKeys={selectedKeys}
+                onSelect={(selectedKeys: Key[], info: any) => {
+                    props.onSelect?.(selectedKeys, info);
+                    setSelectedKeys(selectedKeys);
+                }}
                 onRightClick={onKeyTreeRightClick}
                 titleRender={onTitleRender}
                 style={{

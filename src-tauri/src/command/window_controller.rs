@@ -4,7 +4,8 @@
 use crate::win::pinned_windows::PinnedWindows;
 use crate::win::window::WebviewWindowExt;
 use rand::Rng;
-use tauri::{LogicalPosition, LogicalSize, Manager, Position, Runtime, Size, State, Wry};
+use serde_json::json;
+use tauri::{Emitter, LogicalPosition, LogicalSize, Manager, Position, Runtime, Size, State, Wry};
 use tauri_nspanel::cocoa::appkit::NSEvent;
 use tauri_nspanel::cocoa::base::nil;
 use tauri_nspanel::ManagerExt;
@@ -82,6 +83,9 @@ pub fn close_redis_pushpin_window<R: Runtime>(
     if panel.is_visible() {
         panel.order_out(None);
         pin_win_man.return_window(key_name.to_string());
+
+        let payload = json!({"keyName": key_name});
+        window.emit_to("main", "redis_toolbar/pushpin_hidden", payload).unwrap();
     }
 }
 

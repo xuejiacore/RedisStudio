@@ -1,6 +1,7 @@
 import React, {ReactNode, useEffect, useRef, useState} from "react";
 import type {DataNode} from "antd/es/tree";
 import {rust_invoke} from "../../utils/RustIteractor";
+import "./RedisKey.less";
 
 type CustomDataNode = DataNode & {
     keyType?: string,
@@ -30,14 +31,12 @@ const RedisKey: React.FC<RedisKeyProp> = (props, context) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     if (!node.keyType || node.keyType == 'undefined') {
-                    console.log(node);
                         rust_invoke("redis_key_type", {
                             datasource_id: 'datasource01',
                             keys: [node.key]
                         }).then(ret => {
-                            const obj= JSON.parse(ret as string);
+                            const obj = JSON.parse(ret as string);
                             node.keyType = obj.types[node.key as string];
-                            console.log('设置 node: ' + node.keyType);
                             setKeyTypeFirstChart(node.keyType?.substring(0, 1).toUpperCase())
                             setKeyType(node.keyType);
                         });

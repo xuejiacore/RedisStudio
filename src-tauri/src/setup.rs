@@ -14,8 +14,7 @@ use redisstudio::Launcher;
 use serde_json::json;
 use sqlx::{Connection, Pool};
 use std::sync::{Arc, Mutex};
-use tauri::Theme::Dark;
-use tauri::{App, AppHandle, Emitter, Listener, Manager, TitleBarStyle, WebviewUrl, WebviewWindow, WindowEvent, Wry};
+use tauri::{App, Emitter, Listener, Manager, WebviewWindow, WindowEvent, Wry};
 use tauri_plugin_sql::Error;
 
 pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
@@ -139,7 +138,11 @@ fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<WebviewWin
 
     main_window.on_menu_event(move |window, event| {
         // process main window's menu event.
-        main_menu::process_main_menu(window, event);
+        let window = window.clone();
+        let event = event.clone();
+        tauri::async_runtime::spawn(async move {
+            main_menu::process_main_menu(&window, event).await;
+        });
     });
     // 仅在 macOS 下执行
     // #[cfg(target_os = "macos")]

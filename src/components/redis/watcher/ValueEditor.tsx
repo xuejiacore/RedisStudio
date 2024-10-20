@@ -17,6 +17,7 @@ export interface ValueChanged {
     redisKey: string
     type: string // FIELD_CLK/ADD_ROW
     dataType: string
+    keyType?: string
 }
 
 export interface UpdateRequest {

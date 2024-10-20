@@ -116,7 +116,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
             return;
         }
         node.children = [];
-        setSelectedField({type: "KEY_CLK", dataType: node.keyType, redisKey: node.key});
+        setSelectedField({type: "KEY_CLK", keyType: node.keyType, dataType: node.keyType, redisKey: node.key});
         setNodeData(node)
     }
 

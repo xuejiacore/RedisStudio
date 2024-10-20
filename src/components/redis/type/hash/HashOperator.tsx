@@ -76,7 +76,6 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         || document.body.clientHeight) - (props.pinMode ? 107 : 140);
     const [comHeight, setComHeight] = useState(calParentHeight());
 
-    console.log("comHeight = ", comHeight)
     const onPushpinField = (e: React.MouseEvent<HTMLSpanElement>, field: string) => {
         e.stopPropagation();
         const op = pinnedFields.includes(field) ? 'remove' : 'add';

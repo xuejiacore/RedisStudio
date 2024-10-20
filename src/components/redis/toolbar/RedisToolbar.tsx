@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, {useEffect, useRef, useState} from "react";
 import "./RedisToolbar.less";
 import {
@@ -37,15 +38,11 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
         const ts = Date.now();
         const addListenerAsync = async () => {
             return new Promise<UnlistenFn>(resolve => {
-                listen("redis_pushpin_hidden", (event) => {
-                    const closedKeyName = event.payload;
+                listen("redis_toolbar/pushpin_hidden", (event) => {
+                    // @ts-ignore
+                    const closedKeyName = event.payload.keyName;
                     if (closedKeyName == currKeyName.current) {
                         setPushpinBtnSelected('');
-                    } else {
-                        const onlyHide = false;
-                        invoke('close_redis_pushpin_window', {'keyName': closedKeyName, onlyHide}).then(() => {
-                            console.log('关闭上一个窗口完成 ' + closedKeyName);
-                        });
                     }
                 }).then(unlistenFn => {
                     if (removeListenerIdRef.current != ts) {

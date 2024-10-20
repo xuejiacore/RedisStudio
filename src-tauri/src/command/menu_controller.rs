@@ -2,6 +2,7 @@ use crate::menu::menu_manager::MenuContext;
 use crate::storage::redis_pool::RedisPool;
 use crate::{menu, CmdError};
 use std::collections::HashMap;
+use std::fmt::format;
 use tauri::menu::{ContextMenu, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::Theme::Dark;
 use tauri::{AppHandle, Manager, PhysicalPosition, Runtime, State, TitleBarStyle, WebviewUrl, Window};
@@ -37,6 +38,8 @@ pub async fn show_database_list_menu<R: Runtime>(
 
 #[tauri::command]
 pub fn show_key_tree_right_menu<R: Runtime>(
+    key: Option<String>,
+    keys: Option<Vec<String>>,
     datasource: String,
     handle: AppHandle<R>,
     window: Window,
@@ -44,6 +47,17 @@ pub fn show_key_tree_right_menu<R: Runtime>(
 ) {
     let mut context = HashMap::new();
     context.insert(String::from("datasource"), datasource);
+    let mut single_only_bool = true;
+    let mut key_size_info = String::from("");
+    if let Some(k) = key {
+        context.insert(String::from("key"), k);
+    }
+    if let Some(ks) = keys {
+        let len = ks.len();
+        context.insert(String::from("keys"), ks.join("$#$"));
+        single_only_bool = false;
+        key_size_info = format!(" ({len} keys)");
+    }
     menu_context.set_context(menu::MENU_KEY_TREE_RIGHT_CLICK, context);
 
     let app_handle = handle.app_handle();
@@ -51,11 +65,10 @@ pub fn show_key_tree_right_menu<R: Runtime>(
     let menu = Menu::with_items(
         app_handle,
         &[
-            &MenuItem::new(app_handle, "Copy Key Name", true, None::<&str>).unwrap(),
-            &MenuItem::new(app_handle, "Rename", true, None::<&str>).unwrap(),
-            &MenuItem::new(app_handle, "Duplicate", true, None::<&str>).unwrap(),
+            &MenuItem::with_id(app_handle, menu::MID_COPY_KEY_NAME, "Copy Key Name", single_only_bool, None::<&str>).unwrap(),
+            &MenuItem::with_id(app_handle, menu::MID_DUPLICATE, "Duplicate", single_only_bool, None::<&str>).unwrap(),
             &PredefinedMenuItem::separator(app_handle).unwrap(),
-            &MenuItem::new(app_handle, "Delete", true, None::<&str>).unwrap(),
+            &MenuItem::with_id(app_handle, menu::MID_DELETE_KEY, format!("Delete{key_size_info}"), true, None::<&str>).unwrap(),
         ],
     ).unwrap();
     menu.popup(window).unwrap();

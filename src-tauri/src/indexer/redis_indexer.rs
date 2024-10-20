@@ -152,8 +152,10 @@ impl RedisIndexer {
                         Some(result) => self.save_new_recognized_pattern(datasource_id, &mut keys, &doc_ids, result).await
                     }
                 } else {
-                    // insert into temporary index.
-                    self.save_unrecognized(datasource_id, segment, key_ref).await;
+                    if segment.len() > 1 {
+                        // insert into temporary index.
+                        self.save_unrecognized(datasource_id, segment, key_ref).await;
+                    }
                     None
                 }
             }
