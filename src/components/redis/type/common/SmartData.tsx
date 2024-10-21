@@ -19,7 +19,7 @@ interface SmartDataProp {
 }
 
 const SmartData: React.FC<SmartDataProp> = (props, context) => {
-    const [editing, setEditing] = useState(false);
+    const [editing, setEditing] = useState(props.editable);
     const [inputValue, setInputValue] = useState(props.value);
     const [beforeValue, setBeforeValue] = useState(props.value);
     const inputRef = useRef<InputRef>(null);

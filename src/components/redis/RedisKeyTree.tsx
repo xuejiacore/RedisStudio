@@ -64,7 +64,7 @@ function formatNumber(num: number): string {
 const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     const {t} = useTranslation();
-    const [searchValue, setSearchValue] = useState('*');
+    const [searchValue, setSearchValue] = useState('test*');
     const [cursor, setCursor] = useState(0);
     const [pageSize, setPageSize] = useState(500);
     const [scanCount, setScanCount] = useState(500);
@@ -184,16 +184,17 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     // 递归删除指定 key 的节点
     const deleteNodeByKey = (key: string, data: CustomDataNode[] | DataNode[]) => {
-        return data
-            .map(node => {
-                if (node.children) {
-                    node.children = deleteNodeByKey(key, node.children);
-                    // @ts-ignore
-                    node.total = node.children.length;
-                }
-                return node;
-            })
-            .filter(node => node.key !== key); // 过滤掉匹配的节点
+        return data.map(node => {
+            if (node.children) {
+                node.children = deleteNodeByKey(key, node.children);
+                // @ts-ignore
+                node.total = node.children.reduce((acc, item) => acc + item.total, 0);
+            }
+            return node;
+        }).filter(node => {
+            // @ts-ignore
+            return node.total > 0 && node.key !== key
+        });
     };
 
     const findKey = (keyNames: string[], tree: CustomDataNode[] | DataNode[]): CustomDataNode | DataNode | undefined => {
@@ -285,6 +286,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                         if (success) {
                             const afterTree = deleteNodeByKey(key, treeDataRef.current);
                             cachedTreeData = afterTree;
+                            console.log('after Tree', afterTree)
                             setTreeData(afterTree);
                             // @ts-ignore
                             const total = afterTree.reduce((acc, item) => acc + item.total, 0);
@@ -573,7 +575,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
         let key: Key | undefined;
         if (notDirSelected || containSelectedTarget) {
-            key = info.node.isLeaf ? info.node.key : undefined;
+            key = info.node.isLeaf ? info.node.key : (selectedKeysRef.current ? selectedKeysRef.current[0] : undefined);
             leaves = leaves.length == 1 ? undefined : leaves;
         } else {
             leaves = [];
@@ -584,7 +586,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         }
         invoke("show_key_tree_right_menu", {
             datasource: 'datasource01',
-            key: key,
+            key: leaves?.length! > 1 ? null : key,
             keys: leaves
         }).finally();
     }

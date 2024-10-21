@@ -2,7 +2,16 @@
   "$schema": "../schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main", "pinned_win_*", "datasource-dropdown", "splashscreen", "datasource-database-selector", "spotlight-search", "create-new-key"],
+  "windows": [
+    "main",
+    "pinned_win_*",
+    "datasource-dropdown",
+    "splashscreen",
+    "datasource-database-selector",
+    "spotlight-search",
+    "create-new-key",
+    "modify-key-win"
+  ],
   "permissions": [
     "core:window:allow-close",
     "core:path:default",

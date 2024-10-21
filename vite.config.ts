@@ -1,12 +1,12 @@
 import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react";
-import {resolve} from "node:url";
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
     build: {
         rollupOptions: {
             input: {
+                modifykey: 'windows/modify-key.html',
                 createnewkey: 'windows/create-new-key.html',
                 splashscreen: 'windows/splashscreen.html',
                 datasourcedropdown: 'windows/datasource-dropdown.html',

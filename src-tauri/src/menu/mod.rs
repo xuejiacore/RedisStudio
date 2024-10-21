@@ -15,6 +15,7 @@ pub const MID_ADD_ZSET: &str = "show_add_new_key_menu@zset";
 pub const MENU_KEY_TREE_RIGHT_CLICK: &str = "show_key_tree_right_menu";
 
 pub const MID_COPY_KEY_NAME: &str = "show_key_tree_right_menu@copy_key_name";
+pub const MID_KEY_RENAME: &str = "show_key_tree_right_menu@key_rename";
 pub const MID_DUPLICATE: &str = "show_key_tree_right_menu@duplicate";
 pub const MID_DELETE_KEY: &str = "show_key_tree_right_menu@delete";
 

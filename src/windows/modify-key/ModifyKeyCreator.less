@@ -48,12 +48,23 @@ body {
 
   .container {
     margin-top: 10px;
+    height: calc(100vh - 80px);
 
     .input-area {
       width: 100%;
 
       .label {
         color: #f6f6f6;
+        font-size: 12px;
+        font-family: JetBrainsMonoBold, sans-serif;
+      }
+
+      .current-name {
+        color: #f6f6f6;
+        padding: 2px 12px;
+        border-radius: 3px;
+        margin-left: 8px;
+        font-weight: bold;
         font-size: 12px;
         font-family: JetBrainsMonoBold, sans-serif;
       }
@@ -65,6 +76,11 @@ body {
         background: #43454A;
         border-color: #1661cf;
         caret-color: #f6f6f6;
+      }
+
+      input::placeholder {
+        color: #777775;
+        font-family: JetBrainsMonoBold, sans-serif;
       }
     }
 
@@ -78,23 +94,24 @@ body {
       padding: 2px 4px;
     }
 
-    .key.hash {
+    .key.hash, .input-area > .current-name.hash {
       background: linear-gradient(to top, #B162C9C0, #B162C9);
     }
 
-    .key.zset {
+    .key.zset, .input-area > .current-name.zset {
       background: linear-gradient(to top, #EB4334C0, #EB4334);
     }
 
-    .key.string {
+    .key.string, .input-area > .current-name.string {
       background: linear-gradient(to top, #35AA53C0, #35AA53);
     }
 
-    .key.set {
+    .key.set, .input-area > .current-name.set {
       background: linear-gradient(to top, #4586F3C0, #4586F3);
     }
 
-    .key.list {
+    .key.list, .input-area > .current-name.list {
+      color: #f6f6f6;
       background: linear-gradient(to top, #FFA500C0, #FFA500);
     }
 

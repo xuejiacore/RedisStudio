@@ -60,6 +60,45 @@ pub fn show_key_tree_right_menu<R: Runtime>(
     }
     menu_context.set_context(menu::MENU_KEY_TREE_RIGHT_CLICK, context);
 
+    let label = "modify-key-win".to_string();
+
+    let inner_size = window.inner_size().unwrap();
+    let position = window.outer_position().unwrap();
+
+    let mut visible = false;
+    match window.get_webview_window(&label) {
+        None => {
+            let url: WebviewUrl = WebviewUrl::App("windows/modify-key.html".into());
+            let w = tauri::webview::WebviewWindowBuilder::new(&handle, label, url)
+                .fullscreen(false)
+                .hidden_title(true)
+                .resizable(false)
+                .minimizable(false)
+                .transparent(false)
+                .title_bar_style(TitleBarStyle::Overlay)
+                .theme(Some(Dark))
+                .inner_size(410f64, 140f64)
+                .visible(false)
+                .always_on_top(true)
+                .shadow(true)
+                .build()
+                .unwrap();
+            let size = w.inner_size().unwrap();
+            let x = (position.x + inner_size.width as i32 / 2 - size.width as i32 / 2) as f64;
+            let y = (position.y + inner_size.height as i32 / 2 - size.height as i32 / 2) as f64 - 100f64;
+            w.set_position(PhysicalPosition::new(x, y)).unwrap();
+        }
+        Some(w) => {
+            visible = w.is_visible().unwrap();
+            if !visible {
+                let size = w.inner_size().unwrap();
+                let x = (position.x + inner_size.width as i32 / 2 - size.width as i32 / 2) as f64;
+                let y = (position.y + inner_size.height as i32 / 2 - size.height as i32 / 2) as f64 - 100f64;
+                w.set_position(PhysicalPosition::new(x, y)).unwrap()
+            }
+        }
+    };
+
     let app_handle = handle.app_handle();
     let _pkg_info = app_handle.package_info();
     let menu = Menu::with_items(
@@ -67,6 +106,7 @@ pub fn show_key_tree_right_menu<R: Runtime>(
         &[
             &MenuItem::with_id(app_handle, menu::MID_COPY_KEY_NAME, "Copy Key Name", single_only_bool, None::<&str>).unwrap(),
             &MenuItem::with_id(app_handle, menu::MID_DUPLICATE, "Duplicate", single_only_bool, None::<&str>).unwrap(),
+            &MenuItem::with_id(app_handle, menu::MID_KEY_RENAME, "Rename", single_only_bool, None::<&str>).unwrap(),
             &PredefinedMenuItem::separator(app_handle).unwrap(),
             &MenuItem::with_id(app_handle, menu::MID_DELETE_KEY, format!("Delete{key_size_info}"), true, None::<&str>).unwrap(),
         ],
@@ -127,7 +167,6 @@ pub fn show_add_new_key_menu<R: Runtime>(
 
     let inner_size = window.inner_size().unwrap();
     let position = window.outer_position().unwrap();
-    let scale_factor = window.scale_factor().unwrap();
 
     let mut visible = false;
     match window.get_webview_window(&label) {

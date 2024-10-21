@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::ops::DerefMut;
 use tauri::menu::MenuEvent;
 use tauri::{Emitter, Manager, State, Window};
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 /// process the menu event of main window
 pub async fn process_main_menu(window: &Window, event: MenuEvent) {
@@ -42,7 +43,16 @@ fn process_type_operator(window: &Window, event: MenuEvent, menu_id: &str, conte
 /// key tree right click event
 async fn process_key_tree_right_clk(window: &Window, event: MenuEvent, menu_id: &str, context: HashMap<String, String>, menu_id_val: &str) {
     let datasource = context.get("datasource").expect("Parameter error: missing `datasource`");
-    let key = context.get("key").expect("Parameter error: missing `key`");
+    let mut keys = vec![];
+    match context.get("key") {
+        None => {
+            let keys_string = context.get("keys").expect("Parameter error: missing `keys`");
+            keys = keys_string.split("$#$").collect();
+        }
+        Some(k) => {
+            keys.push(k);
+        }
+    }
 
     let redis_pool: State<'_, RedisPool> = window.state();
     let t = redis_pool.fetch_connection(datasource).await;
@@ -51,18 +61,35 @@ async fn process_key_tree_right_clk(window: &Window, event: MenuEvent, menu_id: 
         mutex
     };
 
-    match menu_id_val {
-        menu::MID_COPY_KEY_NAME => {}
-        menu::MID_DELETE_KEY => {
-            let result: i32 = cmd("DEL")
-                .arg(key)
-                .query_async(conn.deref_mut())
-                .await
-                .unwrap();
-            let success = result > 0;
-            let payload = json!({"key": key, "success": success});
-            window.emit("key_tree/delete", payload).unwrap()
+    for key in keys {
+        match menu_id_val {
+            menu::MID_COPY_KEY_NAME => {
+                let clipboard = window.clipboard();
+                clipboard.write_text(key).unwrap();
+            }
+            menu::MID_DELETE_KEY => {
+                let result: i32 = cmd("DEL")
+                    .arg(key)
+                    .query_async(conn.deref_mut())
+                    .await
+                    .unwrap();
+                let success = result > 0;
+                let payload = json!({"key": key, "success": success});
+                window.emit("key_tree/delete", payload).unwrap()
+            }
+            menu::MID_KEY_RENAME => {
+                let type_str: String = cmd("TYPE").arg(key).query_async(conn.deref_mut()).await.expect("Key not exists.");
+                let win = window.get_webview_window("modify-key-win").unwrap();
+                win.eval(format!("window.onKeyModify('{}', '{}', '{}', 'modify')", key, type_str, datasource).as_str()).unwrap();
+                win.show().unwrap();
+            }
+            menu::MID_DUPLICATE => {
+                let type_str: String = cmd("TYPE").arg(key).query_async(conn.deref_mut()).await.expect("Key not exists.");
+                let win = window.get_webview_window("modify-key-win").unwrap();
+                win.eval(format!("window.onKeyModify('{}', '{}', '{}', 'duplicate')", key, type_str, datasource).as_str()).unwrap();
+                win.show().unwrap();
+            }
+            &_ => todo!()
         }
-        &_ => todo!()
     }
 }

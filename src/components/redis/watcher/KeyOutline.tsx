@@ -1,8 +1,9 @@
 import React, {useEffect, useRef, useState} from "react";
-import {Button, Divider, Empty, Flex, Form, Input, InputRef, Space} from "antd";
+import {Button, DatePicker, Divider, Empty, Flex, Form, Input, InputRef, Space} from "antd";
 import {FilterOutlined} from "@ant-design/icons";
 import {useTranslation} from "react-i18next";
 import "./index.less";
+import "./Datepicker.less";
 import no_data_svg from "../../../assets/images/icons/no-data.svg";
 import {rust_invoke} from "../../../utils/RustIteractor.tsx";
 import RedisKeyTags from "../tags/RedisKeyTags.tsx";
@@ -131,6 +132,7 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
     const [dataLen, setDataLen] = useState(0);
     const [tagVariablesComponent, setTagVariablesComponent] = useState(<></>)
     const [dataTime, setDataTime] = useState(<></>);
+    const datepickerRef = useRef<any>();
 
     useEffect(() => {
         if (keyInfo?.ttl && keyInfo?.ttl > 0) {
@@ -188,7 +190,11 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
     }
 
     useEffect(() => {
-        rust_invoke("redis_key_info", {datasource_id: 'datasource01', key: props.selectedKey, key_type: props.selectedKeyType}).then(r => {
+        rust_invoke("redis_key_info", {
+            datasource_id: 'datasource01',
+            key: props.selectedKey,
+            key_type: props.selectedKeyType
+        }).then(r => {
             const keyInfo: KeyInfo = JSON.parse(r as string);
             setOutlineInfo(keyInfo);
         });
@@ -224,9 +230,7 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
         console.log("on tag create window show");
     };
 
-    const preventDefault = (e: React.MouseEvent<HTMLElement>) => {
-        e.preventDefault();
-    };
+    const [datepickerOpen, setDatepickerOpen] = useState(false);
     return <>
         <div className={'key-tags-container'}>
             <Divider className={'divider first-divider'}
@@ -237,8 +241,20 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
                 <Space className={'label-space'} direction={"vertical"} size={"small"}>
                     <Space className={'label-space'} direction={"horizontal"} size={"small"}>
                         <div className={'label-text'}>{t('redis.main.right_panel.tabs.outline.basic.ttl')}:</div>
-                        <div className={'label-text ttl-countdown'}>{ttlCountDown}</div>
+                        <div className={'label-text ttl-countdown'} onClick={(e) => {
+                            setDatepickerOpen(true);
+                        }}>{ttlCountDown}</div>
                         <div className={'label-time ttl-exact-at'}>{expireAt}</div>
+
+                        {/* TODO：*/}
+                        <DatePicker className={'datepicker'}
+                                    ref={datepickerRef}
+                                    open={datepickerOpen}
+                                    size={"small"}
+                                    onBlur={() => setDatepickerOpen(false)}
+                                    onOpenChange={(status) => setDatepickerOpen(status)}
+                                    showTime
+                        />
                     </Space>
 
                     <Space className={'label-space'} direction={"horizontal"} size={"small"}>
