@@ -3,7 +3,8 @@ import React, {useEffect, useRef, useState} from "react";
 import "./ModifyKeyCreator.less";
 import {Flex, Input, InputRef} from "antd";
 import {Window} from '@tauri-apps/api/window';
-import {rust_invoke} from "../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../utils/RustIteractor.tsx";
+import {emitTo} from "@tauri-apps/api/event";
 
 interface ModifyKeyCreatorProps {
 
@@ -14,18 +15,22 @@ const ModifyKeyCreator: React.FC<ModifyKeyCreatorProps> = (props: ModifyKeyCreat
     const [status, setStatus] = useState('');
     const [submitBtnStatus, setSubmitBtnStatus] = useState('disabled');
     const [datasource, setDatasource] = useState('');
+    const [database, setDatabase] = useState(0);
     const [currentName, setCurrentName] = useState('');
     const [currentInputValue, setCurrentInputValue] = useState('');
     const [operator, setOperator] = useState('modify');
     const [title, setTitle] = useState('');
     const [submitBtnName, setSubmitBtnName] = useState('Submit');
     const inputRef = useRef<InputRef>(null);
+    const originKeyRef = useRef('');
 
-    const onKeyModify = (originKey: string, type: string, datasource: string, operator: string) => {
+    const onKeyModify = (originKey: string, type: string, datasource: string, database: number, operator: string) => {
         setCurrentInputValue(originKey);
         setCurrentName(originKey);
+        originKeyRef.current = originKey;
         setKeyType(type);
         setDatasource(datasource);
+        setDatabase(database);
         setOperator(operator);
         switch (operator) {
             case 'modify':
@@ -58,28 +63,51 @@ const ModifyKeyCreator: React.FC<ModifyKeyCreatorProps> = (props: ModifyKeyCreat
             return;
         }
         console.log(inputKey + "\t" + datasource);
-        // rust_invoke("redis_new_key", {
-        //     datasource_id: "datasource01",
-        //     key: inputKey,
-        //     key_type: keyType,
-        // }).then(r => {
-        //     Window.getByLabel("create-new-key").then(r => r?.close());
-        //     emitTo("main", "key-tree/new-key", {
-        //         keyType: keyType,
-        //         key: inputKey,
-        //     }).finally();
-        // })
+        let command = "";
+        switch (operator) {
+            case 'modify':
+                command = "redis_rename";
+                break;
+            case 'duplicate':
+                command = "redis_duplicate";
+                break;
+            default:
+                return;
+        }
+
+        redis_invoke(command, {
+            from_key: originKeyRef.current,
+            key: inputKey,
+            key_type: keyType,
+        }, datasource, database).then(r => {
+            Window.getByLabel("modify-key-win").then(r => r?.close());
+            if ("modify" == operator) {
+                emitTo("main", "key-tree/delete", {
+                    key: originKeyRef.current,
+                    success: true
+                }).then(r => {
+                    emitTo("main", "key-tree/new-key", {
+                        keyType: keyType,
+                        key: inputKey,
+                    }).finally();
+                })
+            } else {
+                emitTo("main", "key-tree/new-key", {
+                    keyType: keyType,
+                    key: inputKey,
+                }).finally();
+            }
+        })
     }
 
     const onChange = () => {
         const inputKey = inputRef.current!.input!.value;
         setCurrentInputValue(inputKey);
         if (inputKey) {
-            rust_invoke("redis_key_info", {
-                datasource_id: 'datasource01',
+            redis_invoke("redis_key_info", {
                 key: inputKey,
                 key_type: 'unknown'
-            }).then(r => {
+            }, datasource, database).then(r => {
                 const keyInfo = JSON.parse(r as string);
                 if (keyInfo.exists === 1) {
                     setStatus('warn');

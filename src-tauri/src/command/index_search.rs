@@ -1,3 +1,4 @@
+use crate::command::redis_cmd::KeySpaceInfo;
 use crate::indexer::indexer_initializer::{IDX_NAME_FAVOR, IDX_NAME_KEY_PATTERN, IDX_NAME_RECENTLY_ACCESS};
 use crate::indexer::redis_indexer::RedisIndexer;
 use crate::indexer::tantivy_indexer::{SearchResult, TantivyIndexer};
@@ -5,6 +6,7 @@ use crate::storage::redis_pool::RedisPool;
 use crate::CmdError;
 use log::info;
 use redis::{cmd, RedisResult};
+use regex::Regex;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -73,13 +75,32 @@ pub async fn spotlight_search<R: Runtime>(
         }
     });
 
+    let list_database = list_database(query, &redis_pool);
     let recently_search = recently_search(query, &indexer, &redis_pool);
     let search_from_datasource = datasource_search(query);
     let scanned_keys = key_scan_match(query, &redis_pool, scan_size);
     let favor_list = search_favor(query, &indexer, &redis_pool, scan_size);
 
-    let (index_result, datasource_result, scanned_keys, favor, recently_result)
-        = tokio::join!(search_from_index, search_from_datasource, scanned_keys, favor_list, recently_search);
+    let (
+        index_result,
+        datasource_result,
+        scanned_keys,
+        favor,
+        recently_result,
+        list_database_result
+    ) = tokio::join!(
+        search_from_index,
+        search_from_datasource,
+        scanned_keys,
+        favor_list,
+        recently_search,
+        list_database
+    );
+
+    if let Some(result) = list_database_result {
+        let len = result.len();
+        search_result.add("database".to_string(), len, result);
+    }
 
     // datasource result
     if let Some(result) = datasource_result {
@@ -110,6 +131,35 @@ pub async fn spotlight_search<R: Runtime>(
         search_result.add("recently".to_string(), hits, recently);
     }
     Ok(json!(search_result).to_string())
+}
+async fn list_database(query: &str, redis_pool: &State<'_, RedisPool>) -> Option<Vec<Value>> {
+    let query_lowercase = query.to_lowercase();
+    if query_lowercase.starts_with("db") {
+        let arc = redis_pool.get_active_connection().await;
+        let mut mutex = arc.lock().await;
+
+        // databases key space info.
+        let re = Regex::new(r"(?<name>db(?<index>\d+)):keys=(?<keys>\d+),expires=(\d+)").unwrap();
+        let keyspace: String = cmd("INFO").arg("KEYSPACE").query_async(mutex.deref_mut()).await.unwrap();
+        let key_space_info: Vec<Value> = keyspace
+            .split("\n")
+            .filter(|line| line.len() > 0 && !line.starts_with("#"))
+            .map(|line| {
+                let cap = re.captures(line).unwrap();
+                let name = String::from(cap.name("name").unwrap().as_str());
+                let index: usize = cap.name("index").unwrap().as_str().parse().unwrap();
+                let keys: i64 = cap.name("keys").unwrap().as_str().parse().unwrap();
+                json!({
+                    "name": name,
+                    "index": index,
+                    "keys": keys
+                })
+            })
+            .collect();
+        Some(key_space_info)
+    } else {
+        None
+    }
 }
 
 async fn recently_search(query: &str, indexer: &State<'_, TantivyIndexer>, redis_pool: &State<'_, RedisPool>) -> Option<Vec<Value>> {

@@ -29,6 +29,8 @@ struct RedisCmd {
     #[serde(default)]
     datasource_id: String,
     #[serde(default)]
+    database: i64,
+    #[serde(default)]
     param_json: String,
 }
 
@@ -36,6 +38,7 @@ impl Default for RedisCmd {
     fn default() -> Self {
         RedisCmd {
             cmd: String::from(""),
+            database: 0,
             datasource_id: String::from(""),
             param_json: String::from("{}"),
         }
@@ -54,6 +57,17 @@ pub async fn redis_invoke(
     Ok(dispatch_redis_cmd(data, app, window, redis_pool, sqlite, redis_indexer).await.to_string())
 }
 
+#[tauri::command]
+pub async fn reconnect_redis(
+    datasource: String,
+    database: i64,
+    redis_pool: State<'_, RedisPool>,
+) -> Result<String> {
+    let success = redis_pool.try_connect(datasource, Some(database)).await;
+    let resp = json!({"success": success});
+    Ok(resp.to_string())
+}
+
 pub async fn dispatch_redis_cmd(
     cmd_data: &str,
     _app: AppHandle,
@@ -67,12 +81,13 @@ pub async fn dispatch_redis_cmd(
 
     debug!("cmd = {}, params = {}", &redis_cmd.cmd.clone(), cmd_data);
     let datasource_id = redis_cmd.datasource_id;
-    let arc = redis_pool.fetch_connection(datasource_id.as_str()).await;
+    let database = redis_cmd.database;
+    let arc = redis_pool.select_connection(datasource_id.as_str(), Some(database)).await;
     let mut con = arc.lock().await;
     match &redis_cmd.cmd as &str {
         "redis_list_datasource" => json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}]),
         "redis_get_database_info" => execute_get_database_info(con).await,
-        "redis_key_scan" => execute_scan_cmd(redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_key_scan" => execute_scan_cmd(datasource_id, database, redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await,
         "redis_key_type" => execute_type_cmd(con, serde_json::from_str(cmd_data).unwrap(), window).await,
         "redis_get_hash" => execute_get_hash(con, datasource_id, serde_json::from_str(cmd_data).unwrap(), window, redis_indexer, sqlite).await,
         "redis_get_string" => execute_get_string(con, serde_json::from_str(cmd_data).unwrap(), window).await,
@@ -83,9 +98,65 @@ pub async fn dispatch_redis_cmd(
         "redis_update" => update_value(con, serde_json::from_str(cmd_data).unwrap(), window).await,
         "run_redis_command" => execute_redis_command(con, serde_json::from_str(cmd_data).unwrap(), window).await,
         "redis_new_key" => execute_redis_new_key(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_rename" => execute_redis_rename(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_duplicate" => execute_redis_duplicate(con, serde_json::from_str(cmd_data).unwrap(), window).await,
         _ => unimplemented!(),
     }
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+struct RenameOrDuplicateCmd {
+    from_key: String,
+    key: String,
+}
+
+async fn execute_redis_rename(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    params: RenameOrDuplicateCmd,
+    win: Window,
+) -> Value {
+    let bytes: Vec<u8> = cmd("DUMP").arg(&params.from_key).query_async(connection.deref_mut())
+        .await.expect("Key Not Exists.");
+    let mut ttl: i32 = cmd("TTL").arg(&params.from_key).query_async(connection.deref_mut())
+        .await.expect("Fail to Read TTL");
+    if ttl < 0 {
+        ttl = 0;
+    }
+    let result: String = cmd("RESTORE").arg(&params.key).arg(ttl).arg(bytes).query_async(connection.deref_mut())
+        .await.expect("Fail to Restore Key");
+
+    if result.eq("OK") {
+        let del_result: i32 = cmd("DEL").arg(&params.from_key).query_async(connection.deref_mut())
+            .await.expect("Fail to Delete Old Key.");
+        if del_result > 0 {
+            json!({"success": true, "result": result})
+        } else {
+            json!({"success": false, "result": result})
+        }
+    } else {
+        json!({"success": false, "result": result})
+    }
+}
+
+async fn execute_redis_duplicate(
+    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    params: RenameOrDuplicateCmd,
+    win: Window,
+) -> Value {
+    let bytes: Vec<u8> = cmd("DUMP").arg(&params.from_key).query_async(connection.deref_mut())
+        .await.expect("Key Not Exists.");
+    let mut ttl: i32 = cmd("TTL").arg(&params.from_key).query_async(connection.deref_mut())
+        .await.expect("Fail to Read TTL");
+    if ttl < 0 {
+        ttl = 0;
+    }
+    let result: String = cmd("RESTORE").arg(&params.key).arg(ttl).arg(bytes).query_async(connection.deref_mut())
+        .await.expect("Fail to Restore Key");
+
+    let success = result.eq("OK");
+    json!({"success": success, "result": result})
+}
+
 
 #[derive(Serialize, Deserialize, Debug)]
 struct UpdateCmd {
@@ -289,10 +360,10 @@ async fn update_list(mut connection: MutexGuard<'_, MultiplexedConnection>, para
 struct GetDatabaseInfo {}
 
 #[derive(Serialize, Deserialize, Debug)]
-struct KeySpaceInfo {
-    name: String,
-    index: usize,
-    keys: i64,
+pub struct KeySpaceInfo {
+    pub name: String,
+    pub index: usize,
+    pub keys: i64,
 }
 
 async fn execute_get_database_info(
@@ -872,11 +943,13 @@ struct ScanCmd {
 }
 
 async fn execute_scan_cmd(
+    datasource_id: String,
+    database: i64,
     mut redis_pool: State<'_, RedisPool>,
     params: ScanCmd,
     window: Window,
 ) -> Value {
-    let arc = redis_pool.fetch_connection("datasource01").await;
+    let arc = redis_pool.select_connection(datasource_id, Some(database)).await;
     tokio::spawn(async move {
         let mut con = arc.lock().await;
         // 使用 scan_match 方法迭代匹配指定模式的键

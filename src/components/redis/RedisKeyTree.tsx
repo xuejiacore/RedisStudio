@@ -6,7 +6,7 @@ import "./RedisKeyTree.less";
 import "../menu/Menu.less";
 import {LoadingOutlined, PlusOutlined, SearchOutlined} from "@ant-design/icons";
 import DirectoryTree from 'antd/es/tree/DirectoryTree';
-import {rust_invoke} from '../../utils/RustIteractor';
+import {redis_invoke} from '../../utils/RustIteractor';
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import RedisKey from "./RedisKey";
 import SystemProperties, {SysProp} from "../../utils/SystemProperties.ts";
@@ -14,6 +14,7 @@ import FavoriteTree from "../favorite/FavoriteTree.tsx";
 import {useTranslation} from "react-i18next";
 import ConsoleIcon from "../icons/ConsoleIcon.tsx";
 import {invoke} from "@tauri-apps/api/core";
+import {humanNumber} from "../../utils/Util.ts";
 import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
 
 const {Search} = Input;
@@ -27,10 +28,12 @@ export type CustomDataNode = DataNode & {
 };
 
 interface KeyTreeProp {
-    datasourceId: string
-    parentHeight?: number
+    windowId: number;
+    datasourceId: string;
+    selectedDatabase: number;
+    parentHeight?: number;
     onSelect?: (selectedKeys: Key[], info: any) => void;
-    onCmdOpen?: React.MouseEventHandler<HTMLDivElement>
+    onCmdOpen?: React.MouseEventHandler<HTMLDivElement>;
 }
 
 interface ScanItem {
@@ -48,23 +51,23 @@ interface TreeDataParseContext {
 let receiveDataQueue: ScanItem[] = [];
 let cleaned = false;
 
-function formatNumber(num: number): string {
-    if (num >= 1e9) {
-        return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
-    }
-    if (num >= 1e6) {
-        return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
-    }
-    if (num >= 1e3) {
-        return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
-    }
-    return num.toString();
-}
-
 const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     const {t} = useTranslation();
-    const [searchValue, setSearchValue] = useState('test*');
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
+
+    const datasourceRef = useRef(props.datasourceId);
+    const databaseRef = useRef(props.selectedDatabase);
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+        handleDataSourceChanged();
+    }, [props.datasourceId, props.selectedDatabase]);
+    const [searchValue, setSearchValue] = useState('*');
     const [cursor, setCursor] = useState(0);
     const [pageSize, setPageSize] = useState(500);
     const [scanCount, setScanCount] = useState(500);
@@ -73,17 +76,14 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const [version, setVersion] = useState('unknown');
     const [memoryUsage, setMemoryUsage] = useState('-');
     const [dbsize, setDbsize] = useState('0');
-    const [databases, setDatabases] = useState<any[]>([]);
-    const [selectedDBIndex, setSelectedDBIndex] = useState(0);
-    const [dataSources, setDataSources] = useState<any>([]);
     const set = new Set<string>();
     const [deletedKeys, setDeletedKeys] = useState<Set<string>>(set);
-    const [databasePopupMatchSelectWidth, setDatabasePopupMatchSelectWidth] = useState(140);
     const [treeUniqueId, setTreeUniqueId] = useState(Date.now());
     const [treeData, setTreeData] = useState<CustomDataNode[] | DataNode[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Key[]>()
     const selectedKeysRef = useRef(selectedKeys);
     const treeDataRef = useRef(treeData);
+    const searchValueRef = useRef('');
 
     useEffect(() => {
         treeDataRef.current = treeData
@@ -91,6 +91,15 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     useEffect(() => {
         selectedKeysRef.current = selectedKeys;
     }, [selectedKeys]);
+    useEffect(() => {
+        let finalSearchVal = searchValue;
+        if (searchValue.length == 0) {
+            finalSearchVal = "*";
+        } else if (!searchValue.endsWith("!") && !searchValue.endsWith("*")) {
+            finalSearchVal += "*";
+        }
+        searchValueRef.current = finalSearchVal;
+    }, [searchValue]);
 
     const calParentHeight = () => (window.innerHeight
         || document.documentElement.clientHeight
@@ -141,13 +150,13 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     title: currentNodeTitle,
                     key: currPath,
                     isLeaf: true,
-                    total: 1
+                    total: 1,
+                    keyType: item.keyType
                 };
-                if (lv == 0) {
-                    rust_invoke("redis_key_type", {
-                        datasource_id: props.datasourceId,
+                if (lv == 0 && !node.keyType) {
+                    redis_invoke("redis_key_type", {
                         keys: [node.key]
-                    }).then(ret => {
+                    }, datasourceRef.current, databaseRef.current).then(ret => {
                         const obj = JSON.parse(ret as string);
                         node.keyType = obj.types[node.key as string];
                     });
@@ -223,22 +232,11 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         const ts = Date.now();
         const addListenerAsync = async () => {
             return new Promise<UnlistenFn>(resolve => {
-                const loadData = () => {
-                    rust_invoke("redis_list_datasource", {
-                        datasource_id: 'datasource01'
-                    }).then(r => {
-                        if (typeof r === "string") {
-                            const result = JSON.parse(r)
-                            setDataSources(result.map((item: any) => item.name));
-                            // 重新加载当前的数据源id
-                            handleDataSourceChanged(props.datasourceId);
-                        }
-                    });
-                };
-
+                handleDataSourceChanged();
                 listen('key-tree/new-key', (event) => {
                     // @ts-ignore
                     const newKeyName = event.payload!.key;
+                    console.log("新增key", event.payload);
                     receiveDataQueue.push({
                         key: newKeyName,
                         // @ts-ignore
@@ -266,9 +264,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
                     const keySplits = (newKeyName as string).split(splitSymbol);
                     const nodeInfo = findKey(keySplits, afterTree);
-                    setTimeout(() => {
-                        props.onSelect?.([newKeyName], {node: nodeInfo});
-                    }, 700)
+                    props.onSelect?.([newKeyName], {node: nodeInfo});
                 }).then(unlistenFn => {
                     if (removeListenerIdRef.current != ts) {
                         //loadData();
@@ -278,11 +274,12 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     }
                 });
 
-                listen("key_tree/delete", (event) => {
+                listen("key-tree/delete", (event) => {
                     if (removeListenerIdRef.current != ts) {
                         const payload: any = event.payload;
                         const key: string = payload.key;
                         const success: boolean = payload.success;
+                        console.log("删除key", payload);
                         if (success) {
                             const afterTree = deleteNodeByKey(key, treeDataRef.current);
                             cachedTreeData = afterTree;
@@ -341,7 +338,6 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     }
                 }).then(unlistenFn => {
                     if (removeListenerIdRef.current != ts) {
-                        loadData();
                         resolve(unlistenFn);
                     } else {
                         unlistenFn();
@@ -372,66 +368,22 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         };
     }, []);
 
-    // 加载DB信息列表
-    function setDatabaseInfoList(result: any) {
-        // noinspection JSUnresolvedReference
-        const dbCount = result.database_count;
-        // noinspection JSUnresolvedReference
-        const keySpaceInfo = result.key_space_info;
-        const keySpaceInfoMap = keySpaceInfo.reduce((acc: any, obj: any) => {
-            acc[obj.index] = obj;
-            return acc;
-        }, {});
-        const keySpaceInfoData = [];
-        const digitLen = (num: number) => Math.floor(Math.log10(num)) + 1;
-        let maxLen = 0;
-        for (let index = 0; index < dbCount; index++) {
-            const info = keySpaceInfoMap[index];
-            let keyCount = 0;
-            if (info) {
-                const label = <><b>DB{index}</b>&nbsp;&nbsp;<span
-                    className={'db-key-len'}>({info.keys})</span></>;
-                keyCount = info.keys;
-                keySpaceInfoData.push({
-                    label: label,
-                    value: index
-                });
-            } else {
-                keySpaceInfoData.push({
-                    label: <><b>DB{index}</b>&nbsp;&nbsp;<span className={'db-key-len'}>(EMPTY)</span></>,
-                    value: index
-                })
-            }
-            maxLen = Math.max(digitLen(keyCount), maxLen);
-        }
-        setDatabasePopupMatchSelectWidth(maxLen * 34);
-
-        // const databases = result.map((item: any) => item.name);
-        setDatabases(keySpaceInfoData)
-        // setSecondCity(keySpaceInfoData);
-    }
-
-    const handleDataSourceChanged = (datasourceId: string) => {
+    const handleDataSourceChanged = () => {
         cleanTreeData();
         setTreeUniqueId(Date.now());
-        rust_invoke("redis_get_database_info", {
-            datasource_id: datasourceId
-        }).then(r => {
+        redis_invoke("redis_get_database_info", {}, datasourceRef.current, databaseRef.current).then(r => {
             if (typeof r === "string") {
                 const result = JSON.parse(r);
                 setVersion(result.redis_version);
                 setMemoryUsage(result.used_memory_human);
-                setDbsize(formatNumber(result.dbsize));
-                setDatabaseInfoList(result);
+                setDbsize(humanNumber(result.dbsize));
                 setScanning(true);
-                rust_invoke("redis_key_scan", {
-                    datasource_id: datasourceId,
-                    pattern: searchValue ? searchValue : "*",
+                redis_invoke("redis_key_scan", {
+                    pattern: searchValueRef.current ? searchValueRef.current : "*",
                     page_size: pageSize,
                     cursor: cursor,
                     count: scanCount
-                }).then(ret => {
-                })
+                }, datasourceRef.current, databaseRef.current).finally()
             }
         });
     };
@@ -439,7 +391,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const onTitleRender = (data: CustomDataNode): React.ReactNode => {
         if (typeof data.title == 'string') {
             if (data.isLeaf) {
-                return <RedisKey node={data}/>
+                return <RedisKey node={data}
+                                 datasourceId={datasourceRef.current}
+                                 selectedDatabase={databaseRef.current}/>
             } else {
                 return <>
                     <div className={'redis-directory'}>
@@ -466,10 +420,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             }
         }
         if (keys.length > 0) {
-            rust_invoke("redis_key_type", {
-                datasource_id: props.datasourceId,
+            redis_invoke("redis_key_type", {
                 keys: keys
-            }).then(r => {
+            }, datasourceRef.current, databaseRef.current).then(r => {
                 const resp = JSON.parse(r as string);
                 const types = resp.types;
                 for (const child of fetchKeyTypeList) {
@@ -491,29 +444,19 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     };
 
     const onSearchPressEnter = (e: any) => {
-        let finalSearchVal = searchValue;
-        if (searchValue.length == 0) {
-            finalSearchVal = "*";
-        } else if (!searchValue.endsWith("!") && !searchValue.endsWith("*")) {
-            finalSearchVal += "*";
-        }
-
         setScanning(true);
-        setSearchValue(finalSearchVal);
         setCursor(0);
         setNoMoreData(false);
         cleanTreeData();
         setTreeUniqueId(Date.now());
         selectedKeysRef.current = [];
         setSelectedKeys([]);
-        rust_invoke("redis_key_scan", {
-            datasource_id: 'datasource01',
-            pattern: finalSearchVal,
+        redis_invoke("redis_key_scan", {
+            pattern: searchValueRef.current,
             page_size: pageSize,
             cursor: cursor,
             count: scanCount
-        }).then(ret => {
-        });
+        }, datasourceRef.current, databaseRef.current).finally();
     };
 
     let treeDataDom;
@@ -522,15 +465,12 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             setScanning(false);
         } else {
             setScanning(true);
-            rust_invoke("redis_key_scan", {
-                datasource_id: 'datasource01',
-                pattern: searchValue ? searchValue : "*",
+            redis_invoke("redis_key_scan", {
+                pattern: searchValueRef.current ? searchValueRef.current : "*",
                 page_size: pageSize,
                 cursor: cursor,
                 count: scanCount
-            }).then(ret => {
-                //console.log("扫描后的数据：", ret);
-            });
+            }, datasourceRef.current, databaseRef.current).finally();
         }
     };
 
@@ -585,7 +525,8 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             leaves = leaves.length == 1 ? undefined : leaves;
         }
         invoke("show_key_tree_right_menu", {
-            datasource: 'datasource01',
+            datasource: datasourceRef.current,
+            database: databaseRef.current,
             key: leaves?.length! > 1 ? null : key,
             keys: leaves
         }).finally();
@@ -650,7 +591,8 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         invoke('show_add_new_key_menu', {
             x: e.clientX,
             y: e.clientY,
-            datasource: 'datasource01'
+            datasource: datasource,
+            database: database
         }).then(r => {
         })
     }

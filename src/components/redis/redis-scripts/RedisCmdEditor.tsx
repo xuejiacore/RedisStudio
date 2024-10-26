@@ -1,16 +1,7 @@
-import React, {
-    FC,
-    forwardRef,
-    ForwardRefRenderFunction,
-    MutableRefObject,
-    useEffect,
-    useImperativeHandle,
-    useRef
-} from "react";
+import React, {forwardRef, useImperativeHandle, useRef} from "react";
 import Editor, {BeforeMount, OnChange, OnMount, OnValidate} from "@monaco-editor/react";
 import {redisCompletionFunction, redisScriptEditorOptions} from "./RedisScriptHelper.tsx";
-import {rust_invoke} from "../../../utils/RustIteractor.tsx";
-import {listen} from "@tauri-apps/api/event";
+import {redis_invoke} from "../../../utils/RustIteractor.tsx";
 import {CmdOutputChannel} from "./RedisCmdOutput.tsx";
 
 export interface CmdResultItem {
@@ -33,6 +24,9 @@ interface CmdExecuteResult {
 interface RedisCmdEditorProp {
     channel?: CmdOutputChannel;
     onMultiLineSelected?: (startLine: number, endLine: number) => void;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 export interface RedisCmdEditorRef {
@@ -64,7 +58,7 @@ const RedisCmdEditor = forwardRef<RedisCmdEditorRef, RedisCmdEditorProp>((props,
                 scripts = selectedLinesContent.trim(); // 移除最后的换行符
             }
         }
-        rust_invoke('run_redis_command', {'script': scripts, datasource_id: 'datasource01'}).then(r => {
+        redis_invoke('run_redis_command', {'script': scripts}, props.datasourceId, props.selectedDatabase).then(r => {
             const resp: CmdExecuteResult = JSON.parse(r as string);
             if (resp.success) {
                 let idx = 0;

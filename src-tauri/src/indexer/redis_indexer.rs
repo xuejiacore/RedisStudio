@@ -458,7 +458,7 @@ impl RedisIndexer {
     /// * `key` - key name
     /// * `key_type` - type of key
     /// * `op_type` - operate type, -1: delete, 1: add
-    pub async fn operate_favor(&self, datasource: &str, key: &str, key_type: &str, op_type: i16) {
+    pub async fn operate_favor(&self, datasource: &str, database: i64, key: &str, key_type: &str, op_type: i16) {
         let now = Utc::now();
         let timestamp_millis = now.timestamp_millis();
         let doc_id = Uuid::new_v4().to_string();

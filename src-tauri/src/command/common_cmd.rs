@@ -44,6 +44,7 @@ pub async fn key_favor_status<R: Runtime>(
 #[tauri::command]
 pub async fn operate_key_favor<R: Runtime>(
     datasource: &str,
+    database: i64,
     key: &str,
     op_type: i16,
     key_type: &str,
@@ -52,7 +53,7 @@ pub async fn operate_key_favor<R: Runtime>(
     tantivy_indexer: State<'_, TantivyIndexer>,
     redis_indexer: State<'_, RedisIndexer>,
 ) -> Result<String> {
-    redis_indexer.operate_favor(datasource, key, key_type, op_type).await;
+    redis_indexer.operate_favor(datasource, database, key, key_type, op_type).await;
     Ok(json!({"success": true}).to_string())
 }
 

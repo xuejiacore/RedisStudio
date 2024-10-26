@@ -1,14 +1,22 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::ops::DerefMut;
+use crate::storage::redis_pool::RedisPool;
 use crate::win::pinned_windows::PinnedWindows;
 use crate::win::window::WebviewWindowExt;
+use crate::CmdError;
 use rand::Rng;
+use redis::cmd;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::{Emitter, LogicalPosition, LogicalSize, Manager, Position, Runtime, Size, State, Wry};
 use tauri_nspanel::cocoa::appkit::NSEvent;
 use tauri_nspanel::cocoa::base::nil;
 use tauri_nspanel::ManagerExt;
+
+type Result<T> = std::result::Result<T, CmdError>;
 
 const REDIS_PIN_LABEL_PREFIX: &str = "redispin_win:";
 
@@ -28,8 +36,23 @@ pub fn open_datasource_window<R: Runtime>(x: f64, y: f64, handle: tauri::AppHand
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct KeySpaceInfo {
+    name: String,
+    index: usize,
+    keys: i64,
+}
+
 #[tauri::command]
-pub fn open_database_selector_window<R: Runtime>(x: f64, y: f64, handle: tauri::AppHandle<R>) {
+pub async fn open_database_selector_window<R: Runtime>(
+    datasource_id: String,
+    database: i64,
+    win_id: i64,
+    x: f64,
+    y: f64,
+    redis_pool: State<'_, RedisPool>,
+    handle: tauri::AppHandle<R>,
+) -> Result<()> {
     let window = handle.get_webview_window("datasource-database-selector");
     match window {
         None => {}
@@ -39,14 +62,47 @@ pub fn open_database_selector_window<R: Runtime>(x: f64, y: f64, handle: tauri::
             let log_pos: LogicalPosition<f64> = LogicalPosition::from_physical(pos, main_window.scale_factor().unwrap());
             win.set_size(Size::Logical(LogicalSize::new(140f64, 300f64))).unwrap();
             win.set_position(Position::Logical(LogicalPosition::new(x + log_pos.x, y + log_pos.y - 4f64))).unwrap();
+
+            let arc = redis_pool.select_connection(datasource_id.as_str(), None).await;
+            let mut connection = arc.lock().await;
+
+            // databases key space info.
+            let re = Regex::new(r"(?<name>db(?<index>\d+)):keys=(?<keys>\d+),expires=(\d+)").unwrap();
+            let keyspace: String = cmd("INFO").arg("KEYSPACE").query_async(connection.deref_mut()).await.unwrap();
+            let key_space_info: Vec<KeySpaceInfo> = keyspace
+                .split("\n")
+                .filter(|line| line.len() > 0 && !line.starts_with("#"))
+                .map(|line| {
+                    let cap = re.captures(line).unwrap();
+                    let name = String::from(cap.name("name").unwrap().as_str());
+                    let index = cap.name("index").unwrap().as_str().parse().unwrap();
+                    let keys = cap.name("keys").unwrap().as_str().parse().unwrap();
+                    KeySpaceInfo { name, index, keys }
+                })
+                .collect();
+
+            // count of databases.
+            let databases_info: Vec<String> = cmd("CONFIG")
+                .arg("GET")
+                .arg("DATABASES")
+                .query_async(connection.deref_mut())
+                .await
+                .unwrap();
+            let database_count = &databases_info[1];
+
+            let json_data = json!(key_space_info).to_string();
+            win.eval(format!("window.loadAllDatabase({win_id}, {database}, '{json_data}', {database_count})").as_str()).unwrap();
             win.show().unwrap();
         }
     }
+    Ok(())
 }
 
 /// open the redis pushpin window, always on the top.
 #[tauri::command]
 pub fn open_redis_pushpin_window<R: Runtime>(
+    datasource: String,
+    database: i64,
     key_name: &str,
     key_type: &str,
     handle: tauri::AppHandle<R>,
@@ -54,7 +110,7 @@ pub fn open_redis_pushpin_window<R: Runtime>(
     pin_win_man: State<'_, PinnedWindows>,
 ) {
     let window = pin_win_man.fetch_idle_window(key_name.to_string(), &handle);
-    window.eval(format!("window.onKeyChange('{}', '{}')", key_name, key_type).as_str()).unwrap();
+    window.eval(format!("window.onKeyChange('{}', '{}', '{datasource}', {database})", key_name, key_type).as_str()).unwrap();
     let label = window.label();
     let panel = handle.get_webview_panel(label).unwrap();
 

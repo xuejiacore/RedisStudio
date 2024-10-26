@@ -1,17 +1,18 @@
 import React, {useRef, useState} from "react";
 import RedisCmdEditor, {RedisCmdEditorRef} from "./RedisCmdEditor.tsx";
 import {Button, Col, Flex, Row} from "antd";
-import RedisCmdOutput, {CmdOutputChannel, RedisCmdOutputProp} from "./RedisCmdOutput.tsx";
+import RedisCmdOutput, {CmdOutputChannel, RedisCmdOutputRef} from "./RedisCmdOutput.tsx";
 import "./RedisScript.less";
 import {useTranslation} from "react-i18next";
 
 interface RedisScriptProps {
-
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 const RedisScript: React.FC<RedisScriptProps> = (props, context) => {
     const {t} = useTranslation();
-    const outputRef = useRef<RedisCmdOutputProp>();
+    const outputRef = useRef<RedisCmdOutputRef>();
     const cmdEditorRef = useRef<RedisCmdEditorRef>(null);
 
     const [selectedLines, setSelectedLines] = useState(0);
@@ -31,7 +32,11 @@ const RedisScript: React.FC<RedisScriptProps> = (props, context) => {
     }
     return <>
         <Flex className={'redis-script-panel'} gap={2} vertical={true}>
-            <RedisCmdEditor ref={cmdEditorRef} channel={channel} onMultiLineSelected={onMultiLineSelected}/>
+            <RedisCmdEditor ref={cmdEditorRef}
+                            channel={channel}
+                            onMultiLineSelected={onMultiLineSelected}
+                            datasourceId={props.datasourceId}
+                            selectedDatabase={props.selectedDatabase}/>
             <Row className={'script-tools'}>
                 <Col span={18}>
                     <Flex className={'tips'} justify={'start'} align={'center'}>
@@ -50,7 +55,9 @@ const RedisScript: React.FC<RedisScriptProps> = (props, context) => {
                     </Flex>
                 </Col>
             </Row>
-            <RedisCmdOutput ref={outputRef}/>
+            <RedisCmdOutput ref={outputRef}
+                            datasourceId={props.datasourceId}
+                            selectedDatabase={props.selectedDatabase}/>
         </Flex>
     </>
 }

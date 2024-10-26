@@ -5,10 +5,9 @@ import {
     CloseOutlined,
     CopyOutlined,
     FieldTimeOutlined,
-    HeartFilled,
     PushpinFilled,
     ReloadOutlined,
-    SaveOutlined, StarFilled
+    StarFilled
 } from "@ant-design/icons";
 import {Col, Row, Space} from "antd";
 import {writeText} from "@tauri-apps/plugin-clipboard-manager";
@@ -21,10 +20,27 @@ interface RedisToolbarProps {
     pinMode?: boolean;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
     const currKeyName = useRef(props.keyName);
+
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
+    const datasourceRef = useRef(datasource);
+    const databaseRef = useRef(database);
+
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+        console.log("-------->>>", props.datasourceId, props.selectedDatabase);
+    }, [props.datasourceId, props.selectedDatabase]);
+
     const [tipsVisible, setTipsVisible] = useState('hidden');
     const [favorBtnSelected, setFavorBtnSelected] = useState(''); // selected
     const [pushpinBtnSelected, setPushpinBtnSelected] = useState(''); // selected
@@ -96,7 +112,13 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
 
     const onPushpin = (e: React.MouseEvent, keyName: string) => {
         const keyType = props.keyType;
-        invoke('open_redis_pushpin_window', {keyName, keyType}).then(e => {
+        console.log(datasourceRef.current, databaseRef.current)
+        invoke('open_redis_pushpin_window', {
+            keyName: keyName,
+            keyType: keyType,
+            datasource: datasourceRef.current,
+            database: databaseRef.current
+        }).then(e => {
             setPushpinBtnSelected('selected');
         });
     };
@@ -117,7 +139,8 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
     const onFavorClick = (e: React.MouseEvent, keyName: string) => {
         if (favorBtnSelected == 'selected') {
             invoke('operate_key_favor', {
-                datasource: 'datasource01',
+                datasource: datasourceRef.current,
+                database: databaseRef.current,
                 key: keyName,
                 keyType: props.keyType,
                 opType: -1
@@ -126,7 +149,8 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
             })
         } else {
             invoke('operate_key_favor', {
-                datasource: 'datasource01',
+                datasource: datasourceRef.current,
+                database: databaseRef.current,
                 key: keyName,
                 keyType: props.keyType,
                 opType: 1
@@ -151,7 +175,7 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
             <FieldTimeOutlined className={`toolbar-btn auto-refresh-btn ${autoRefresh}`}
                                onClick={e => onAutoReloadClick(e, props.keyName)}/>
             <StarFilled className={`toolbar-btn favor-btn ${favorBtnSelected}`}
-                         onClick={e => onFavorClick(e, props.keyName)}/>
+                        onClick={e => onFavorClick(e, props.keyName)}/>
             <PushpinFilled className={`toolbar-btn pushpin-btn ${pushpinBtnSelected}`}
                            onClick={e => onPushpin(e, props.keyName)}/>
         </>);

@@ -2,23 +2,25 @@ import React, {forwardRef, useEffect, useImperativeHandle, useRef, useState} fro
 import {CmdResultItem} from "./RedisCmdEditor.tsx";
 import "./RedisCmdOutput.less";
 import RedisResp from "./RedisResp.tsx";
-import useSmoothScrollbar from "../../../utils/SmoothScrollbar.tsx";
 import Scrollbar from "smooth-scrollbar";
-import SmoothScrollbar from "smooth-scrollbar";
 
 export interface CmdOutputChannel {
     onOutput: (output: CmdResultItem[]) => void;
 }
 
-export interface RedisCmdOutputProp {
+export interface RedisCmdOutputRef {
     channel: CmdOutputChannel;
 }
 
-const RedisCmdOutput = forwardRef<RedisCmdOutputProp | undefined>((props, ref) => {
+export interface RedisCmdOutputProp {
+    datasourceId: string;
+    selectedDatabase: number;
+}
+
+const RedisCmdOutput = forwardRef<RedisCmdOutputRef | undefined, RedisCmdOutputProp>((props, ref) => {
     const [outputItems, setOutputItems] = useState<CmdResultItem[]>([]);
     const [content, setContent] = useState(<></>);
     const scrollbarRef = useRef<Scrollbar>();
-
 
     // 使用 useImperativeHandle 来自定义暴露给父组件的实例值
     useImperativeHandle(ref, () => ({
@@ -46,7 +48,11 @@ const RedisCmdOutput = forwardRef<RedisCmdOutputProp | undefined>((props, ref) =
     const asPrettyPlainText = (content: CmdResultItem[]) => {
         return (<>
             {content.map((item, idx) => {
-                return <RedisResp key={item.key} index={idx} resp={item}/>;
+                return <RedisResp key={item.key}
+                                  index={idx}
+                                  resp={item}
+                                  datasourceId={props.datasourceId}
+                                  selectedDatabase={props.selectedDatabase}/>;
             })}
         </>);
     };

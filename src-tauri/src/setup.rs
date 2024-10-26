@@ -5,7 +5,7 @@ use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use redisstudio::menu::main_menu;
 use redisstudio::menu::menu_manager::MenuContext;
 use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
-use redisstudio::storage::redis_pool::RedisPool;
+use redisstudio::storage::redis_pool::{DataSourceManager, RedisPool, RedisProp};
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::view::command::CommandDispatcher;
 use redisstudio::win::pinned_windows::PinnedWindows;
@@ -14,7 +14,7 @@ use redisstudio::Launcher;
 use serde_json::json;
 use sqlx::{Connection, Pool};
 use std::sync::{Arc, Mutex};
-use tauri::{App, Emitter, Listener, Manager, WebviewWindow, WindowEvent, Wry};
+use tauri::{App, AppHandle, Emitter, Listener, Manager, WebviewWindow, WindowEvent, Wry};
 use tauri_plugin_sql::Error;
 
 pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
@@ -33,7 +33,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
     let command_dispatcher = CommandDispatcher::new(launcher);
     app.manage(command_dispatcher);
 
-    let main_window = initialize_main_and_spotlight_window(app)?;
+    let main_window = initialize_main_window(app)?;
     init_datasource_window(app)?;
     init_database_selector_window(app)?;
 
@@ -86,12 +86,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
             "tips": "connect to redis"
         })).unwrap();
 
-        // TODO: prepare redis connection manager.
-        let pool = RedisPool::new();
-        let client = redis::Client::open("redis://172.31.72.5/10").unwrap();
-        let con = client.get_multiplexed_async_connection().await.unwrap();
-        pool.add_new_connection("datasource01".into(), con).await;
-        cloned_app_handler.manage(pool);
+        prepare_datasource_manager(cloned_app_handler).await;
 
         // initialize your app here instead of sleeping :)
         println!("Initializing...");
@@ -109,9 +104,24 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+async fn prepare_datasource_manager(cloned_app_handler: AppHandle) {
+    let datasource_manager = DataSourceManager::new();
+    let demo_ds = RedisProp::new("172.31.72.5", 6379, None, Some(10));
+    datasource_manager.add_prop("datasource01", demo_ds).await;
+
+    let cloned_for_connection_mgr = cloned_app_handler.clone();
+    let redis_connection_pool = RedisPool::new(datasource_manager, Arc::new(tokio::sync::Mutex::new(move |s, d| {
+        let payload = json!({
+                "datasource": s,
+                "database": d
+            });
+        cloned_for_connection_mgr.emit("connection/lost", payload).unwrap();
+    })));
+    cloned_app_handler.manage(redis_connection_pool);
+}
+
 /// initialize main and spotlight windows.
-fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<WebviewWindow> {
-    //spotlight_search_win.hide()?;
+fn initialize_main_window(app: &mut App) -> TauriResult<WebviewWindow> {
     let main_window = app.get_webview_window("main").unwrap();
     // all `Window` types now have the following additional method
     //main_window.restore_state(StateFlags::POSITION | StateFlags::SIZE).unwrap(); // will restore the window's state from disk
@@ -121,7 +131,6 @@ fn initialize_main_and_spotlight_window(app: &mut App) -> TauriResult<WebviewWin
         match event {
             WindowEvent::Resized(_) => {}
             WindowEvent::Moved(_) => {
-                //reset_spotlight_search_win_pos();
             }
             WindowEvent::CloseRequested { .. } => {
                 // `tauri::AppHandle` now has the following additional method
@@ -215,7 +224,7 @@ fn init_spotlight_search_window(app: &mut App) {
     handle.listen(format!("{}_panel_did_resign_key", SPOTLIGHT_LABEL), move |_| {
         // Hide the panel when it's no longer the key window
         // This ensures the panel doesn't remain visible when it's not actively being used
-        panel.order_out(None);
+        //panel.order_out(None);
     });
 }
 

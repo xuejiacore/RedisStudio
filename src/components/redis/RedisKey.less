@@ -1,3 +1,4 @@
+@import "../../utils/RedisTypeStyle";
 
 .redis-type {
   float: left;
@@ -19,6 +20,8 @@
   align-items: center;
 
   .redis-directory-key-title {
+    color: #f6f6f6;
+    font-family: JetBrainsMonoBold, sans-serif;
     font-size: small;
   }
 
@@ -40,21 +43,21 @@
 }
 
 .redis-type.hash {
-  background: linear-gradient(to top left, #B162C9C0, #B162C9);
+  background: linear-gradient(to top left, @--typeHashLinearColor, @--typeHashColor);
 }
 
 .redis-type.string {
-  background: linear-gradient(to top left, #35AA53C0, #35AA53);
+  background: linear-gradient(to top left, @--typeStringLinearColor, @--typeStringColor);
 }
 
 .redis-type.zset {
-  background: linear-gradient(to top left, #EB4334C0, #EB4334);
+  background: linear-gradient(to top left, @--typeZSetLinearColor, @--typeZSetColor);
 }
 
 .redis-type.set {
-  background: linear-gradient(to top left, #4586F3C0, #4586F3);
+  background: linear-gradient(to top left, @--typeSetLinearColor, @--typeSetColor);
 }
 
 .redis-type.list {
-  background: linear-gradient(to top left, #FFA500C0, #FFA500);
+  background: linear-gradient(to top left, @--typeListLinearColor, @--typeListColor);
 }

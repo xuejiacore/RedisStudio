@@ -6,7 +6,7 @@ import {ColumnsType} from "antd/es/table";
 import {useTranslation} from "react-i18next";
 import "./ZSetOperator.less";
 import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
-import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {SortAscendingOutlined, SortDescendingOutlined} from "@ant-design/icons";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
@@ -22,6 +22,9 @@ interface ZSetOperatorProp {
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onRowAdd?: (keyInfo: any) => void;
     onReload?: () => void;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 interface DataType {
@@ -43,6 +46,19 @@ interface ZRangeMemberResult {
 
 const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
     const {t} = useTranslation();
+
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
+    const datasourceRef = useRef(datasource);
+    const databaseRef = useRef(database);
+
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+    }, [props.datasourceId, props.selectedDatabase]);
+
     const [key, setKey] = useState('');
     const [keyType, setKeyType] = useState('');
     const [pageSize, setPageSize] = useState(30);
@@ -245,14 +261,13 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
             if (filterPattern) {
                 cursor = ps > 0 ? right : left;
             }
-            rust_invoke("redis_zrange_members", {
+            redis_invoke("redis_zrange_members", {
                 key: props.data.key,
                 sorted: sortType,
                 start: cursor,
                 size: ps,
                 pattern: filterPattern,
-                datasource_id: 'datasource01'
-            }).then(r => {
+            }, datasourceRef.current, databaseRef.current).then(r => {
                 const obj: ZRangeMemberResult = JSON.parse(r as string);
                 obj.data.forEach(t => t.key = t.member);
                 setLeft(obj.left);
@@ -350,7 +365,8 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
                       pinMode={props.pinMode}
                       onClose={props.onClose}
                       onReload={onReload}
-        />
+                      datasourceId={datasource}
+                      selectedDatabase={database}/>
         <Table
             columns={columns}
             size={"small"}

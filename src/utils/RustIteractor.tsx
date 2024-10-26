@@ -9,20 +9,15 @@ const CommandConst: Command = {
     redis_get_database_info: {cmd: "action"},
 }
 
-function rust_invoke(cmd: keyof Command, payload: any) {
+function redis_invoke(cmd: keyof Command, payload: any, datasource_id: string, database: number) {
     return invoke("redis_invoke", {
         data: JSON.stringify({
             cmd: cmd,
+            datasource_id: datasource_id,
+            database: database,
             ...payload
         })
     });
 }
 
-function zk_invoke(cmd: string, payload: any) {
-    return invoke('zk_invoke', {
-        cmd: cmd,
-        params: JSON.stringify(payload)
-    })
-}
-
-export {rust_invoke, zk_invoke, CommandConst};
+export {redis_invoke, CommandConst};

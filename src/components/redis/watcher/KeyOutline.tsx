@@ -5,7 +5,7 @@ import {useTranslation} from "react-i18next";
 import "./index.less";
 import "./Datepicker.less";
 import no_data_svg from "../../../assets/images/icons/no-data.svg";
-import {rust_invoke} from "../../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../../utils/RustIteractor.tsx";
 import RedisKeyTags from "../tags/RedisKeyTags.tsx";
 import {timeUntil} from "../../../utils/TimeUtil.ts";
 
@@ -17,6 +17,9 @@ interface KeyTagsProp {
     selectedKey?: string;
     selectedKeyType?: string;
     action?: OutlineAction;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 interface KeyInfo {
@@ -190,11 +193,10 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
     }
 
     useEffect(() => {
-        rust_invoke("redis_key_info", {
-            datasource_id: 'datasource01',
+        redis_invoke("redis_key_info", {
             key: props.selectedKey,
             key_type: props.selectedKeyType
-        }).then(r => {
+        }, props.datasourceId, props.selectedDatabase).then(r => {
             const keyInfo: KeyInfo = JSON.parse(r as string);
             setOutlineInfo(keyInfo);
         });

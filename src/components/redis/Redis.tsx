@@ -15,7 +15,9 @@ import SetOperator from "./type/set/SetOperator.tsx";
 import {OutlineAction} from "./watcher/KeyOutline.tsx";
 
 interface RedisProps {
-    dataSourceId: string,
+    windowId: number;
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
@@ -24,6 +26,8 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
         || document.documentElement.clientHeight
         || document.body.clientHeight;
 
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
     const [currentKey, setCurrentKey] = useState('');
     const [currentKeyType, setCurrentKeyType] = useState('');
     const [nodeData, setNodeData] = useState<CustomDataNode>();
@@ -55,6 +59,10 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
         </div>
     </>)
     const [content, setContent] = useState(empty);
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+    }, [props.datasourceId, props.selectedDatabase]);
 
     const onRowAdd = (data: any) => {
         setSelectedField({type: 'ADD_ROW', dataType: data.keyType, redisKey: data.key});
@@ -67,18 +75,29 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     const hashOperator = <HashOperator data={nodeData}
                                        onFieldClicked={setSelectedField}
                                        onRowAdd={onRowAdd}
-                                       onReload={onReload}/>;
-    const stringOperator = <StringOperator data={nodeData} onReload={onReload}/>;
+                                       onReload={onReload}
+                                       datasourceId={datasource}
+                                       selectedDatabase={database}/>;
+    const stringOperator = <StringOperator data={nodeData}
+                                           onReload={onReload}
+                                           datasourceId={datasource}
+                                           selectedDatabase={database}/>;
     const zsetOperator = <ZSetOperator data={nodeData}
                                        onFieldClicked={setSelectedField}
                                        onRowAdd={onRowAdd}
-                                       onReload={onReload}/>;
+                                       onReload={onReload}
+                                       datasourceId={datasource}
+                                       selectedDatabase={database}/>;
     const setOperator = <SetOperator data={nodeData}
                                      onFieldClicked={setSelectedField}
-                                     onReload={onReload}/>;
+                                     onReload={onReload}
+                                     datasourceId={datasource}
+                                     selectedDatabase={database}/>;
     const listOperator = <ListOperator data={nodeData}
                                        onFieldClicked={setSelectedField}
-                                       onReload={onReload}/>;
+                                       onReload={onReload}
+                                       datasourceId={datasource}
+                                       selectedDatabase={database}/>;
 
     useEffect(() => {
         const lastKeyName = currentKey;
@@ -111,7 +130,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     /* 选中某一个redis key后弹出对应不同数据结构的操作面板 */
     const onKeyNodeSelected = (keys: Key[], info: any) => {
         const node = info.node;
-        if (node.children) {
+        if (node.children && node.children.length > 0) {
             // 如果点击的是非叶子节点，不需要重新渲染操作面板
             return;
         }
@@ -121,17 +140,20 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     }
 
     /* Redis script 操作面板 */
-    const redisScript = (<RedisScript></RedisScript>);
+    const redisScript = (<RedisScript datasourceId={datasource} selectedDatabase={database}/>);
     const onCommandQueryOpen = () => setContent(redisScript);
 
     return (<>
         <Row>
             {/* 左侧面板 */}
             <Col span={5}>
-                <RedisKeyTree datasourceId={'datasource01'}
-                              parentHeight={parentHeight}
-                              onSelect={onKeyNodeSelected}
-                              onCmdOpen={onCommandQueryOpen}/>
+                <RedisKeyTree
+                    windowId={props.windowId}
+                    datasourceId={datasource}
+                    selectedDatabase={database}
+                    parentHeight={parentHeight}
+                    onSelect={onKeyNodeSelected}
+                    onCmdOpen={onCommandQueryOpen}/>
             </Col>
 
             <Col span={19} className={'redis-main-panel'}>
@@ -145,7 +167,8 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                                            keyType={currentKeyType}
                                            selectedField={selectedField}
                                            outlineAction={outlineAction}
-                        />
+                                           datasourceId={datasource}
+                                           selectedDatabase={database}/>
                     </Col>
                 </Row>
             </Col>

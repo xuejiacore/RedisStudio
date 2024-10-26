@@ -6,7 +6,7 @@ import {ColumnsType} from "antd/es/table";
 import {useTranslation} from "react-i18next";
 import "./ListOperator.less";
 import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
-import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {emitTo, listen, UnlistenFn} from "@tauri-apps/api/event";
@@ -19,6 +19,9 @@ interface ListOperatorProp {
     onFieldClicked: (e: ValueChanged) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 interface DataType {
@@ -36,6 +39,19 @@ interface LRangeMemberResult {
 
 const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
     const {t} = useTranslation();
+
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
+    const datasourceRef = useRef(datasource);
+    const databaseRef = useRef(database);
+
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+    }, [props.datasourceId, props.selectedDatabase]);
+
     const [key, setKey] = useState('');
     const [keyType, setKeyType] = useState('');
     const [pageSize, setPageSize] = useState(30);
@@ -87,7 +103,7 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
             datasource_id: 'datasource01'
         };
 
-        rust_invoke('redis_update', payload).then(r => {
+        redis_invoke('redis_update', payload, datasourceRef.current, databaseRef.current).then(r => {
             const ret: any = JSON.parse(r as string);
             if (ret.success) {
                 emitTo('main', 'redis/update-value', req).finally();
@@ -197,13 +213,12 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
 
     function queryData() {
         if (start >= 0) {
-            rust_invoke("redis_lrange_members", {
-                datasource_id: 'datasource01',
+            redis_invoke("redis_lrange_members", {
                 key: props.data.key,
                 start: start,
                 size: pageSize,
                 pattern: filterPattern
-            }).then(r => {
+            }, datasourceRef.current, databaseRef.current).then(r => {
                 const obj: LRangeMemberResult = JSON.parse(r as string);
                 obj.data.forEach(t => t.key = t.idx?.toString());
                 setDataSource(obj.data);
@@ -278,7 +293,8 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
                       pinMode={props.pinMode}
                       onClose={props.onClose}
                       onReload={onReload}
-        />
+                      datasourceId={datasource}
+                      selectedDatabase={database}/>
         <Table
             columns={columns}
             size={"small"}

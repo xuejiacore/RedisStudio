@@ -1,55 +1,75 @@
-import React, {useMemo} from "react";
-import {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import "./App.less";
 import {Tabs} from "antd";
 import DataSource from "./components/datasource/DataSource";
-import {invoke} from "@tauri-apps/api/core";
 import Redis from "./components/redis/Redis.tsx";
-import {isRegistered, register, ShortcutHandler, unregister} from '@tauri-apps/plugin-global-shortcut';
 import RedisIcon from "./components/icons/RedisIcon.tsx";
 import DatasourceIcon from "./components/icons/DatasourceIcon.tsx";
+import {listen, UnlistenFn} from "@tauri-apps/api/event";
+import {DataSourceChangedEvent} from "./components/datasource/DataSourceChangedEvent.ts";
 
 interface AppProp {
+    windowId: number;
 }
 
 const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
-    const [greetMsg, setGreetMsg] = useState("");
-    const [name, setName] = useState("");
+    // change default datasource and database index
     const [activityKey, setActivityKey] = useState("redis");
-    const [hasRun, setHasRun] = useState(false);
+    const [datasourceId, setDatasourceId] = useState('datasource01');
+    const [database, setDatabase] = useState(0);
 
-    // 注册全局快捷键
-    const registerShortcut = (shortcut: string, handler: ShortcutHandler) => {
-        isRegistered(shortcut).then(registered => {
-            if (registered) {
-                unregister(shortcut).then(v => {
-                    register(shortcut, handler).then(() => {
-                    });
-                });
-            } else {
-                console.log("注册快捷键：", shortcut, registered);
-                register(shortcut, handler).then(() => {
-                });
-            }
-        })
-    }
-
+    const removeListenerRef = useRef<UnlistenFn>();
+    const removeListenerIdRef = useRef(0);
     useEffect(() => {
-        // if (!hasRun) {
-        //     setHasRun(true);
-        //     registerShortcut('CommandOrControl+K', () => {
-        //         console.log('快捷键触发');
-        //         invoke("open_spotlight_window").then(r => console.log("全局搜索窗口打开", r));
-        //     });
-        // }
-        return () => {
-        }
-    }, []);
+        const ts = Date.now();
+        const addListenerAsync = async () => {
+            return new Promise<UnlistenFn>(resolve => {
+                listen('datasource/changed', (event) => {
+                    const payload: any = event.payload;
+                    if (payload.winId == props.windowId) {
+                        setDatasourceId(payload.datasource);
+                    }
+                }).then(unlistenFn => {
+                    if (removeListenerIdRef.current != ts) {
+                        //loadData();
+                        resolve(unlistenFn);
+                    } else {
+                        unlistenFn();
+                    }
+                });
 
-    async function greet() {
-        // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-        setGreetMsg(await invoke("greet", {name}));
-    }
+                listen("datasource/database-changed", (event) => {
+                    const payload = event.payload as DataSourceChangedEvent;
+                    if (payload.winId == props.windowId) {
+                        setDatabase(payload.props.database);
+                        console.log("App 数据源变更", payload.props.database);
+                    }
+                }).then(unlistenFn => {
+                    if (removeListenerIdRef.current != ts) {
+                        //loadData();
+                        resolve(unlistenFn);
+                    } else {
+                        unlistenFn();
+                    }
+                });
+            });
+        };
+        (async () => {
+            removeListenerRef.current = await addListenerAsync();
+        })();
+        return () => {
+            removeListenerIdRef.current = ts;
+            const removeListenerAsync = async () => {
+                return new Promise<void>(resolve => {
+                    if (removeListenerRef.current) {
+                        removeListenerRef.current();
+                    }
+                    resolve();
+                })
+            }
+            removeListenerAsync().finally();
+        };
+    }, []);
 
     const activatedColor = '#DBDDE2';
     const deactivatedColor = '#5E5F62';
@@ -73,11 +93,9 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
                 {
                     label: <><RedisIcon style={{width: '15px', color: colorFn(activityKey, 'redis')}}/></>,
                     key: 'redis',
-                    children: <>{
-                        useMemo(() => {
-                            return (<Redis dataSourceId={"localhost"}/>)
-                        }, [])
-                    }</>
+                    children: <><Redis windowId={props.windowId}
+                                       datasourceId={datasourceId}
+                                       selectedDatabase={database}/></>
                 },
                 {
                     label: <><DatasourceIcon style={{width: '15px', color: colorFn(activityKey, 'datasource')}}/></>,

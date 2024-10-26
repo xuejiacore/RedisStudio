@@ -88,6 +88,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             sys_prop,
             redis_cmd::redis_invoke,
+            redis_cmd::reconnect_redis,
             action,
             greet,
             close_splashscreen,

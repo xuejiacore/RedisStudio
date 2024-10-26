@@ -2,7 +2,6 @@ use crate::menu::menu_manager::MenuContext;
 use crate::storage::redis_pool::RedisPool;
 use crate::{menu, CmdError};
 use std::collections::HashMap;
-use std::fmt::format;
 use tauri::menu::{ContextMenu, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::Theme::Dark;
 use tauri::{AppHandle, Manager, PhysicalPosition, Runtime, State, TitleBarStyle, WebviewUrl, Window};
@@ -41,12 +40,14 @@ pub fn show_key_tree_right_menu<R: Runtime>(
     key: Option<String>,
     keys: Option<Vec<String>>,
     datasource: String,
+    database: i64,
     handle: AppHandle<R>,
     window: Window,
     menu_context: State<'_, MenuContext>,
 ) {
     let mut context = HashMap::new();
     context.insert(String::from("datasource"), datasource);
+    context.insert(String::from("database"), database.to_string());
     let mut single_only_bool = true;
     let mut key_size_info = String::from("");
     if let Some(k) = key {
@@ -117,6 +118,7 @@ pub fn show_key_tree_right_menu<R: Runtime>(
 #[tauri::command]
 pub fn show_content_editor_menu<R: Runtime>(
     datasource: String,
+    database: i64,
     key: String,
     field: String,
     value: String,
@@ -126,11 +128,14 @@ pub fn show_content_editor_menu<R: Runtime>(
     _x: f64,
     _y: f64,
 ) {
+    let label = window.label();
     let mut context = HashMap::new();
     context.insert(String::from("datasource"), datasource);
+    context.insert(String::from("database"), database.to_string());
     context.insert(String::from("key"), key);
     context.insert(String::from("field"), field);
     context.insert(String::from("value"), value);
+    context.insert(String::from("win"), label.to_string());
     menu_context.set_context(menu::MENU_OPERATOR_MENU, context);
 
     let app_handle = handle.app_handle();
@@ -155,12 +160,14 @@ pub fn show_content_editor_menu<R: Runtime>(
 #[tauri::command]
 pub fn show_add_new_key_menu<R: Runtime>(
     datasource: String,
+    database: String,
     handle: tauri::AppHandle<R>,
     window: Window,
     menu_context: State<'_, MenuContext>,
 ) {
     let mut context = HashMap::new();
     context.insert(String::from("datasource"), datasource);
+    context.insert(String::from("database"), database);
     menu_context.set_context(menu::MENU_ADD_NEW_KEY_MENU, context);
 
     let label = "create-new-key".to_string();

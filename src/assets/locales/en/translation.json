@@ -36,6 +36,9 @@
           "datasource": {
             "label": "DATASOURCE"
           },
+          "database": {
+            "label": "DATABASE"
+          },
           "key": {
             "label": "KEY"
           },

@@ -5,7 +5,7 @@ import {CopyOutlined, DeleteOutlined, FormatPainterOutlined, SettingOutlined} fr
 import "../../../utils/i18n.ts";
 import {useTranslation} from "react-i18next";
 import {emitTo} from "@tauri-apps/api/event";
-import {rust_invoke} from "../../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../../utils/RustIteractor.tsx";
 
 
 const {TextArea} = Input;
@@ -38,6 +38,9 @@ interface UpdateResult {
 
 interface ValueViewerProp {
     data?: ValueChanged;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 const COMMIT_TYPE_UPDATE = 1;
@@ -126,7 +129,7 @@ const ValueEditor: React.FC<ValueViewerProp> = (props, context) => {
             datasource_id: 'datasource01'
         };
 
-        rust_invoke('redis_update', payload).then(r => {
+        redis_invoke('redis_update', payload, props.datasourceId, props.selectedDatabase).then(r => {
             const ret: UpdateResult = JSON.parse(r as string);
             if (ret.success) {
                 if (req.type == 'zset') {

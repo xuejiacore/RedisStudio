@@ -1,0 +1,70 @@
+.group-name {
+  font-weight: bold;
+  color: #ADAFB4;
+}
+
+.datasource-search-result {
+  .host-port {
+    .status-info {
+      column-gap: 4px;
+
+      .connect-status {
+        width: 6px;
+        height: 6px;
+        border-radius: 4px;
+        background: gray;
+      }
+
+      .connect-status.connected {
+        background: darkgreen;
+      }
+    }
+  }
+
+  .pattern-desc {
+    text-align: right;
+
+    .desc {
+      font-family: JetBrainsMonoBold, sans-serif;
+      font-size: 10px;
+      color: #575859;
+    }
+
+  }
+
+  .pattern {
+    margin: 6px;
+    padding: 2px 7px;
+    background: #3b3f41;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+}
+
+.ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  .datasource-search-result {
+    .host-port {
+      .status-info {
+        .connect-status {
+          background: #9a9999;
+        }
+
+        .connect-status.connected {
+          background: #018501;
+        }
+      }
+    }
+
+
+    .desc {
+      color: #ffffff;
+    }
+
+    .pattern {
+      color: #ffffff;
+      background: #646467;
+    }
+  }
+}

@@ -1,8 +1,9 @@
+/* eslint-disable */
 import React, {useEffect, useRef, useState} from "react";
 import {Table} from "antd";
 import {ColumnsType} from "antd/es/table";
 import "./HashOperator.less";
-import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
 import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
 import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
 import {invoke} from "@tauri-apps/api/core";
@@ -10,8 +11,9 @@ import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {useTranslation} from "react-i18next";
 import {PushpinFilled} from "@ant-design/icons";
 import {TableRowSelection} from "antd/es/table/interface";
-import {emitTo, listen, UnlistenFn} from "@tauri-apps/api/event";
+import {emitTo, listen, Options, UnlistenFn} from "@tauri-apps/api/event";
 import SmartData, {UpdateEvent} from "../common/SmartData.tsx";
+import {Window} from "@tauri-apps/api/window";
 
 interface HashOperatorProps {
     data: any;
@@ -20,12 +22,20 @@ interface HashOperatorProps {
     onRowAdd?: (keyInfo: any) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 interface DataType {
     key?: string;
     field?: string;
     content?: string;
+    draft?: boolean;
+    editId?: string;
+
+    fieldUpdated?: boolean;
+    contentUpdated?: boolean;
 }
 
 interface HashGetResult {
@@ -46,8 +56,19 @@ interface PinResult {
  */
 const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     const {t} = useTranslation();
-    const hasRun = useRef(false);
-    const [fieldToolActivated, setFieldToolActivated] = useState('');
+
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
+    const datasourceRef = useRef(datasource);
+    const databaseRef = useRef(database);
+
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+    }, [props.datasourceId, props.selectedDatabase]);
+
     const [pinnedFields, setPinnedFields] = useState<string[]>([]);
     const [dataSource, setDataSource] = useState<DataType[]>([{key: '-'}]);
     const [key, setKey] = useState('');
@@ -68,7 +89,9 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     const [pageChanged, setPageChanged] = useState(0);
     const [footerAction, setFooterAction] = useState<FooterAction>();
     const [maxFieldWidth, setMaxFieldWidth] = useState(180);
-    const [tableUniqueId, setTableUniqueId] = useState(Date.now())
+    const [tableUniqueId, setTableUniqueId] = useState(Date.now());
+    const dataSourceRef = useRef(dataSource);
+    const draftRef = useRef<DataType>();
 
     // 父组件的高度，用于计算树的最大高度
     const calParentHeight = () => (window.innerHeight
@@ -87,71 +110,108 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             }
         })
     };
-
     const onFieldValueChange = (e: UpdateEvent) => {
         console.log('Field changed:', e);
+        let fieldName = e.value;
+        let content = undefined;
+        let oldField: string | undefined = e.oldValue;
+        if (e.editId && draftRef.current && draftRef.current.editId === e.editId) {
+            draftRef.current.field = e.value;
+            draftRef.current.fieldUpdated = true;
+            if (!draftRef.current.contentUpdated) {
+                return;
+            }
+            content = draftRef.current.content;
+            oldField = undefined;
+            draftRef.current = undefined;
+        }
 
         const req: UpdateRequest = {
             key: e.keyName,
             type: 'hash',
-            field: e.value,
-            oldField: e.oldValue,
+            field: fieldName,
+            value: content,
+            oldField: oldField,
             fieldRename: true,
         };
         const payload = {
             key: e.keyName,
             key_type: 'hash',
-            old_field: e.oldValue,
-            field: e.value,
+            old_field: oldField,
+            field: fieldName,
+            value: content,
             datasource_id: 'datasource01'
         };
-        rust_invoke('redis_update', payload).then(r => {
-
+        console.log("保存数据--->Field", payload, req)
+        redis_invoke('redis_update', payload, props.datasourceId, props.selectedDatabase).then(r => {
+            emitTo('main', 'redis/update-value', req).finally();
         });
-        emitTo('main', 'redis/update-value', req).finally();
     }
     const onContentValueChange = (e: UpdateEvent) => {
+        console.log("Content Changed:", e);
+        let fieldName: string | undefined = e.fieldName;
+        let content = e.value;
+        if (e.editId && draftRef.current && draftRef.current.editId === e.editId) {
+            draftRef.current.content = e.value;
+            draftRef.current.contentUpdated = true;
+            if (!draftRef.current.fieldUpdated) {
+                return;
+            }
+            fieldName = draftRef.current.field;
+            draftRef.current = undefined;
+        }
+
         const req: UpdateRequest = {
             key: e.keyName,
             type: 'hash',
-            field: e.fieldName,
-            value: e.value,
+            field: fieldName,
+            value: content,
         };
         const payload = {
             key: e.keyName,
             key_type: 'hash',
-            field: e.fieldName,
-            value: e.value,
+            field: fieldName,
+            value: content,
             datasource_id: 'datasource01'
         };
-        rust_invoke('redis_update', payload).then(r => {
+        console.log("保存数据--->Value", payload, req)
+        redis_invoke('redis_update', payload, props.datasourceId, props.selectedDatabase).then(r => {
             const ret: any = JSON.parse(r as string);
             if (ret.success) {
                 emitTo('main', 'redis/update-value', req).finally();
             } else {
                 console.error(`fail to update redis value, key = ${e.keyName}, keyType = hash, field = ${e.fieldName}, value = ${e.value}, msg = ${ret.msg}`);
             }
-        })
+        });
     }
-
-    const renderField = (fieldName: string, text: string) => {
-        return text ? <>
-            <div className='field-toolkits'>
-                <SmartData value={text} keyName={key} fieldName={fieldName} onChange={onFieldValueChange}/>
-                <div className={'field-tool ' + (pinnedFields.includes(text) ? 'activated' : '')}>
-                    <PushpinFilled
-                        className={'toolbar-btn pushpin-btn ' + (pinnedFields.includes(text) ? 'selected' : '')}
-                        onClick={e => onPushpinField(e, text)}/>
-                </div>
+    const renderField = (fieldName: string, text: string, editable: boolean, editId?: string) => {
+        return <div className='field-toolkits'>
+            <SmartData value={text}
+                       keyName={key}
+                       fieldName={fieldName}
+                       onChange={onFieldValueChange}
+                       editId={editId}
+                       editable={editable}
+                       placeholder={'Field Name'}
+            />
+            <div className={'field-tool ' + (pinnedFields.includes(text) ? 'activated' : '')}>
+                <PushpinFilled
+                    className={'toolbar-btn pushpin-btn ' + (pinnedFields.includes(text) ? 'selected' : '')}
+                    onClick={e => onPushpinField(e, text)}/>
             </div>
-        </> : <>
-            <i className={'empty-data'}>&lt;Empty&gt;</i>
-        </>
+        </div>;
     }
 
-    const renderCell = (field: string, text: string) => {
-        return <SmartData key={`${Date.now()}-${key}-${field}`} keyName={key} fieldName={field} value={text}
-                          onChange={onContentValueChange}/>
+    const renderCell = (field: string, text: string, editable: boolean, editId?: string) => {
+        return <SmartData key={`${Date.now()}-${key}-${field}`}
+                          keyName={key}
+                          fieldName={field}
+                          value={text}
+                          onChange={onContentValueChange}
+                          editId={editId}
+                          editable={editable}
+                          placeholder={"Content Value"}
+        />
     };
 
     const columns: ColumnsType<DataType> = [
@@ -163,7 +223,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             key: 'field',
             width: props.pinMode ? 'calc(30vw)' : maxFieldWidth,
             ellipsis: true,
-            render: (val, record) => renderField(record.field!, val)
+            render: (val, record) => renderField(record.field!, val, record.draft ?? false, record.editId)
         },
         {
             title: <>
@@ -172,34 +232,45 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             dataIndex: 'content',
             key: 'content',
             ellipsis: true,
-            render: (val, record) => renderCell(record.field!, val)
+            render: (val, record) => renderCell(record.field!, val, record.draft ?? false, record.editId)
         }
     ];
-
-    useEffect(() => {
-        const handleResize = () => {
-            const newHeight = calParentHeight();
-            setComHeight(newHeight);
-        }
-        window.addEventListener("resize", handleResize);
-
-        return () => {
-            window.removeEventListener("resize", handleResize);
-        }
-    }, []);
 
     const removeListenerRef = useRef<UnlistenFn>();
     const removeListenerIdRef = useRef(0);
     const currentKey = useRef(key);
     useEffect(() => {
         const ts = Date.now();
+        const handleResize = () => {
+            const newHeight = calParentHeight();
+            setComHeight(newHeight);
+        }
+        window.addEventListener("resize", handleResize);
+
         const addListenerAsync = async (data: DataType[]) => {
             return new Promise<UnlistenFn>(resolve => {
+                const listenOption: Options = {
+                    target: {
+                        kind: 'Window',
+                        label: Window.getCurrent().label
+                    }
+                };
+                const resolveFn = (unlistenFn: UnlistenFn) => {
+                    if (removeListenerIdRef.current != ts) {
+                        //loadData();
+                        resolve(unlistenFn);
+                    } else {
+                        unlistenFn();
+                    }
+                };
+
                 listen('redis/update-value', (event) => {
                     const pl = event.payload as UpdateRequest;
                     if (pl.type == 'hash' && pl.key == currentKey.current) {
                         let isNewItem = true;
-                        const newDs = data.map(v => {
+                        const newDs = dataSourceRef.current.filter(v => {
+                            return !v.draft;
+                        }).map(v => {
                             if (pl.fieldRename) {
                                 if (v.key == pl.oldField) {
                                     v.field = pl.field;
@@ -230,22 +301,42 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                             });
                             calculateWidth(maxField);
                         }
-                        setDataSource(newDs);
+                        dataSourceRef.current = newDs;
+                        setDataSource([...newDs]);
                     }
-                }).then(unlistenFn => {
-                    if (removeListenerIdRef.current != ts) {
-                        //loadData();
-                        resolve(unlistenFn);
-                    } else {
-                        unlistenFn();
-                    }
-                })
+                }).then(resolveFn);
+
+                listen("operator/add_row", (event) => {
+                    const id = `tmp_${Date.now()}`;
+                    const data: DataType = {
+                        key: id,
+                        field: '',
+                        content: '',
+                        draft: true,
+                        editId: id
+                    };
+                    dataSourceRef.current.push(data);
+
+                    draftRef.current = data;
+                    setDataSource([...dataSourceRef.current]);
+                    setTableUniqueId(Date.now());
+                }, listenOption).then(resolveFn);
+
+                listen("operator/del_row", (event) => {
+                    const payload = event.payload || {};
+                    console.log("on row delete", payload);
+                    // @ts-ignore
+                    dataSourceRef.current = dataSourceRef.current.filter(t => t.field !== payload.field);
+                    setDataSource(dataSourceRef.current);
+                    setTableUniqueId(Date.now());
+                }, listenOption).then(resolveFn)
             })
         }
         (async () => {
             removeListenerRef.current = await addListenerAsync(dataSource);
         })();
         return () => {
+            window.removeEventListener("resize", handleResize);
             removeListenerIdRef.current = ts;
             const removeListenerAsync = async () => {
                 return new Promise<void>(resolve => {
@@ -256,9 +347,11 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                 })
             }
 
-            removeListenerAsync().then(t => {
-            });
+            removeListenerAsync().finally();
         };
+    }, []);
+    useEffect(() => {
+        dataSourceRef.current = dataSource;
     }, [dataSource]);
 
     function clamp(value: number, min: number, max: number): number {
@@ -303,13 +396,12 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                 fillData(obj);
             }
         } else {
-            rust_invoke("redis_get_hash", {
+            redis_invoke("redis_get_hash", {
                 key: props.data.key,
-                datasource_id: "datasource01",
                 cursor: cursor,
                 count: pageSize,
                 pattern: scanPattern
-            }).then(r => {
+            }, props.datasourceId, props.selectedDatabase).then(r => {
                 const obj: HashGetResult = JSON.parse(r as string);
                 cachedPage.current.set(page, obj);
                 cachedPageShown.current = cachedPageShown.current + obj.field_values.length;
@@ -433,6 +525,8 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                       pinMode={props.pinMode}
                       onClose={props.onClose}
                       onReload={() => onReload(true)}
+                      datasourceId={datasource}
+                      selectedDatabase={database}
         />
         {/*<RedisTableView columns={columns}/>*/}
         <Table
@@ -451,6 +545,9 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                             e.preventDefault()
                             selectRow(record);
                         } else {
+                            if (record.draft) {
+                                return;
+                            }
                             props.onFieldClicked({
                                 key: record.key,
                                 field: record.field,
@@ -466,7 +563,8 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                         invoke('show_content_editor_menu', {
                             x: e.clientX,
                             y: e.clientY,
-                            datasource: 'datasource01',
+                            datasource: datasourceRef.current,
+                            database: databaseRef.current,
                             field: record.field,
                             value: record.content,
                             key: props.data.key,

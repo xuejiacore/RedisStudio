@@ -49,6 +49,7 @@ function createSystemTables(executeInitSql: (sql: string, bindValues?: unknown[]
             host               TEXT,             -- host 
             port               INTEGER,          -- port
             user_name          TEXT,             -- username
+            password           TEXT,             -- password
             ssh_tunnel_enabled INTEGER,          -- 1:ssh tunnel enabled, 2:disabled
             properties         TEXT,             -- configuration properties json
             create_time        INTEGER

@@ -12,6 +12,9 @@ interface RightWatcherPanelProp {
     keyType: string;
     selectedField?: ValueChanged;
     outlineAction?: OutlineAction;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 const VALUE_CHANGED_KEY = '2';
@@ -47,14 +50,20 @@ const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
                         label: t('redis.main.right_panel.tabs.outline.name'),
                         key: '1',
                         icon: <TagsOutlined className={'tab-tags'}/>,
-                        children: <KeyOutline selectedKeyType={props.keyType} selectedKey={props.currentKey} action={props.outlineAction}/>,
+                        children: <KeyOutline selectedKeyType={props.keyType}
+                                              selectedKey={props.currentKey}
+                                              action={props.outlineAction}
+                                              datasourceId={props.datasourceId}
+                                              selectedDatabase={props.selectedDatabase}/>,
                     },
                     {
                         label: t('redis.main.right_panel.tabs.value.name'),
                         key: VALUE_CHANGED_KEY,
                         icon: <EditOutlined/>,
                         disabled: valueTabDisabled,
-                        children: <ValueEditor data={props.selectedField}/>
+                        children: <ValueEditor data={props.selectedField}
+                                               datasourceId={props.datasourceId}
+                                               selectedDatabase={props.selectedDatabase}/>
                     },
                     {
                         label: t('redis.main.right_panel.tabs.info.name'),

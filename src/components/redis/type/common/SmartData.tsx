@@ -4,6 +4,7 @@ import {Flex, Input, InputRef, Tooltip} from "antd";
 import {convertTimestampToDateWithMillis} from "../../../../utils/TimeUtil.ts";
 
 export interface UpdateEvent {
+    editId?: string;
     keyName: string;
     fieldName: string;
     value: string;
@@ -14,8 +15,10 @@ interface SmartDataProp {
     value: any;
     keyName: string;
     fieldName?: string;
-    editable?: boolean;
     onChange?: (event: UpdateEvent) => void;
+    editable?: boolean;
+    editId?: string;
+    placeholder?: string;
 }
 
 const SmartData: React.FC<SmartDataProp> = (props, context) => {
@@ -31,10 +34,19 @@ const SmartData: React.FC<SmartDataProp> = (props, context) => {
     const toggleEdit = () => {
         setEditing(!editing);
     };
-    const save = async () => {
+    const save = async (blurSave: boolean) => {
+        if (props.editable && blurSave) {
+            return;
+        }
         try {
             toggleEdit();
-            props.onChange?.({keyName: props.keyName, fieldName: props.fieldName ?? '', value: inputValue, oldValue: beforeValue});
+            props.onChange?.({
+                editId: props.editId,
+                keyName: props.keyName,
+                fieldName: props.fieldName ?? '',
+                value: inputValue,
+                oldValue: beforeValue
+            });
 
             setBeforeValue(inputValue);
         } catch (errInfo) {
@@ -43,7 +55,9 @@ const SmartData: React.FC<SmartDataProp> = (props, context) => {
     };
     let node;
     if (inputValue === '') {
-        node = <i className={'empty-data'}>&lt;Empty&gt;</i>
+        node = <div className='table-row-data' onDoubleClick={toggleEdit}>
+            <i className={'empty-data'}>&lt;Empty&gt;</i>
+        </div>
     } else if (inputValue) {
         if (inputValue == 'null') {
             node =
@@ -73,8 +87,13 @@ const SmartData: React.FC<SmartDataProp> = (props, context) => {
     }
     const c = editing ? (
         <Flex className='table-row-data editing'>
-            <Input value={inputValue} onChange={e => setInputValue(e.target.value)} ref={inputRef} onPressEnter={save}
-                   onBlur={save}/>
+            <Input
+                ref={inputRef}
+                value={inputValue}
+                onChange={e => setInputValue(e.target.value)}
+                placeholder={props.placeholder}
+                onPressEnter={() => save(false)}
+                onBlur={() => save(true)}/>
         </Flex>
     ) : node;
     return <>

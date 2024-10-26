@@ -3,11 +3,10 @@ import React, {useEffect, useRef, useState} from "react";
 import "./NewKeyCreator.less";
 import {Flex, Input, InputRef} from "antd";
 import {Window} from '@tauri-apps/api/window';
-import {rust_invoke} from "../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../utils/RustIteractor.tsx";
 import {emitTo} from "@tauri-apps/api/event";
 
 interface NewKeyCreatorProps {
-
 }
 
 const NewKeyCreator: React.FC<NewKeyCreatorProps> = (props: NewKeyCreatorProps) => {
@@ -15,11 +14,13 @@ const NewKeyCreator: React.FC<NewKeyCreatorProps> = (props: NewKeyCreatorProps) 
     const [status, setStatus] = useState('');
     const [submitBtnStatus, setSubmitBtnStatus] = useState('disabled');
     const [datasource, setDatasource] = useState('')
+    const [database, setDatabase] = useState(0);
     const inputRef = useRef<InputRef>(null);
 
-    const onCreateNewKey = (type: string, datasource: string) => {
+    const onCreateNewKey = (type: string, datasource: string, database: number) => {
         setKeyType(type);
         setDatasource(datasource);
+        setDatabase(database);
     };
 
     useEffect(() => {
@@ -41,11 +42,10 @@ const NewKeyCreator: React.FC<NewKeyCreatorProps> = (props: NewKeyCreatorProps) 
             return;
         }
         console.log(inputKey + "\t" + datasource);
-        rust_invoke("redis_new_key", {
-            datasource_id: "datasource01",
+        redis_invoke("redis_new_key", {
             key: inputKey,
             key_type: keyType,
-        }).then(r => {
+        }, datasource, database).then(r => {
             Window.getByLabel("create-new-key").then(r => r?.close());
             emitTo("main", "key-tree/new-key", {
                 keyType: keyType,
@@ -57,11 +57,10 @@ const NewKeyCreator: React.FC<NewKeyCreatorProps> = (props: NewKeyCreatorProps) 
     const onChange = () => {
         const inputKey = inputRef.current!.input!.value;
         if (inputKey) {
-            rust_invoke("redis_key_info", {
-                datasource_id: 'datasource01',
+            redis_invoke("redis_key_info", {
                 key: inputKey,
                 key_type: 'unknown'
-            }).then(r => {
+            }, datasource, database).then(r => {
                 const keyInfo = JSON.parse(r as string);
                 if (keyInfo.exists === 1) {
                     setStatus('warn');

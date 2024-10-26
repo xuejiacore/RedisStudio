@@ -1,11 +1,11 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
 import {Table} from "antd";
 import {ColumnsType} from "antd/es/table";
 import {useTranslation} from "react-i18next";
 import "./SetOperator.less";
 import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
-import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {ValueChanged} from "../../watcher/ValueEditor.tsx";
 
@@ -15,6 +15,9 @@ interface SetOperatorProp {
     onFieldClicked: (e: ValueChanged) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 interface DataType {
@@ -29,6 +32,19 @@ interface SetMemberResult {
 
 const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
     const {t} = useTranslation();
+
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
+    const datasourceRef = useRef(datasource);
+    const databaseRef = useRef(database);
+
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+    }, [props.datasourceId, props.selectedDatabase]);
+
     const [key, setKey] = useState('');
     const [keyType, setKeyType] = useState('');
     const [pageSize, setPageSize] = useState(30);
@@ -77,13 +93,12 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
 
     function queryData() {
         if (start >= 0) {
-            rust_invoke("redis_sscan", {
+            redis_invoke("redis_sscan", {
                 key: props.data.key,
                 start: start,
                 size: pageSize,
                 pattern: scanPattern,
-                datasource_id: 'datasource01'
-            }).then(r => {
+            }, datasourceRef.current, databaseRef.current).then(r => {
                 const obj: SetMemberResult = JSON.parse(r as string);
                 const data = obj.data.map<DataType>(t => {
                     return {
@@ -165,7 +180,9 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
                       keyType={keyType}
                       pinMode={props.pinMode}
                       onClose={props.onClose}
-                      onReload={onReload}/>
+                      onReload={onReload}
+                      datasourceId={datasource}
+                      selectedDatabase={database}/>
         <Table
             columns={columns}
             size={"small"}

@@ -5,11 +5,14 @@ import {Flex} from "antd";
 import {formatTimestamp} from "../../../utils/TimeUtil.ts";
 import {REDIS_CMD_TYPE, RedisCommand} from "../../../utils/RedisTypeUtil.ts";
 import {useTranslation} from "react-i18next";
-import {rust_invoke} from "../../../utils/RustIteractor.tsx";
+import {redis_invoke} from "../../../utils/RustIteractor.tsx";
 
 interface RedisRespProp {
     index?: number;
     resp: CmdResultItem;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 const RedisResp: FC<RedisRespProp> = (props, context) => {
@@ -40,10 +43,9 @@ const RedisResp: FC<RedisRespProp> = (props, context) => {
         const message = resp.msg;
         if (message) {
             if (message.indexOf("wrong kind of value") > 0) {
-                rust_invoke("redis_key_type", {
-                    datasource_id: 'datasource01',
+                redis_invoke("redis_key_type", {
                     keys: [maybekey]
-                }).then(ret => {
+                }, props.datasourceId, props.selectedDatabase).then(ret => {
                     const obj = JSON.parse(ret as string);
                     setErrMsg(t('redis.key_tree.command_script.error.wrong_kind_of_value', {'type': obj.types[maybekey]}));
                 });

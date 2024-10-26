@@ -1,17 +1,31 @@
 import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import ContentEditor from "../../../editor/ContentEditor/ContentEditor.tsx";
-import {rust_invoke} from "../../../../utils/RustIteractor.tsx";
-import {FooterAction} from "../../footer/RedisFooter.tsx";
+import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
 
 interface StringOperatorProps {
     data: any,
     pinMode?: boolean;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
+
+    datasourceId: string;
+    selectedDatabase: number;
 }
 
 const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
+    const datasourceRef = useRef(datasource);
+    const databaseRef = useRef(database);
+
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+    }, [props.datasourceId, props.selectedDatabase]);
+
     const [key, setKey] = useState('');
     const [keyType, setKeyType] = useState('');
     const [contentData, setContentData] = useState('');
@@ -21,10 +35,9 @@ const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
         if (props.data && props.data.keyType == 'string') {
             setKey(props.data.key);
             setKeyType(props.data.keyType);
-            rust_invoke("redis_get_string", {
+            redis_invoke("redis_get_string", {
                 key: props.data.key,
-                datasource_id: 'datasource01'
-            }).then(r => {
+            }, props.datasourceId, props.selectedDatabase).then(r => {
                 const obj = JSON.parse(r as string);
                 let languageTmp = "text";
                 if (obj.content) {
@@ -46,8 +59,13 @@ const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
         }
     }
     return <>
-        <RedisToolbar keyName={key} keyType={keyType} pinMode={props.pinMode} onClose={props.onClose}
-                      onReload={onReload}/>
+        <RedisToolbar keyName={key}
+                      keyType={keyType}
+                      pinMode={props.pinMode}
+                      onClose={props.onClose}
+                      onReload={onReload}
+                      datasourceId={datasource}
+                      selectedDatabase={database}/>
 
         <ContentEditor defaultValue={''} value={contentData} pinMode={props.pinMode} language={language}/>
     </>

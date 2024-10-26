@@ -6,6 +6,7 @@ import DatasourceSearchResult from "./DatasourceSearchResult.tsx";
 import KeySearchResult from "./KeySearchResult.tsx";
 import FavorSearchResult from "./FavorSearchResult.tsx";
 import RecentlySearchResult from "./RecentlySearchResult.tsx";
+import DatabaseSearchResult from "./DatabaseSearchResult.tsx";
 
 interface OptionItem {
     value: any;
@@ -33,7 +34,7 @@ export interface SearchResultDto {
 
 const TOP_HEIGHT = 53;
 const ITEM_HEIGHT = 23;
-const INDEX = ['key', 'datasource', 'favor', "recently", 'key_pattern'];
+const INDEX = ['database', 'key', 'datasource', 'favor', "recently", 'key_pattern'];
 
 function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined>, global?: boolean): ResultOptions {
     if (result.hits == 0) {
@@ -45,6 +46,24 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
     let options: OptionItem[];
     const cts = Date.now();
     switch (result.scene) {
+        case "database":
+            options = result.documents.map(t => {
+                const unique_key = `${result.scene}\x01${t.index}\x01${cts}`;
+                return {
+                    value: `${unique_key}`,
+                    label: <DatabaseSearchResult key={unique_key}
+                                                 name={t.name}
+                                                 index={t.index}
+                                                 keys={t.keys}/>
+                }
+            });
+            return {
+                label: <span key={'key_pattern_label'}
+                             className={'group-name'}>{t('redis.main.search.scene.database.label')}</span>,
+                options: options,
+                height: (options.length + 1) * ITEM_HEIGHT + TOP_HEIGHT
+            };
+            break
         case "key_pattern":
             options = result.documents.map(t => {
                 const unique_key = `${result.scene}\x01${t.normalization}\x01${cts}`;
