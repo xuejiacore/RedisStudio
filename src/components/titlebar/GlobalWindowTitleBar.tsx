@@ -2,12 +2,16 @@
 
 import React, {useEffect, useRef, useState} from "react";
 import "./index.less";
-import {Col, Divider, Flex, Row, Space, Spin} from "antd";
+import {Col, Divider, Flex, Row, Space} from "antd";
 import DatabaseNumberIcon from "../icons/DatabaseNumberIcon.tsx";
 import {HistoryOutlined, LoadingOutlined, SettingOutlined} from "@ant-design/icons";
 import {invoke} from "@tauri-apps/api/core";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import {DataSourceChangedEvent} from "../datasource/DataSourceChangedEvent.ts";
+import CpuIcon from "../icons/CpuIcon.tsx";
+import ClientsNumIcon from "../icons/ClientNumIcon.tsx";
+import MetricIcon from "../icons/MetricIcon.tsx";
+import {humanNumber} from "../../utils/Util.ts";
 
 interface TitleBarProp {
     windowId: number;
@@ -16,6 +20,12 @@ interface TitleBarProp {
 const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
     const [datasource, setDatasource] = useState('datasource01');
     const [database, setDatabase] = useState(0);
+
+    const [cpuPercentage, setCpuPercentage] = useState('-%');
+    const [clients, setClients] = useState(0);
+    const [commands, setCommands] = useState('-');
+
+    const lastStats = useRef<any>();
     const datasourceRef = useRef(datasource);
     const databaseRef = useRef(database);
 
@@ -40,7 +50,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                     }
                 };
 
-                listen('datasource/changed', (event) => {
+                listen('datasource/changed', event => {
                     const payload: any = event.payload;
                     if (payload.winId == props.windowId) {
                         setDatasource(payload.datasource);
@@ -49,7 +59,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                     }
                 }).then(resolveFn);
 
-                listen("datasource/database-changed", (event) => {
+                listen("datasource/database-changed", event => {
                     const payload = event.payload as DataSourceChangedEvent;
                     if (payload.winId == props.windowId) {
                         setDatabase(payload.props.database);
@@ -58,7 +68,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                     }
                 }).then(resolveFn);
 
-                listen("connection/lost", (event) => {
+                listen("connection/lost", event => {
                     const payload = event.payload as { database: number, datasource: string };
 
                     if (datasourceRef.current === payload.datasource &&
@@ -66,6 +76,24 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                         setConnectedStatus('disconnected');
                     }
                 }).then(resolveFn);
+
+                listen("datasource/info", event => {
+                    const payload: any = event.payload;
+
+                    if (lastStats.current) {
+                        const last = lastStats.current;
+                        const diff_ts = payload.sample_ts - last.sample_ts - 200;
+
+                        const percentage = (payload.info.cpu.used_cpu_sys + payload.info.cpu.used_cpu_user
+                            - last.info.cpu.used_cpu_sys - last.info.cpu.used_cpu_user) / (diff_ts / 1000) * 100;
+                        setCpuPercentage(percentage.toFixed(2) + "%");
+                        const commandProcessed = (payload.info.stats.total_commands_processed - last.info.stats.total_commands_processed) / (diff_ts / 1000);
+                        setCommands(humanNumber(parseInt(commandProcessed.toFixed(0))));
+                    }
+
+                    setClients(payload.info.clients.connected_clients);
+                    lastStats.current = payload;
+                }).then(resolveFn)
             });
         };
         (async () => {
@@ -157,19 +185,33 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                         </Space>
                         <Flex justify={'center'} gap={5}>
                             <div className={`reconnect-btn ${connectedStatus}`} onClick={tryReconnect}>Reconnect</div>
-                            <LoadingOutlined className={`connected-spin ${reconnecting ? '' : 'invisible'}`} spin={true}/>
+                            <LoadingOutlined className={`connected-spin ${reconnecting ? '' : 'invisible'}`}
+                                             spin={true}/>
                         </Flex>
                     </Flex>
                 </Col>
-                <Col span={12}>
-                    <div className={'window-title-bar'} data-tauri-drag-region>
-                        {/*<SpotlightAutoComplete/>*/}
-                    </div>
-                </Col>
-                <Col span={6}>
+                <Col span={18}>
                     <div className={'window-title-bar'} data-tauri-drag-region>
                         <Flex gap={2} className={'setting-tools'} align={'center'} justify={'end'}
                               data-tauri-drag-region>
+                            <Space>
+                                <div className={'metric-item cpu'}>
+                                    <CpuIcon className={'metric-icon cpu'}/>
+                                    <span className={'metric-value cpu'}>{cpuPercentage}</span>
+                                </div>
+
+                                <div className={'metric-item io'}>
+                                    <MetricIcon className={'metric-icon metric'}/>
+                                    <span className={'metric-value metric'}>{commands}</span>
+                                </div>
+
+                                <div className={'metric-item clients'}>
+                                    <ClientsNumIcon className={'metric-icon clients'}/>
+                                    <span className={'metric-value clients'}>{clients === 0 ? '-' : clients}</span>
+                                </div>
+                            </Space>
+
+                            <Divider type="vertical"/>
                             <span className={'host-port'}>{datasourceInfo}</span>
                             <Divider type="vertical"/>
                             <HistoryOutlined className={'tool-icon'}/>

@@ -160,14 +160,14 @@ pub fn show_content_editor_menu<R: Runtime>(
 #[tauri::command]
 pub fn show_add_new_key_menu<R: Runtime>(
     datasource: String,
-    database: String,
+    database: i64,
     handle: tauri::AppHandle<R>,
     window: Window,
     menu_context: State<'_, MenuContext>,
 ) {
     let mut context = HashMap::new();
     context.insert(String::from("datasource"), datasource);
-    context.insert(String::from("database"), database);
+    context.insert(String::from("database"), database.to_string());
     menu_context.set_context(menu::MENU_ADD_NEW_KEY_MENU, context);
 
     let label = "create-new-key".to_string();

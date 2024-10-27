@@ -17,7 +17,7 @@ pub mod dao;
 pub mod menu;
 pub mod spotlight_command;
 pub mod win;
-
+pub mod utils;
 #[derive(Debug, thiserror::Error)]
 pub enum CmdError {
     #[error("unsupported datatype: {0}")]

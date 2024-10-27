@@ -232,6 +232,14 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         const ts = Date.now();
         const addListenerAsync = async () => {
             return new Promise<UnlistenFn>(resolve => {
+                const resolveFn = (unlistenFn: UnlistenFn) => {
+                    if (removeListenerIdRef.current != ts) {
+                        //loadData();
+                        resolve(unlistenFn);
+                    } else {
+                        unlistenFn();
+                    }
+                };
                 handleDataSourceChanged();
                 listen('key-tree/new-key', (event) => {
                     // @ts-ignore
@@ -265,14 +273,16 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     const keySplits = (newKeyName as string).split(splitSymbol);
                     const nodeInfo = findKey(keySplits, afterTree);
                     props.onSelect?.([newKeyName], {node: nodeInfo});
-                }).then(unlistenFn => {
-                    if (removeListenerIdRef.current != ts) {
-                        //loadData();
-                        resolve(unlistenFn);
-                    } else {
-                        unlistenFn();
+                }).then(resolveFn);
+                listen("datasource/info", event => {
+                    const payload: any = event.payload;
+                    setMemoryUsage(payload.info.memory.used_memory_human);
+                    let sum = 0;
+                    for (const keyspace of payload.info.keyspace) {
+                        sum += keyspace.keys;
                     }
-                });
+                    setDbsize(humanNumber(sum));
+                }).then(resolveFn)
 
                 listen("key-tree/delete", (event) => {
                     if (removeListenerIdRef.current != ts) {
@@ -290,13 +300,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                             setScannedKeyCount(total);
                         }
                     }
-                }).then(unlistenFn => {
-                    if (removeListenerIdRef.current != ts) {
-                        resolve(unlistenFn);
-                    } else {
-                        unlistenFn();
-                    }
-                });
+                }).then(resolveFn);
 
                 listen('redis_scan_event', (event) => {
                     if (removeListenerIdRef.current != ts) {
@@ -336,13 +340,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                         }
                         refreshTimer = null;
                     }
-                }).then(unlistenFn => {
-                    if (removeListenerIdRef.current != ts) {
-                        resolve(unlistenFn);
-                    } else {
-                        unlistenFn();
-                    }
-                });
+                }).then(resolveFn);
             });
         };
         (async () => {
@@ -376,7 +374,12 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 const result = JSON.parse(r);
                 setVersion(result.redis_version);
                 setMemoryUsage(result.used_memory_human);
-                setDbsize(humanNumber(result.dbsize));
+
+                let sum = 0;
+                for (const keyspace of result.key_space_info) {
+                    sum += keyspace.keys;
+                }
+                setDbsize(humanNumber(sum));
                 setScanning(true);
                 redis_invoke("redis_key_scan", {
                     pattern: searchValueRef.current ? searchValueRef.current : "*",
@@ -591,8 +594,8 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         invoke('show_add_new_key_menu', {
             x: e.clientX,
             y: e.clientY,
-            datasource: datasource,
-            database: database
+            datasource: datasourceRef.current,
+            database: databaseRef.current
         }).then(r => {
         })
     }
@@ -645,9 +648,13 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 <Space>
                     <span className={'redis-info-item'}>v {version}</span>
                     <Divider type="vertical"/>
-                    <span className={'redis-info-item'}>{memoryUsage}<span className={'arrow up'}>↑</span></span>
+                    <span className={'redis-info-item'}>{memoryUsage}
+                        {/*<span className={'arrow up'}>↑</span>*/}
+                    </span>
                     <Divider type="vertical"/>
-                    <span className={'redis-info-item'}>{dbsize}<span className={'arrow down'}>↓</span></span>
+                    <span className={'redis-info-item'}>{dbsize}
+                        {/*<span className={'arrow down'}>↓</span>*/}
+                    </span>
                 </Space>
             </Flex>
         </div>

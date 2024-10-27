@@ -1,3 +1,4 @@
+use futures::FutureExt;
 use redis::aio::MultiplexedConnection;
 use redis::{cmd, AsyncConnectionConfig, ConnectionAddr, ConnectionInfo, IntoConnectionInfo, RedisConnectionInfo, RedisResult};
 use std::collections::HashMap;
@@ -120,6 +121,20 @@ impl RedisPool {
         redis_pool_instance
     }
 
+    pub async fn get_all_connection_infos(&self) -> Vec<String> {
+        let mutex = self.pool.lock().await;
+        let keys = mutex.keys();
+        let key_string = keys.map(|k| {
+            k.to_string()
+        }).collect::<Vec<String>>();
+        key_string
+    }
+
+    pub async fn get_pool(&self) -> MutexGuard<'_, HashMap<String, Arc<Mutex<MultiplexedConnection>>>>
+    {
+        self.pool.lock().await
+    }
+
     pub async fn add_new_connection(&self, datasource_id: String, connection: MultiplexedConnection) {
         let mut mutex = self.pool.lock();
         mutex.await.insert(datasource_id, Arc::new(Mutex::new(connection)));
@@ -214,6 +229,32 @@ impl RedisPool {
 
     pub async fn fetch_connection(&self, datasource_id: &str) -> Arc<Mutex<MultiplexedConnection>> {
         self.select_connection(datasource_id, None).await
+    }
+
+    pub async fn get_active_info(&self) -> (String, i64) {
+        let cloned = {
+            let mutex = self.active_connection.lock().await;
+            let cloned = mutex.clone();
+            cloned
+        };
+        cloned.map(|t| {
+            let cloned = t.clone();
+            let info = cloned.split("#").collect::<Vec<&str>>();
+
+            let datasource = info[0].to_string();
+            let database = info[1].parse::<i64>().unwrap_or(0);
+            (datasource, database)
+        }).expect("No active connection.")
+    }
+
+    pub async fn change_active_connection(&self, datasource: Option<String>, database: Option<i64>) {
+        let old = self.get_active_info().await;
+        let new_datasource = datasource.unwrap_or(old.0);
+        let new_database = database.unwrap_or(old.1);
+        let with_db_key = format!("{new_datasource}#{new_database}");
+        self.try_connect(new_datasource, Some(new_database)).await;
+        let mut act = self.active_connection.lock().await;
+        *act = Some(with_db_key.clone());
     }
 
     pub async fn get_active_connection(&self) -> Arc<Mutex<MultiplexedConnection>> {

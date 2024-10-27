@@ -1,10 +1,9 @@
-use crate::command::redis_cmd::KeySpaceInfo;
 use crate::indexer::indexer_initializer::{IDX_NAME_FAVOR, IDX_NAME_KEY_PATTERN, IDX_NAME_RECENTLY_ACCESS};
 use crate::indexer::redis_indexer::RedisIndexer;
 use crate::indexer::tantivy_indexer::{SearchResult, TantivyIndexer};
 use crate::storage::redis_pool::RedisPool;
 use crate::CmdError;
-use log::info;
+use futures::FutureExt;
 use redis::{cmd, RedisResult};
 use regex::Regex;
 use serde::{Deserialize, Serialize, Serializer};
@@ -14,16 +13,18 @@ use std::future::Future;
 use std::ops::DerefMut;
 use tantivy::query::{BooleanQuery, Occur, Query, RegexQuery, TermQuery};
 use tantivy::schema::{IndexRecordOption, Schema};
-use tantivy::{doc, Term};
-use tauri::{Runtime, State, Wry};
+use tantivy::{doc, Index, TantivyError, Term};
+use tauri::{AppHandle, Emitter, Runtime, State, Wry};
+use tokio::time::Instant;
 
 type Result<T> = std::result::Result<T, CmdError>;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-struct SearchResultItem {
+pub struct SearchResultItem {
     scene: String,
     hits: usize,
     documents: Vec<Value>,
+    elapsed: Option<u128>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -39,14 +40,14 @@ impl SearchResultDto {
     }
 
     fn add(&mut self, scene: String, hits: usize, documents: Vec<Value>) {
-        self.results.push(SearchResultItem { scene, hits, documents });
+        self.results.push(SearchResultItem { scene, hits, documents, elapsed: None });
     }
 }
 
 /// search documents by provided query string.
 #[tauri::command]
 pub async fn spotlight_search<R: Runtime>(
-    index_name: &str,
+    unique_id: i64,
     query: &str,
     limit: usize,
     scan_size: usize,
@@ -54,48 +55,40 @@ pub async fn spotlight_search<R: Runtime>(
     indexer: State<'_, TantivyIndexer>,
     redis_pool: State<'_, RedisPool>,
     handle: tauri::AppHandle<R>,
-    _window: tauri::Window<Wry>,
+    window: tauri::Window<Wry>,
 ) -> Result<String> {
-    info!("Starting index search");
+    let timer = Instant::now();
     let mut search_result = SearchResultDto::new();
-    let search_from_index = indexer.search_with_params(IDX_NAME_KEY_PATTERN, |index, params_builder| {
-        let schema = index.schema();
-        let normalize_field = schema.get_field("normalization").unwrap();
 
-        let mut query_str = String::from(".*");
-        query_str.push_str(query);
-        query_str.push_str(".*");
-        match RegexQuery::from_pattern(query_str.as_str(), normalize_field) {
-            Ok(regex_query) => {
-                params_builder
-                    .with_limit_offset(limit, offset)
-                    .with_query(Box::new(regex_query));
-            }
-            Err(err) => {}
-        }
-    });
-
-    let list_database = list_database(query, &redis_pool);
-    let recently_search = recently_search(query, &indexer, &redis_pool);
+    let list_database = list_database(query, &redis_pool, &handle);
+    let search_from_index = search_from_tantivy(query, limit, offset, &indexer, &handle);
+    let recently_search = recently_search(query, &indexer, &redis_pool, &handle);
     let search_from_datasource = datasource_search(query);
     let scanned_keys = key_scan_match(query, &redis_pool, scan_size);
     let favor_list = search_favor(query, &indexer, &redis_pool, scan_size);
 
     let (
-        index_result,
+        list_database_result,
         datasource_result,
+        index_result,
         scanned_keys,
         favor,
         recently_result,
-        list_database_result
     ) = tokio::join!(
-        search_from_index,
+        list_database,
         search_from_datasource,
+        search_from_index,
         scanned_keys,
         favor_list,
         recently_search,
-        list_database
     );
+
+    let elapsed = timer.elapsed().as_millis();
+    let finish_event = json!({
+        "uniqueId": unique_id,
+        "elapsed": elapsed
+    });
+    handle.emit("spotlight/search-finished", finish_event).unwrap();
 
     if let Some(result) = list_database_result {
         let len = result.len();
@@ -132,37 +125,124 @@ pub async fn spotlight_search<R: Runtime>(
     }
     Ok(json!(search_result).to_string())
 }
-async fn list_database(query: &str, redis_pool: &State<'_, RedisPool>) -> Option<Vec<Value>> {
-    let query_lowercase = query.to_lowercase();
-    if query_lowercase.starts_with("db") {
-        let arc = redis_pool.get_active_connection().await;
-        let mut mutex = arc.lock().await;
 
-        // databases key space info.
-        let re = Regex::new(r"(?<name>db(?<index>\d+)):keys=(?<keys>\d+),expires=(\d+)").unwrap();
-        let keyspace: String = cmd("INFO").arg("KEYSPACE").query_async(mutex.deref_mut()).await.unwrap();
-        let key_space_info: Vec<Value> = keyspace
-            .split("\n")
-            .filter(|line| line.len() > 0 && !line.starts_with("#"))
-            .map(|line| {
-                let cap = re.captures(line).unwrap();
-                let name = String::from(cap.name("name").unwrap().as_str());
-                let index: usize = cap.name("index").unwrap().as_str().parse().unwrap();
-                let keys: i64 = cap.name("keys").unwrap().as_str().parse().unwrap();
-                json!({
-                    "name": name,
-                    "index": index,
-                    "keys": keys
+async fn search_from_tantivy<R: Runtime>(
+    query: &str,
+    limit: usize,
+    offset: usize,
+    indexer: &State<'_, TantivyIndexer>,
+    handle: &AppHandle<R>,
+) -> std::result::Result<SearchResult, TantivyError> {
+    let timer = Instant::now();
+    let index_opt: Option<Index> = {
+        let res = indexer.indexes.lock()?;
+        res.get(IDX_NAME_KEY_PATTERN).cloned()
+    };
+    match index_opt {
+        Some(index) => {
+            TantivyIndexer::searching_with_params(&index, |index, params_builder| {
+                let schema = index.schema();
+                let normalize_field = schema.get_field("normalization").unwrap();
+
+                let mut query_str = String::from(".*");
+                query_str.push_str(query);
+                query_str.push_str(".*");
+                match RegexQuery::from_pattern(query_str.as_str(), normalize_field) {
+                    Ok(regex_query) => {
+                        params_builder
+                            .with_limit_offset(limit, offset)
+                            .with_query(Box::new(regex_query));
+                    }
+                    Err(err) => {}
+                }
+            }).then(|result| {
+                async {
+                    match result {
+                        Ok(data) => {
+                            let hits = &data.hits;
+                            let documents = &data.documents;
+                            let elapsed = timer.elapsed().as_millis();
+                            let dto = SearchResultItem {
+                                scene: "key_pattern".to_string(),
+                                hits: *hits,
+                                documents: documents.clone(),
+                                elapsed: Some(elapsed),
+                            };
+
+                            handle.emit("spotlight/search-result", dto).unwrap();
+                            Ok(data)
+                        }
+                        Err(e) => Err(e)
+                    }
+                }
+            }).await
+        }
+        None => Err(TantivyError::FieldNotFound(String::from(
+            "index not exists.",
+        ))),
+    }
+}
+
+async fn list_database<R: Runtime>(
+    query: &str,
+    redis_pool: &State<'_, RedisPool>,
+    handle: &AppHandle<R>,
+) -> Option<Vec<Value>> {
+    let timer = Instant::now();
+    let query_lowercase = query.to_lowercase();
+    if query_lowercase.starts_with("db") || query_lowercase.starts_with("database") {
+        async {
+            let info = redis_pool.get_active_info().await;
+            let active_database = info.1;
+
+            let arc = redis_pool.get_active_connection().await;
+            let mut mutex = arc.lock().await;
+
+            // databases key space info.
+            let re = Regex::new(r"(?<name>db(?<index>\d+)):keys=(?<keys>\d+),expires=(\d+)").unwrap();
+            let keyspace: String = cmd("INFO").arg("KEYSPACE").query_async(mutex.deref_mut()).await.unwrap();
+
+            let key_space_info: Vec<Value> = keyspace
+                .split("\n")
+                .filter(|line| line.len() > 0 && !line.starts_with("#"))
+                .map(|line| {
+                    let cap = re.captures(line).unwrap();
+                    let name = String::from(cap.name("name").unwrap().as_str());
+                    let index: usize = cap.name("index").unwrap().as_str().parse().unwrap();
+                    let keys: i64 = cap.name("keys").unwrap().as_str().parse().unwrap();
+                    let active = index as i64 == active_database;
+                    json!({"name": name, "index": index, "keys": keys, "active": active})
                 })
-            })
-            .collect();
-        Some(key_space_info)
+                .collect();
+            key_space_info
+        }.then(|data| {
+            async {
+                let hits = &data.len();
+                let documents = &data;
+                let elapsed = timer.elapsed().as_millis();
+                let dto = SearchResultItem {
+                    scene: "database".to_string(),
+                    hits: *hits,
+                    documents: documents.clone(),
+                    elapsed: Some(elapsed),
+                };
+
+                handle.emit("spotlight/search-result", dto).unwrap();
+                Some(data)
+            }
+        }).await
     } else {
         None
     }
 }
 
-async fn recently_search(query: &str, indexer: &State<'_, TantivyIndexer>, redis_pool: &State<'_, RedisPool>) -> Option<Vec<Value>> {
+async fn recently_search<R: Runtime>(
+    query: &str,
+    indexer: &State<'_, TantivyIndexer>,
+    redis_pool: &State<'_, RedisPool>,
+    handle: &AppHandle<R>,
+) -> Option<Vec<Value>> {
+    let timer = Instant::now();
     let index = {
         let idx = indexer.indexes.lock().unwrap();
         idx.get(IDX_NAME_RECENTLY_ACCESS).unwrap().clone()
@@ -197,39 +277,61 @@ async fn recently_search(query: &str, indexer: &State<'_, TantivyIndexer>, redis
         search_params.with_limit_offset(5, 0).with_query(Box::new(query));
     }).await;
 
-    match result {
-        Ok(search_result) => {
-            if search_result.hits > 0 {
-                let mut pipe = redis::pipe();
-                search_result.documents.iter().for_each(|k| {
-                    pipe.cmd("EXISTS").arg(k.get("key").unwrap().as_array().unwrap()[0].as_str().unwrap());
-                });
+    async {
+        match result {
+            Ok(search_result) => {
+                if search_result.hits > 0 {
+                    let mut pipe = redis::pipe();
+                    search_result.documents.iter().for_each(|k| {
+                        pipe.cmd("EXISTS").arg(k.get("key").unwrap().as_array().unwrap()[0].as_str().unwrap());
+                    });
 
-                let mut conn = {
-                    let arc = redis_pool.get_active_connection();
-                    let binding = arc.await;
-                    let mut mutex = binding.lock().await;
-                    mutex.deref_mut().clone()
-                };
-                match pipe.query_async::<Vec<bool>>(&mut conn).await {
-                    Ok(exists_result) => {
-                        let mut documents = search_result.documents;
-                        for (idx, val) in documents.iter_mut().enumerate() {
-                            let exist = &exists_result[idx];
-                            val["exist"] = Value::Bool(*exist);
+                    let mut conn = {
+                        let arc = redis_pool.get_active_connection();
+                        let binding = arc.await;
+                        let mut mutex = binding.lock().await;
+                        mutex.deref_mut().clone()
+                    };
+                    match pipe.query_async::<Vec<bool>>(&mut conn).await {
+                        Ok(exists_result) => {
+                            let mut documents = search_result.documents;
+                            for (idx, val) in documents.iter_mut().enumerate() {
+                                let exist = &exists_result[idx];
+                                val["exist"] = Value::Bool(*exist);
+                            }
+                            Some(documents)
                         }
-                        Some(documents)
+                        _ => None
                     }
-                    _ => None
+                } else {
+                    None
                 }
-            } else {
+            }
+            Err(_) => {
                 None
             }
         }
-        Err(_) => {
-            None
+    }.then(|r| {
+        async {
+            match r {
+                None => None,
+                Some(values) => {
+                    let elapsed = timer.elapsed().as_millis();
+                    let hits = &values.len();
+                    let documents = &values;
+                    let dto = SearchResultItem {
+                        scene: "recently".to_string(),
+                        hits: *hits,
+                        documents: documents.clone(),
+                        elapsed: Some(elapsed),
+                    };
+
+                    handle.emit("spotlight/search-result", dto).unwrap();
+                    Some(values)
+                }
+            }
         }
-    }
+    }).await
 }
 
 fn build_text_term(schema: &Schema, field_name: &str, field_value: &str) -> Box<dyn Query> {
@@ -274,8 +376,7 @@ async fn key_scan_match(query: &str, redis_pool: &State<'_, RedisPool>, limit: u
                 .arg("COUNT")
                 .arg(page_size)
                 .query_async(&mut conn)
-                .await
-                .unwrap();
+                .await?;
 
             remain_expect_count = if remain_expect_count > results.len() {
                 remain_expect_count - results.len()

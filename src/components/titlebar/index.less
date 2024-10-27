@@ -1,4 +1,5 @@
 @window-title-bar-height: 32px;
+@font-color: #BCBEC460;
 
 .window-title-bar {
   width: 100%;
@@ -13,20 +14,66 @@
 
     .tool-icon {
       color: rgba(197, 199, 204, 0.32);
+      fill: rgba(197, 199, 204, 0.32);
       padding: 4px;
     }
 
     .tool-icon:hover {
       color: rgba(197, 199, 204, 1);
+      fill: rgba(197, 199, 204, 1);
       background: #4F5253;
       border-radius: 4px;
       cursor: pointer;
+    }
+
+    .metric-item {
+      .metric-icon {
+        fill: #4F5253;
+      }
+
+      .metric-icon.clients {
+        fill: #6d7273;
+      }
+
+      .metric-value {
+        margin-left: 1px;
+        color: @font-color;
+        font-size: 12px;
+      }
+    }
+
+    .metric-item.io {
+      width: 50px;
+    }
+    .metric-item.cpu {
+      width: 65px;
+    }
+    .metric-item.clients {
+      width: 46px;
+    }
+
+    .metric-item:hover {
+      cursor: pointer;
+
+      .metric-icon {
+        fill: #b5acac;
+      }
+
+      .metric-icon.clients {
+        fill: #cac1c1;
+      }
+
+      .metric-value {
+        margin-left: 1px;
+        color: #b5acac;
+        font-size: 12px;
+      }
     }
   }
 
   .host-port {
     font-family: JetBrainsMonoBold, sans-serif;
-    color: #BCBEC460;
+    color: @font-color;
     font-weight: normal;
     font-size: 12px;
   }
@@ -38,6 +85,9 @@
 
 .window-title-bar-left-col {
 
+}
+
+.window-title-bar-mid-col {
 }
 
 .project-selector {

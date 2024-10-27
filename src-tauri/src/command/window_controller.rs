@@ -1,17 +1,18 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::ops::DerefMut;
 use crate::storage::redis_pool::RedisPool;
 use crate::win::pinned_windows::PinnedWindows;
 use crate::win::window::WebviewWindowExt;
 use crate::CmdError;
+use futures::FutureExt;
 use rand::Rng;
 use redis::cmd;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tauri::{Emitter, LogicalPosition, LogicalSize, Manager, Position, Runtime, Size, State, Wry};
+use std::ops::DerefMut;
+use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Position, Runtime, Size, State, WebviewWindow, Wry};
 use tauri_nspanel::cocoa::appkit::NSEvent;
 use tauri_nspanel::cocoa::base::nil;
 use tauri_nspanel::ManagerExt;
@@ -105,13 +106,38 @@ pub fn open_redis_pushpin_window<R: Runtime>(
     database: i64,
     key_name: &str,
     key_type: &str,
+    redis_pool: State<'_, RedisPool>,
     handle: tauri::AppHandle<R>,
     _window: tauri::Window<Wry>,
     pin_win_man: State<'_, PinnedWindows>,
 ) {
     let window = pin_win_man.fetch_idle_window(key_name.to_string(), &handle);
-    window.eval(format!("window.onKeyChange('{}', '{}', '{datasource}', {database})", key_name, key_type).as_str()).unwrap();
-    let label = window.label();
+    let binding = window.clone();
+    let label = binding.label();
+
+    if datasource.is_empty() {
+        tauri::async_runtime::block_on(async move {
+            redis_pool.get_active_info().then(|r| {
+                async move {
+                    let datasource = r.0;
+                    let database = r.1;
+                    let script = format!("window.onKeyChange('{}', '{}', '{datasource}', {database})", key_name, key_type);
+                    let eval_script = script.as_str();
+
+                    eval_script_and_show_pin(&handle, &window, label, eval_script);
+                }
+            }).await
+        });
+    } else {
+        let script = format!("window.onKeyChange('{}', '{}', '{datasource}', {database})", key_name, key_type);
+        let eval_script = script.as_str();
+        eval_script_and_show_pin(&handle, &window, label, eval_script);
+    }
+}
+
+fn eval_script_and_show_pin<R: Runtime>(handle: &AppHandle<R>, window: &WebviewWindow<R>, label: &str, eval_script: &str) {
+    window.eval(eval_script).unwrap();
+
     let panel = handle.get_webview_panel(label).unwrap();
 
     let mut rng = rand::thread_rng();
@@ -194,4 +220,17 @@ fn get_window_label(key_name: &str) -> String {
     let unique_id = format!("{:x}", digest).clone();
     label.push_str(unique_id.as_str());
     label
+}
+
+
+// Create the command:
+// This command must be async so that it doesn't run on the main thread.
+#[tauri::command]
+pub async fn close_splashscreen(window: tauri::Window<Wry>) {
+    // Close splashscreen
+    if let Some(splashscreen) = window.get_webview_window("splashscreen") {
+        splashscreen.close().unwrap();
+    }
+    // Show main window
+    window.get_webview_window("main").unwrap().show().unwrap();
 }

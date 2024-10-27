@@ -1,4 +1,6 @@
 use crate::tray;
+use chrono::Utc;
+use redis::cmd;
 use redisstudio::indexer::redis_indexer::RedisIndexer;
 use redisstudio::indexer::simple_infer_pattern::PatternInferenceEngines;
 use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
@@ -7,15 +9,20 @@ use redisstudio::menu::menu_manager::MenuContext;
 use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::storage::redis_pool::{DataSourceManager, RedisPool, RedisProp};
 use redisstudio::storage::sqlite_storage::SqliteStorage;
+use redisstudio::utils::redis_util;
 use redisstudio::view::command::CommandDispatcher;
 use redisstudio::win::pinned_windows::PinnedWindows;
 use redisstudio::win::window::WebviewWindowExt;
 use redisstudio::Launcher;
 use serde_json::json;
 use sqlx::{Connection, Pool};
+use std::collections::HashSet;
+use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
-use tauri::{App, AppHandle, Emitter, Listener, Manager, WebviewWindow, WindowEvent, Wry};
+use std::time::Duration;
+use tauri::{App, AppHandle, Emitter, Listener, Manager, State, WebviewWindow, WindowEvent, Wry};
 use tauri_plugin_sql::Error;
+use tokio::time;
 
 pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
 
@@ -118,6 +125,46 @@ async fn prepare_datasource_manager(cloned_app_handler: AppHandle) {
         cloned_for_connection_mgr.emit("connection/lost", payload).unwrap();
     })));
     cloned_app_handler.manage(redis_connection_pool);
+
+    let stat_interval = Duration::from_secs(3);
+    // start datasource stat
+    tokio::spawn(async move {
+        let mut interval = time::interval(stat_interval);
+        loop {
+            interval.tick().await;
+            let redis_pool: State<RedisPool> = cloned_app_handler.state();
+            let keys = redis_pool.get_all_connection_infos().await;
+
+            let mut processed = HashSet::<String>::new();
+            let pool = redis_pool.get_pool().await;
+            for db_key in keys {
+                let datasource = db_key.split("#")
+                    .collect::<Vec<&str>>()
+                    .get(0)
+                    .expect("unrecognized pattern")
+                    .to_string();
+
+                if processed.contains(&datasource) {
+                    continue;
+                }
+
+                if let Some(arc) = pool.get(&db_key) {
+                    if let Ok(mut connection) = arc.try_lock() {
+                        let result = cmd("INFO").query_async::<String>(connection.deref_mut()).await;
+                        if let Ok(info) = result {
+                            if let Some(i) = redis_util::parse_redis_info(info) {
+                                let now = Utc::now();
+                                let timestamp_millis = now.timestamp_millis();
+                                let payload = json!({"datasource": &datasource, "info": i, "sample_ts": timestamp_millis});
+                                cloned_app_handler.emit("datasource/info", payload).unwrap();
+                            }
+                        }
+                        processed.insert(datasource);
+                    }
+                }
+            }
+        }
+    });
 }
 
 /// initialize main and spotlight windows.
@@ -130,8 +177,7 @@ fn initialize_main_window(app: &mut App) -> TauriResult<WebviewWindow> {
     main_window.on_window_event(move |event| {
         match event {
             WindowEvent::Resized(_) => {}
-            WindowEvent::Moved(_) => {
-            }
+            WindowEvent::Moved(_) => {}
             WindowEvent::CloseRequested { .. } => {
                 // `tauri::AppHandle` now has the following additional method
                 //&app_handler.save_window_state(StateFlags::POSITION | StateFlags::SIZE); // will save the state of all open windows to disk
@@ -218,13 +264,27 @@ fn init_spotlight_search_window(app: &mut App) {
 
     let window = handle.get_webview_window(SPOTLIGHT_LABEL).unwrap();
 
+    window.on_window_event(move |event| match event {
+        WindowEvent::Resized(_) => {}
+        WindowEvent::Moved(_) => {}
+        WindowEvent::CloseRequested { .. } => {
+            println!("CloseRequested");
+        }
+        WindowEvent::Destroyed => {}
+        WindowEvent::Focused(focused) => {
+            println!("Focused {}", focused);
+        }
+        WindowEvent::ScaleFactorChanged { .. } => {}
+        WindowEvent::ThemeChanged(_) => {}
+        _ => {}
+    });
     // Convert the window to a spotlight panel
     let panel = window.to_spotlight_panel().unwrap();
 
     handle.listen(format!("{}_panel_did_resign_key", SPOTLIGHT_LABEL), move |_| {
         // Hide the panel when it's no longer the key window
         // This ensures the panel doesn't remain visible when it's not actively being used
-        //panel.order_out(None);
+        panel.order_out(None);
     });
 }
 

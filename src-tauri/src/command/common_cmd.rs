@@ -1,8 +1,11 @@
 use crate::indexer::indexer_initializer::IDX_NAME_FAVOR;
 use crate::indexer::redis_indexer::RedisIndexer;
 use crate::indexer::tantivy_indexer::TantivyIndexer;
+use crate::storage::sqlite_storage::SqliteStorage;
+use crate::view::command::CommandDispatcher;
 use crate::CmdError;
 use serde_json::json;
+use sqlx::Row;
 use tantivy::query::{BooleanQuery, Occur, Query, TermQuery};
 use tantivy::schema::{IndexRecordOption, Schema};
 use tantivy::Term;
@@ -55,6 +58,27 @@ pub async fn operate_key_favor<R: Runtime>(
 ) -> Result<String> {
     redis_indexer.operate_favor(datasource, database, key, key_type, op_type).await;
     Ok(json!({"success": true}).to_string())
+}
+
+#[tauri::command]
+pub async fn sys_prop(storage: State<'_, SqliteStorage>, property: &str) -> std::result::Result<String, tauri_plugin_sql::Error> {
+    let mut instance = storage.pool.lock().await;
+    let db = instance.get_mut("default").unwrap();
+    let rows = sqlx::query("select value from tbl_system where field = $1")
+        .bind(property)
+        .fetch_all(&*db)
+        .await?;
+    if rows.len() > 0 {
+        Ok(rows[0].try_get("value").unwrap())
+    } else {
+        Ok("".to_string())
+    }
+}
+
+// receive action from front
+#[tauri::command]
+pub fn action(data: &str, dispatcher: tauri::State<'_, CommandDispatcher>) -> String {
+    dispatcher.dispatch(data)
 }
 
 fn build_text_term(schema: &Schema, field_name: &str, field_value: &str) -> Box<dyn Query> {

@@ -26,6 +26,7 @@ export interface SearchSceneResult {
     scene: string;
     hits: number;
     documents: any[]
+    elapsed: number;
 }
 
 export interface SearchResultDto {
@@ -54,7 +55,8 @@ function unwrap(result: SearchSceneResult, t: TFunction<"translation", undefined
                     label: <DatabaseSearchResult key={unique_key}
                                                  name={t.name}
                                                  index={t.index}
-                                                 keys={t.keys}/>
+                                                 keys={t.keys}
+                                                 active={t.active}/>
                 }
             });
             return {

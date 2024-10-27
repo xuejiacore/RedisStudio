@@ -13,14 +13,12 @@
 </body>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        setTimeout(() => {
-            // 关闭所有输入框的拼写检查
-            document.querySelectorAll("input").forEach(function (input) {
-                input.setAttribute("spellcheck", "false");
-                input.setAttribute("autocorrect", "off");
-                input.setAttribute("autocomplete", "off");
-            });
-        }, 200);
+        // 关闭所有输入框的拼写检查
+        document.querySelectorAll("input").forEach(function (input) {
+            input.setAttribute("spellcheck", "false");
+            input.setAttribute("autocorrect", "off");
+            input.setAttribute("autocomplete", "off");
+        });
     });
 </script>
 </html>

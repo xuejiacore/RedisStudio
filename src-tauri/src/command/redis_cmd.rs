@@ -46,6 +46,18 @@ impl Default for RedisCmd {
 }
 
 #[tauri::command]
+pub async fn select_redis_database(
+    database: i64,
+    redis_pool: State<'_, RedisPool>
+) -> Result<String> {
+
+    redis_pool.change_active_connection(None, Some(database)).await;
+
+    let resp = json!({"success": true});
+    Ok(resp.to_string())
+}
+
+#[tauri::command]
 pub async fn redis_invoke(
     data: &str,
     app: AppHandle,

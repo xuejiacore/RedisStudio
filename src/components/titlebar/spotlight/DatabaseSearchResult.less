@@ -1,51 +1,50 @@
-.group-name {
-  font-weight: bold;
-  color: #ADAFB4;
-}
-
 .datasource-search-result {
-  .host-port {
-    .status-info {
-      column-gap: 4px;
-
-      .connect-status {
-        width: 6px;
-        height: 6px;
-        border-radius: 4px;
-        background: gray;
-      }
-
-      .connect-status.connected {
-        background: darkgreen;
-      }
-    }
+  .db-name {
   }
 
-  .pattern-desc {
+  .keys-desc {
     text-align: right;
 
-    .desc {
+    .keyspace {
+      padding: 2px 6px;
+      background: #3b3f41;
+      border-radius: 3px;
       font-family: JetBrainsMonoBold, sans-serif;
       font-size: 10px;
-      color: #575859;
+      color: #f6f6f6;
     }
 
+    .keyspace.active {
+      background: darkcyan;
+    }
   }
 
-  .pattern {
+  .database-name {
     margin: 6px;
-    padding: 2px 7px;
+    padding: 2px 10px;
     background: #3b3f41;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
+
+    .database-number-icon {
+      fill: #efefef;
+    }
+
+    .name {
+      margin-left: 6px;
+    }
+  }
+
+  .database-name.active {
+    background: darkcyan;
   }
 
 }
 
 .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
   .datasource-search-result {
-    .host-port {
+    .db-name {
       .status-info {
         .connect-status {
           background: #9a9999;
@@ -57,14 +56,22 @@
       }
     }
 
-
-    .desc {
-      color: #ffffff;
-    }
-
-    .pattern {
+    .keyspace {
       color: #ffffff;
       background: #646467;
+    }
+
+    .keyspace.active {
+      background: #019797;
+    }
+
+    .database-name {
+      color: #ffffff;
+      background: #646467;
+    }
+
+    .database-name.active {
+      background: #019797;
     }
   }
 }
