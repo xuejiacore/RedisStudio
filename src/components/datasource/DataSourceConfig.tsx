@@ -1,6 +1,6 @@
-import {Col, ColorPicker, ColorPickerProps, Flex, Input, Row, Tabs, theme} from 'antd';
+import {Breadcrumb, ColorPicker, ColorPickerProps, Flex, Form, Input, Tabs, theme} from 'antd';
 import React, {useState} from "react";
-import "./DataSource.less";
+import "./DataSourceConfig.less";
 import {SettingOutlined} from "@ant-design/icons";
 import DataSourceType from "./DataSourceType.tsx";
 import SSLIcon from "../icons/SSLIcon.tsx";
@@ -40,12 +40,30 @@ const DataSourceConfig: React.FC<DataSourceConfigProp> = (props, context) => {
 
     return (<>
         <div className={'datasource-config-detail'}>
-            <Flex vertical={true} gap={10}>
-                <Row className={'datasource-base-info first-info'}>
-                    <Col span={2}>Name:</Col>
-                    <Col span={22}>
+            <Flex className={'datasource-name-comment'} vertical={true} gap={10}>
+                <Breadcrumb
+                    className={'datasource-breadcrumb'}
+                    items={[
+                        {
+                            title: '公司项目',
+                        },
+                        {
+                            title: '游戏服务',
+                        },
+                        {
+                            title: 'snake-game-biz',
+                        },
+                    ]}
+                    separator={<>&gt;</>}
+                />
+                <Form
+                    labelAlign={"right"}
+                    layout="horizontal"
+                    size={'small'}
+                    style={{maxWidth: 400}}>
+                    <Form.Item label="Name">
                         <Flex>
-                            <Input className={'ds-input'} placeholder=""/>
+                            <Input className={'ds-input'} placeholder="Enter Database Alias"/>
                             <Flex justify={"center"} align={"center"}>
                                 <ColorPicker
                                     className={'ds-color'}
@@ -53,14 +71,11 @@ const DataSourceConfig: React.FC<DataSourceConfigProp> = (props, context) => {
                                     presets={presets}/>
                             </Flex>
                         </Flex>
-                    </Col>
-                </Row>
-                <Row className={'datasource-base-info'}>
-                    <Col span={2}>Comment:</Col>
-                    <Col span={22}>
+                    </Form.Item>
+                    <Form.Item label="Comment">
                         <Input className={'ds-input'} placeholder=""/>
-                    </Col>
-                </Row>
+                    </Form.Item>
+                </Form>
             </Flex>
             <Tabs
                 className={'property-tabs datasource-type-general'}

@@ -8,6 +8,7 @@ use redis::aio::{ConnectionLike, MultiplexedConnection};
 use redis::{cmd, Cmd, Commands, Connection, FromRedisValue, RedisResult, RedisWrite};
 use regex::{Match, Regex};
 use serde::{Deserialize, Serialize};
+use serde_json::map::Values;
 use serde_json::{json, Value};
 use sqlx::{ColumnIndex, Row};
 use std::collections::{BTreeMap, HashMap};
@@ -48,9 +49,8 @@ impl Default for RedisCmd {
 #[tauri::command]
 pub async fn select_redis_database(
     database: i64,
-    redis_pool: State<'_, RedisPool>
+    redis_pool: State<'_, RedisPool>,
 ) -> Result<String> {
-
     redis_pool.change_active_connection(None, Some(database)).await;
 
     let resp = json!({"success": true});
@@ -112,6 +112,7 @@ pub async fn dispatch_redis_cmd(
         "redis_new_key" => execute_redis_new_key(con, serde_json::from_str(cmd_data).unwrap(), window).await,
         "redis_rename" => execute_redis_rename(con, serde_json::from_str(cmd_data).unwrap(), window).await,
         "redis_duplicate" => execute_redis_duplicate(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+        "redis_analysis" => execute_redis_analysis(datasource_id, database, redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await,
         _ => unimplemented!(),
     }
 }
@@ -169,6 +170,60 @@ async fn execute_redis_duplicate(
     json!({"success": success, "result": result})
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct RedisAnalysisCmd {
+    scan_total: Option<i64>,
+    scan_percentage: Option<i32>,
+    cursor: u64,
+}
+
+async fn execute_redis_analysis(
+    datasource_id: String,
+    database: i64,
+    mut redis_pool: State<'_, RedisPool>,
+    params: RedisAnalysisCmd,
+    win: Window,
+) -> Value {
+    let mut cursor = params.cursor;
+    let arc = redis_pool.select_connection(datasource_id, Some(database)).await;
+    tokio::spawn(async move {
+        let mut con = arc.lock().await;
+        let mut remain_expect_count = 200;
+        let page_size = 200;
+        loop {
+            let require_count = if remain_expect_count < page_size {
+                remain_expect_count
+            } else {
+                page_size
+            };
+            let (new_cursor, results): (u64, Vec<String>) = cmd("SCAN")
+                .arg(cursor)
+                .arg("MATCH")
+                .arg("*")
+                .arg("COUNT")
+                .arg(require_count)
+                .query_async(con.deref_mut())
+                .await
+                .unwrap();
+
+            remain_expect_count = if remain_expect_count > results.len() {
+                remain_expect_count - results.len()
+            } else {
+                0
+            };
+            cursor = new_cursor;
+
+            let payload_json = json!({"cursor": cursor,"keys": results});
+            win.emit("redis_scan_event", payload_json).unwrap();
+            if remain_expect_count == 0 || cursor == 0 {
+                let payload_json = json!({"finished": true});
+                win.emit("redis_scan_event", payload_json).unwrap();
+                break;
+            }
+        }
+    });
+    json!({"finished": true})
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct UpdateCmd {

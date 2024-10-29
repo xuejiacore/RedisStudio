@@ -24,34 +24,28 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
         const ts = Date.now();
         const addListenerAsync = async () => {
             return new Promise<UnlistenFn>(resolve => {
-                listen('datasource/changed', (event) => {
+                const resolveFn = (unlistenFn: UnlistenFn) => {
+                    if (removeListenerIdRef.current != ts) {
+                        //loadData();
+                        resolve(unlistenFn);
+                    } else {
+                        unlistenFn();
+                    }
+                };
+
+                listen('datasource/changed', event => {
                     const payload: any = event.payload;
                     if (payload.winId == props.windowId) {
                         setDatasourceId(payload.datasource);
                     }
-                }).then(unlistenFn => {
-                    if (removeListenerIdRef.current != ts) {
-                        //loadData();
-                        resolve(unlistenFn);
-                    } else {
-                        unlistenFn();
-                    }
-                });
+                }).then(resolveFn);
 
-                listen("datasource/database-changed", (event) => {
+                listen("datasource/database-changed", event => {
                     const payload = event.payload as DataSourceChangedEvent;
                     if (payload.winId == props.windowId) {
                         setDatabase(payload.props.database);
-                        console.log("App 数据源变更", payload.props.database);
                     }
-                }).then(unlistenFn => {
-                    if (removeListenerIdRef.current != ts) {
-                        //loadData();
-                        resolve(unlistenFn);
-                    } else {
-                        unlistenFn();
-                    }
-                });
+                }).then(resolveFn);
             });
         };
         (async () => {

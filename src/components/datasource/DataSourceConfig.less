@@ -1,0 +1,257 @@
+@font-color: #D9DADE;
+.divider {
+  border-block-start: 1px solid #bebebe20;
+  margin-top: 4px;
+}
+
+.datasource-config-detail {
+  height: 100vh;
+  background: #1E1E1E;
+
+  .datasource-name-comment {
+    margin-left: 10px;
+  }
+
+  .datasource-breadcrumb {
+    margin-top: 4px;
+    font-size: 14px;
+    font-family: JetBrainsMonoBold, sans-serif;
+
+    .ant-breadcrumb-link {
+      color: @font-color;
+    }
+
+    .ant-breadcrumb-separator {
+      color: @font-color;
+    }
+  }
+
+  .ds-color.ant-color-picker-trigger {
+    background: transparent;
+    z-index: 9;
+  }
+
+  .ant-form-item-tooltip {
+    color: #616161 !important;
+  }
+
+  .ds-input {
+    background-color: #303233;
+    border: 1px solid #3a454b40;
+    border-radius: 4px;
+    color: @font-color;
+    caret-color: #375ca6;
+    font-family: JetBrainsMonoBold, sans-serif;
+
+    input {
+      background-color: #303233;
+    }
+
+    .anticon.ant-input-password-icon {
+      color: @font-color !important;
+    }
+
+    .ant-select-selector {
+      background-color: #303233;
+      color: @font-color;
+      border: none;
+    }
+
+  }
+
+  .ant-select-single .ant-select-selector .ant-select-selection-item, .ant-select-single .ant-select-selector .ant-select-selection-placeholder {
+    line-height: 23px;
+  }
+
+
+  input::placeholder {
+    color: #686C73 !important;
+    font-size: 12px;
+  }
+
+  .ant-form-item-label {
+    label {
+      color: @font-color !important;
+      font-family: JetBrainsMonoBold, sans-serif;
+    }
+  }
+
+  .property-tabs {
+    margin-top: 20px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .ant-tabs-top {
+    .ant-tabs-nav::before {
+      border-bottom: 1px solid #00000000;
+    }
+  }
+
+  .property-tabs.ant-tabs {
+    .ant-tabs-nav {
+
+      .ant-tabs-nav-list {
+        //background: red;
+      }
+
+      .ant-tabs-tab {
+        font-size: 12px;
+        border-top: none;
+        border-right: none;
+        border-left: none;
+        border-bottom: 2px solid #63646640;
+        padding: 4px 8px;
+        border-radius: 0 0 0 0 !important;
+
+        .ant-tabs-tab-btn {
+          color: #636466;
+          fill: #636466;
+
+          .ant-tabs-tab-icon {
+            margin-inline-end: 6px;
+          }
+        }
+
+        .tab-advanced-setting {
+          width: 10px;
+        }
+      }
+
+      .ant-tabs-tab:hover {
+        background: #393B40;
+      }
+
+      .ant-tabs-tab-active {
+        border-color: #00000000;
+        border-bottom: 2px solid #3574F0;
+        background: #393B40;
+        padding: 4px 8px;
+
+        .ant-tabs-tab-btn {
+          color: #C7C9CD;
+
+          .ant-tabs-tab-icon {
+            .tab-advanced-setting {
+              fill: #0099cc;
+            }
+
+            .tab-ssl {
+              fill: #C7C9CD;
+            }
+
+            .tab-setting {
+              fill: #C7C9CD;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @placeholder-color: #686C73;
+
+  .user-name-tips {
+    margin-top: 4px;
+    margin-bottom: 10px;
+    margin-left: 88px;
+    color: @placeholder-color;
+    font-size: 10px;
+    font-family: JetBrainsMonoBold, sans-serif;
+  }
+
+  .redis-url-tips {
+    color: #979BA4;
+    background: #2f3032;
+    border: 1px solid rgba(58, 69, 75, 0.29);
+    border-radius: 6px;
+    padding: 2px;
+
+    .header {
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    .items {
+      ul {
+        padding-left: 24px;
+        margin-top: 2px;
+        margin-bottom: 2px;
+
+        li {
+          font-size: 10px;
+          line-height: 10px;
+        }
+      }
+    }
+  }
+}
+
+// 调色板 START
+@color-background: #28292f;
+
+.ant-popover-arrow:before {
+  background: @color-background !important;
+}
+
+.ant-popover-content {
+  .ant-popover-inner {
+    background: @color-background;
+
+    span, div {
+      color: white !important;
+    }
+
+    .ant-input-number-input-wrap,
+    .ant-input-affix-wrapper {
+      background: #2B2D30;
+      border: 1px solid #3a454b;
+    }
+
+    .ant-input-number .ant-input-number-handler-wrap {
+      background: #2B2D30 !important;
+      color: #393B40 !important;
+    }
+
+    .ant-color-picker-alpha-input {
+      display: none;
+    }
+
+    input {
+      background: #2B2D30;
+      color: white;
+    }
+  }
+}
+
+// 调色板 END
+
+.ant-select-dropdown {
+  background: #393B40;
+  padding: 2px;
+  border-radius: 3px;
+
+  .ant-select-item {
+    padding: 2px 6px;
+    text-align: center;
+    min-height: 20px;
+
+    .ant-select-item-option-content {
+      font-size: 12px;
+      line-height: 18px;
+    }
+  }
+
+  .ant-select-item-option-active {
+    color: @font-color !important;
+    background: #2853B3 !important;
+  }
+
+  .ant-select-item-option-selected {
+    color: @font-color !important;
+    background: transparent !important;
+  }
+  .ant-select-item-option-selected:hover {
+    background: #2853B3 !important;
+  }
+}

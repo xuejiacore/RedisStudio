@@ -279,3 +279,32 @@ db12:keys=2,expires=0,avg_ttl=0
         }
     }
 }
+
+#[tokio::test]
+pub async fn test_analysis() {
+    // prepare test datasource
+    let dsm = DataSourceManager::new();
+    let props = RedisProp::simple("172.31.65.68");
+    dsm.add_prop("datasource01".to_string(), props).await;
+    let redis_pool = RedisPool::new(dsm, Arc::new(Mutex::new(|datasource_id, database| {})));
+    let connection = redis_pool.select_connection("datasource01", None).await;
+
+    // DO TEST
+    let scan_count = Some(1000);
+    let page_size = 200;
+    let ns_layer = 2;
+    let separator = "[:_]";
+
+    redis_util::async_analysis_database(
+        connection,
+        scan_count,
+        page_size,
+        separator,
+        ns_layer, |r| {
+            if r.finished {
+                // output result
+                println!("Receive Reporter: {}", json!(r));
+            }
+        },
+    ).await;
+}

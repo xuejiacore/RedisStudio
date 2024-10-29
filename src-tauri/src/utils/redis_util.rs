@@ -1,5 +1,14 @@
+use chrono::Local;
+use futures::TryFutureExt;
+use redis::aio::MultiplexedConnection;
+use redis::cmd;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::ops::DerefMut;
+use std::sync::Arc;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::Mutex;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Info {
@@ -209,4 +218,178 @@ pub fn parse_redis_info<T: AsRef<str>>(info_str: T) -> Option<Info> {
     Some(info)
 }
 
+#[derive(Clone, Serialize, Deserialize, Default, Debug)]
+pub struct AnalyseTypeScatter {
+    type_name: String,
+    count: usize,
+}
 
+#[derive(Clone, Serialize, Deserialize, Default, Debug)]
+pub struct AnalysisResult {
+    pub type_count: HashMap<String, usize>,
+    pub type_memory: HashMap<String, usize>,
+    pub ns_count: HashMap<String, usize>,
+    pub ns_memory: HashMap<String, usize>,
+    pub finished: bool,
+    pub scan_total: usize,
+    pub mem_total: usize,
+    pub progress: f64,
+    pub start_time: i64,
+    pub elapsed: i64,
+}
+
+/// analysis the database
+/// ## Parameters
+/// * `scan_count` - scan count limit
+/// * `callback` - report snippet
+pub async fn async_analysis_database<F, S>(
+    connection: Arc<Mutex<MultiplexedConnection>>,
+    scan_count: Option<usize>,
+    page_size: usize,
+    separator: S,
+    ns_layer: usize,
+    mut callback: F,
+)
+where
+    F: FnMut(AnalysisResult) + Send + 'static,
+    S: AsRef<str>,
+{
+    let scan_total = match scan_count {
+        None => {
+            let mut mutex = connection.lock().await;
+            cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap_or(0usize)
+        }
+        Some(total) => total
+    };
+
+    let regex = Regex::new(separator.as_ref()).unwrap_or(Regex::new(":").unwrap());
+    let cloned_connection = connection.clone();
+    let ch = tokio::sync::mpsc::channel::<Vec<String>>(128);
+    let sender = ch.0;
+    let scan_key_handle = tokio::spawn(async move {
+        // scan keys and emit to another
+        scan_keys_and_emit(connection, sender, scan_total, page_size).await;
+    });
+
+    let mut receiver = ch.1;
+    let calculate_handle = tokio::spawn(async move {
+        let mut result = AnalysisResult::default();
+        let now = Local::now();
+        result.start_time = now.timestamp_millis() % 1000;
+        loop {
+            if let Some(keys) = receiver.recv().await {
+                let count = keys.len();
+                let mut type_pipeline = redis::pipe();
+                let mut memory_pipeline = redis::pipe();
+
+                let cloned_keys = keys.clone();
+                keys.iter().for_each(|k| {
+                    type_pipeline.cmd("TYPE").arg(&k);
+                    memory_pipeline.cmd("MEMORY").arg("USAGE").arg(&k);
+                });
+
+                // query key types
+                let types: Vec<String> = {
+                    let mut mutex = cloned_connection.lock().await;
+                    type_pipeline.query_async(mutex.deref_mut()).await.unwrap()
+                };
+
+                // query key memory
+                let memories: Vec<usize> = {
+                    let mut mutex = cloned_connection.lock().await;
+                    memory_pipeline.query_async(mutex.deref_mut()).await.unwrap()
+                };
+
+                result.scan_total += count;
+                for idx in 0..cloned_keys.len() {
+                    let key_name = &cloned_keys[idx];
+                    let type_name = &types[idx];
+                    let memory = &memories[idx];
+
+                    result.mem_total += memory;
+
+                    // type statistics
+                    if let Some(val) = result.type_memory.get_mut(type_name) {
+                        *val += memory;
+                    } else {
+                        result.type_memory.insert(type_name.clone(), *memory);
+                    }
+                    if let Some(val) = result.type_count.get_mut(type_name) {
+                        *val += 1;
+                    } else {
+                        result.type_count.insert(type_name.clone(), 1);
+                    }
+
+                    // namespace statistics
+                    let replaced = regex.replace_all(key_name, "\0").to_string();
+                    let knife = replaced.split("\0").collect::<Vec<&str>>();
+
+                    let ns_max_layer = knife.len() - 1;
+                    for this_layer in 0..ns_layer {
+                        if this_layer >= ns_max_layer {
+                            break;
+                        }
+
+                        let joined_ns = knife[0..this_layer + 1].join("\0");
+                        let namespace = joined_ns.as_str();
+                        if let Some(val) = result.ns_memory.get_mut(namespace) {
+                            *val += memory;
+                        } else {
+                            result.ns_memory.insert(namespace.to_string(), *memory);
+                        }
+                        if let Some(val) = result.ns_count.get_mut(namespace) {
+                            *val += 1;
+                        } else {
+                            result.ns_count.insert(namespace.to_string(), 1);
+                        }
+                    }
+                }
+
+                let had_finished = keys.is_empty();
+                result.finished = had_finished;
+
+                let progress = result.scan_total as f64 / scan_total as f64;
+                let now = Local::now();
+                result.progress = progress.min(1f64);
+                result.elapsed = now.timestamp_millis() % 1000 - result.start_time;
+                callback(result.clone());
+                if had_finished {
+                    break;
+                }
+            };
+        }
+    });
+
+    let _ = scan_key_handle.await;
+    let _ = calculate_handle.await;
+}
+
+/// scan keys by provided count total and page size.
+async fn scan_keys_and_emit(
+    connection: Arc<Mutex<MultiplexedConnection>>,
+    sender: Sender<Vec<String>>,
+    scan_count: usize,
+    page_size: usize,
+) {
+    let mut cursor = 0;
+    let mut scanned = 0;
+    loop {
+        let remain = std::cmp::min(page_size + scanned, scan_count) - scanned;
+        let (new_cursor, results): (u64, Vec<String>) = {
+            let mut mutex = connection.lock().await;
+            cmd("SCAN").arg(cursor).arg("MATCH").arg("*").arg("COUNT").arg(remain)
+                .query_async(mutex.deref_mut())
+                .await
+                .unwrap()
+        };
+
+        scanned = scanned + results.len();
+        let _ = sender.send(results).await;
+
+        cursor = new_cursor;
+        if scanned >= scan_count || cursor == 0 {
+            let _ = sender.send(vec![]).await;
+            break;
+        }
+    }
+}

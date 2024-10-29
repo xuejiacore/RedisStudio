@@ -2,22 +2,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use chrono::Local;
+use futures::FutureExt;
 use sqlx::{Connection, Row};
 use std::any::Any;
-use futures::FutureExt;
-use serde_json::json;
 use tauri::ipc::private::FutureKind;
 use tauri::ipc::IpcResponse;
-use tauri::{Emitter, Manager, Runtime, State};
+use tauri::{Emitter, Manager, Runtime};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 use redisstudio::log::project_logger;
-use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::win::window::WebviewWindowExt;
-use redisstudio::command;
+use redisstudio::{command, spotlight_command};
 use tauri_nspanel::ManagerExt;
-use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut, ShortcutState};
-use redisstudio::storage::redis_pool::RedisPool;
+use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
 
 mod setup;
 mod tray;
@@ -54,42 +51,11 @@ fn main() {
             })
             .build())
         .plugin(tauri_nspanel::init())
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcut(Shortcut::new(Some(Modifiers::SUPER), Code::KeyK))
-                .unwrap()
-                .with_handler(|app, shortcut, event| {
-                    if event.state == ShortcutState::Pressed
-                        && shortcut.matches(Modifiers::SUPER, Code::KeyK)
-                    {
-                        let window = app.get_webview_window(SPOTLIGHT_LABEL).unwrap();
-
-                        let panel = app.get_webview_panel(SPOTLIGHT_LABEL).unwrap();
-
-                        if panel.is_visible() {
-                            panel.order_out(None);
-                        } else {
-                            let redis_pool: State<'_, RedisPool> = app.state();
-                            tauri::async_runtime::block_on(async move {
-                                let active_info = redis_pool.get_active_info().await;
-
-                                redis_pool.try_connect(&active_info.0, Some(active_info.1)).await;
-                                redis_pool.get_active_info().then(|r| {
-                                    async move {
-                                        let datasource = active_info.0;
-                                        let database = active_info.1;
-                                        let resp = json!({"datasource": datasource, "database": database});
-                                        app.emit("spotlight/activated-datasource", resp).unwrap();
-                                    }
-                                }).await
-                            });
-                            window.center_at_cursor_monitor().unwrap();
-                            panel.show();
-                        }
-                    }
-                })
-                .build(),
-        )
+        .plugin(tauri_plugin_global_shortcut::Builder::new()
+            .with_shortcut(Shortcut::new(Some(Modifiers::SUPER), Code::KeyK))
+            .unwrap()
+            .with_handler(spotlight_command::spotlight_key_shortcut)
+            .build())
         // .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(setup::init)
         .run(tauri::generate_context!())

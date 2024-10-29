@@ -1,16 +1,12 @@
 import {Col, Row} from "antd";
-import React, {useState} from "react";
-import "./DataSource.less";
+import React from "react";
 import DataSourceConfig from "./DataSourceConfig";
 import DataSourceTree from "./DataSourceTree.tsx";
 
 const DataSource: React.FC = () => {
-    const [greetMsg, setGreetMsg] = useState("");
-    const [name, setName] = useState("");
-
     return (<>
-        <Row>
-            <Col span={6} className={'datasource-tree-panel'}>
+        <Row className={'datasource'}>
+            <Col span={6}>
                 <DataSourceTree/>
             </Col>
             <Col span={18}>

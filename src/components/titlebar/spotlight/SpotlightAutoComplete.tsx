@@ -26,6 +26,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
     const [datasource, setDatasource] = useState('');
     const [database, setDatabase] = useState(0);
     const [autoCompleteDataId, setAutoCompleteDataId] = useState(Date.now());
+    const changeDatabaseManual = useRef(false);
 
     const removeListenerRef = useRef<UnlistenFn>();
     const removeListenerIdRef = useRef(0);
@@ -64,7 +65,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                     setDatasource(payload.datasource);
                     setDatabase(payload.database);
                 }).then(resolveFn);
-            })
+            });
         }
         (async () => {
             removeListenerRef.current = await addListenerAsync();
@@ -201,13 +202,13 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
             } else if (labelKey.startsWith("database\x01")) {
                 updateSearchText = false;
                 const currDatabase = option.label.props.index;
-                console.log("选择数据库", option, labelKey, currDatabase);
                 invoke('select_redis_database', {
                     database: currDatabase
                 }).then(r => {
                     const resp = JSON.parse(r as string);
                     if (resp.success) {
                         setDatabase(currDatabase);
+                        changeDatabaseManual.current = true;
                     }
                 })
             } else if (labelKey.startsWith("datasource\x01")) {

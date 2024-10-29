@@ -1,6 +1,5 @@
 import React, {useState} from "react";
 import RedisDatasourceEditor from "./redis/RedisDatasourceEditor.tsx";
-import ZkDatasourceEditor from "./zookeeper/ZkDatasourceEditor.tsx";
 import './DataSourceType.less'
 import BsButton from "../../utils/button/BsButton.tsx";
 import {Flex, Space} from "antd";
@@ -17,9 +16,6 @@ const DataSourceType: React.FC<DataSourceTypeProp> = (props, context) => {
     switch (props.type) {
         case 'redis':
             datasourceEditor = (<RedisDatasourceEditor/>)
-            break;
-        case 'zookeeper':
-            datasourceEditor = (<ZkDatasourceEditor/>)
             break;
         default:
     }

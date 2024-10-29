@@ -37,6 +37,7 @@ tauri-plugin-clipboard-manager = "2.0.0-rc.3"
 tauri-plugin-global-shortcut = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
 tauri-plugin-window-state = "2.0.0-rc.3"
 tauri-plugin-store = "2.0.0-rc.3"
+global-hotkey = "0.6.2"
 lazy_static = "1.5.0"
 anyhow = "1.0.86"
 ssh2 = "0.9.4"

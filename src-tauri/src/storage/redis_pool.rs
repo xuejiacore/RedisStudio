@@ -214,7 +214,15 @@ impl RedisPool {
                             *act = Some(with_db_key.clone());
                         }
 
-                        cached_connection.insert(with_db_key.clone(), Arc::new(Mutex::new(con)));
+                        let arc = Arc::new(Mutex::new(con));
+                        let cloned = arc.clone();
+                        {
+                            let mut t = cloned.lock().await;
+                            let _: String = cmd("CLIENT").arg("SETNAME").arg("REDIS_STUDIO")
+                                .query_async(t.deref_mut()).await.unwrap();
+                        }
+
+                        cached_connection.insert(with_db_key.clone(), arc);
                         match cached_connection.get(&with_db_key) {
                             None => panic!("Fail to find datasource {ds_id}"),
                             Some(ds) => Arc::clone(ds)

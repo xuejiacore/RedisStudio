@@ -111,12 +111,57 @@ const treeData: TreeDataNode[] = [
         key: '0-3',
         icon: <CarryOutOutlined/>,
     },
+    {
+        title: (<DataSourceItem
+                color={'#E2865B'}
+                title={'172.31.65.68'}
+                desc={'175.23.33.33'}/>
+        ),
+        key: '0-3',
+        icon: <CarryOutOutlined/>,
+    },
+    {
+        title: (<DataSourceItem
+                color={'#E2865B'}
+                title={'172.31.65.68'}
+                desc={'175.23.33.33'}/>
+        ),
+        key: '0-3',
+        icon: <CarryOutOutlined/>,
+    },
+    {
+        title: (<DataSourceItem
+                color={'#E2865B'}
+                title={'172.31.65.68'}
+                desc={'175.23.33.33'}/>
+        ),
+        key: '0-3',
+        icon: <CarryOutOutlined/>,
+    },
+    {
+        title: (<DataSourceItem
+                color={'#E2865B'}
+                title={'172.31.65.68'}
+                desc={'175.23.33.33'}/>
+        ),
+        key: '0-3',
+        icon: <CarryOutOutlined/>,
+    },
+    {
+        title: (<DataSourceItem
+                color={'#E2865B'}
+                title={'172.31.65.68s'}
+                desc={'175.23.33.33s'}/>
+        ),
+        key: '0-3',
+        icon: <CarryOutOutlined/>,
+    },
 ];
 
 const DataSourceTree: React.FC<DataSourceTreeProp> = (props, context) => {
     const calParentHeight = () => (window.innerHeight
         || document.documentElement.clientHeight
-        || document.body.clientHeight) - 180;
+        || document.body.clientHeight) - 70;
     const [comHeight, setComHeight] = useState(calParentHeight());
     useEffect(() => {
         const handleResize = () => {
