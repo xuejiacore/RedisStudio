@@ -116,7 +116,7 @@ async function initializeSystemDatabase(db: Database) {
         });
     };
 
-    let r = await db.select(`
+    const r = await db.select(`
         SELECT name
         FROM sqlite_master
         WHERE type = 'table'

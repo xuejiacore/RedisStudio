@@ -13,6 +13,7 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             redis_cmd::redis_invoke,
             redis_cmd::reconnect_redis,
             redis_cmd::select_redis_database,
+            redis_cmd::database_analysis,
 
             common_cmd::sys_prop,
             common_cmd::action,

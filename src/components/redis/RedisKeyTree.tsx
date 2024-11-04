@@ -4,7 +4,7 @@ import type {DataNode, EventDataNode} from 'antd/es/tree';
 import React, {Key, useEffect, useMemo, useRef, useState} from "react";
 import "./RedisKeyTree.less";
 import "../menu/Menu.less";
-import {LoadingOutlined, PlusOutlined, SearchOutlined} from "@ant-design/icons";
+import {AreaChartOutlined, LoadingOutlined, PlusOutlined, SearchOutlined} from "@ant-design/icons";
 import DirectoryTree from 'antd/es/tree/DirectoryTree';
 import {redis_invoke} from '../../utils/RustIteractor';
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
@@ -34,6 +34,7 @@ interface KeyTreeProp {
     parentHeight?: number;
     onSelect?: (selectedKeys: Key[], info: any) => void;
     onCmdOpen?: React.MouseEventHandler<HTMLDivElement>;
+    onAnalysisOpen?: React.MouseEventHandler<HTMLDivElement>;
 }
 
 interface ScanItem {
@@ -276,12 +277,14 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 }).then(resolveFn);
                 listen("datasource/info", event => {
                     const payload: any = event.payload;
-                    setMemoryUsage(payload.info.memory.used_memory_human);
-                    let sum = 0;
-                    for (const keyspace of payload.info.keyspace) {
-                        sum += keyspace.keys;
+                    if (payload.datasource === datasourceRef.current) {
+                        setMemoryUsage(payload.info.memory.used_memory_human);
+                        let sum = 0;
+                        for (const keyspace of payload.info.keyspace) {
+                            sum += keyspace.keys;
+                        }
+                        setDbsize(humanNumber(sum));
                     }
-                    setDbsize(humanNumber(sum));
                 }).then(resolveFn)
 
                 listen("key-tree/delete", (event) => {
@@ -289,7 +292,6 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                         const payload: any = event.payload;
                         const key: string = payload.key;
                         const success: boolean = payload.success;
-                        console.log("删除key", payload);
                         if (success) {
                             const afterTree = deleteNodeByKey(key, treeDataRef.current);
                             cachedTreeData = afterTree;
@@ -601,48 +603,51 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     }
 
     return (
-        <div className='redis-key-tree-panel'>
-            {/* key 检索输入 */}
-            <div className={'datasource-tree-panel-search'}>
-                <Flex justify={'center'} align={'center'}>
-                    <Search value={searchValue}
-                            placeholder={t('redis.key_tree.search.placeholder')}
-                            onChange={onChange}
-                            onSearch={onSearch}
-                            onPressEnter={onSearchPressEnter}
-                            size='small'
-                            autoCapitalize={'none'}
-                            autoCorrect={'off'}/>
-                    <PlusOutlined className={'key-add-button'} onClick={onAddClick}/>
-                </Flex>
-            </div>
+        <Flex justify={"space-between"} className='redis-key-tree-panel' vertical={true}>
+            <Flex vertical={true}>
+                {/* key 检索输入 */}
+                <div className={'datasource-tree-panel-search'}>
+                    <Flex justify={'center'} align={'center'}>
+                        <Search value={searchValue}
+                                placeholder={t('redis.key_tree.search.placeholder')}
+                                onChange={onChange}
+                                onSearch={onSearch}
+                                onPressEnter={onSearchPressEnter}
+                                size='small'
+                                autoCapitalize={'none'}
+                                autoCorrect={'off'}/>
+                        <PlusOutlined className={'key-add-button'} onClick={onAddClick}/>
+                        <AreaChartOutlined className={'key-add-button'} onClick={props.onAnalysisOpen}/>
+                    </Flex>
+                </div>
 
-            {/* 命令脚本支持 */}
-            <div className={'command-query'} onClick={props.onCmdOpen}>
-                <Flex justify={'start'}>
-                    <ConsoleIcon className={'console'} style={{
-                        width: 14,
-                        lineHeight: '12px'
-                    }}/>
-                    <span className={'text'}>{t('redis.key_tree.command_script.name')}</span>
-                </Flex>
-            </div>
+                {/* 命令脚本支持 */}
+                <div className={'command-query'} onClick={props.onCmdOpen}>
+                    <Flex justify={'start'}>
+                        <ConsoleIcon className={'console'} style={{
+                            width: 14,
+                            lineHeight: '12px'
+                        }}/>
+                        <span className={'text'}>{t('redis.key_tree.command_script.name')}</span>
+                    </Flex>
+                </div>
 
-            {/* 收藏的树信息 */}
-            <Collapse defaultActiveKey={['2']} ghost accordion={true}
-                      className={'core-redis-keys-tree'}
-                      items={[
-                          {
-                              key: '1',
-                              label: t('redis.key_tree.sub_tree.favor_count', {'count': 17}),
-                              children: <><FavoriteTree/></>
-                          },
-                          {
-                              key: '2',
-                              label: t('redis.key_tree.sub_tree.keys_count', {'keyCount': scannedKeyCount}),
-                              children: treeDataDom
-                          }
-                      ]}/>
+                {/* 收藏的树信息 */}
+                <Collapse defaultActiveKey={['2']} ghost accordion={true}
+                          className={'core-redis-keys-tree'}
+                          items={[
+                              {
+                                  key: '1',
+                                  label: t('redis.key_tree.sub_tree.favor_count', {'count': 17}),
+                                  children: <><FavoriteTree/></>
+                              },
+                              {
+                                  key: '2',
+                                  label: t('redis.key_tree.sub_tree.keys_count', {'keyCount': scannedKeyCount}),
+                                  children: treeDataDom
+                              }
+                          ]}/>
+            </Flex>
 
             <Flex className={'redis-outline'} justify={'center'} align={'center'}>
                 <Space>
@@ -657,7 +662,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     </span>
                 </Space>
             </Flex>
-        </div>
+        </Flex>
     );
 }
 

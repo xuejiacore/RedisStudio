@@ -102,7 +102,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
         if (height < 0) {
             height = 50;
         } else if (height == 0) {
-            height = 128;
+            height = 134;
         }
         height = Math.min(height, 316);
         invoke("resize_spotlight_window", {

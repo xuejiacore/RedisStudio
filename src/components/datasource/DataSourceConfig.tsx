@@ -62,18 +62,16 @@ const DataSourceConfig: React.FC<DataSourceConfigProp> = (props, context) => {
                     size={'small'}
                     style={{maxWidth: 400}}>
                     <Form.Item label="Name">
-                        <Flex>
+                        <Flex gap={5}>
                             <Input className={'ds-input'} placeholder="Enter Database Alias"/>
-                            <Flex justify={"center"} align={"center"}>
-                                <ColorPicker
-                                    className={'ds-color'}
-                                    defaultValue={presets[0].colors[0]}
-                                    presets={presets}/>
-                            </Flex>
+                            <ColorPicker
+                                className={'ds-color'}
+                                defaultValue={presets[0].colors[0]}
+                                presets={presets}/>
                         </Flex>
                     </Form.Item>
-                    <Form.Item label="Comment">
-                        <Input className={'ds-input'} placeholder=""/>
+                    <Form.Item label="Notes">
+                        <Input className={'ds-input'} placeholder="Description of Database"/>
                     </Form.Item>
                 </Form>
             </Flex>

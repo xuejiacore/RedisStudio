@@ -2,6 +2,7 @@
 .divider {
   border-block-start: 1px solid #bebebe20;
   margin-top: 4px;
+  margin-bottom: 10px;
 }
 
 .datasource-config-detail {
@@ -27,8 +28,13 @@
   }
 
   .ds-color.ant-color-picker-trigger {
-    background: transparent;
     z-index: 9;
+    background: #1E1E1E;
+    border-color: #2f3939;
+
+    .ant-color-picker-color-block .ant-color-picker-color-block-inner {
+      border-radius: 4px;
+    }
   }
 
   .ant-form-item-tooltip {
@@ -162,10 +168,11 @@
 
   .redis-url-tips {
     color: #979BA4;
-    background: #2f3032;
+    background: #22282c;
     border: 1px solid rgba(58, 69, 75, 0.29);
     border-radius: 6px;
     padding: 2px;
+    font-family: JetBrainsMonoLight, sans-serif;
 
     .header {
       font-size: 10px;
@@ -231,6 +238,11 @@
   padding: 2px;
   border-radius: 3px;
 
+  .ant-select-item.ant-select-item-option {
+    color: #616168;
+    font-weight: bold;
+  }
+
   .ant-select-item {
     padding: 2px 6px;
     text-align: center;
@@ -251,7 +263,12 @@
     color: @font-color !important;
     background: transparent !important;
   }
+
   .ant-select-item-option-selected:hover {
     background: #2853B3 !important;
   }
+}
+
+.ant-select-selection-item {
+  color: @font-color !important;
 }

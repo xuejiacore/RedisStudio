@@ -38,7 +38,6 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
         setDatabase(props.selectedDatabase);
         datasourceRef.current = props.datasourceId;
         databaseRef.current = props.selectedDatabase;
-        console.log("-------->>>", props.datasourceId, props.selectedDatabase);
     }, [props.datasourceId, props.selectedDatabase]);
 
     const [tipsVisible, setTipsVisible] = useState('hidden');

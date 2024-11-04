@@ -24,6 +24,8 @@
         "visible": false,
         "titleBarStyle": "Overlay",
         "width": 1200,
+        "minWidth": 1120,
+        "minHeight": 692,
         "theme": "Dark",
         "label": "main"
       },
@@ -120,7 +122,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["../windows/*"],
+    "resources": ["../windows/*", "resources/*"],
     "shortDescription": "",
     "windows": {
         "certificateThumbprint": null,

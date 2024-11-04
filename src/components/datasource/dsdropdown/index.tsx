@@ -10,7 +10,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <div className={'datasource-dropdown-content'}>
             <div className={'content'}>
                 <DatasourceManagerHeader/>
-                <Divider/>
                 <RecentDatasource/>
             </div>
         </div>

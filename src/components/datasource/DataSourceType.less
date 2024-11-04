@@ -1,3 +1,49 @@
+.configure {
+  height: calc(100vh - 252px);
+
+  .connect-info {
+    font-size: 10px;
+    padding: 8px 12px;
+    color: #babdbf;
+    max-width: 60%;
+    min-height: 86px;
+    background: #1E1E1E;
+    border: 1px solid gray;
+    border-radius: 2px;
+    font-family: JetBrainsMonoBold, sans-serif;
+
+    .result-name {
+    }
+
+    .result-detail {
+      margin-left: 10px;
+      color: #747778;
+    }
+  }
+
+  .connect-info.success {
+    border: 1px solid #394a39;
+
+    .result-name {
+      color: #6E955C;
+    }
+  }
+
+  .connect-info.fail {
+    border: 1px solid #394a39;
+
+    .result-name {
+      color: #ED6E69;
+    }
+  }
+
+  .datasource-type-footer {
+    .save-connection {
+    }
+  }
+}
+
+
 //.datasource-type-general {
 //  @placeholder-color: #686C73;
 //
@@ -84,11 +130,5 @@
 //  .ant-form-item {
 //    margin-bottom: 5px;
 //  }
-//}
-//
-//.datasource-type-footer {
-//  position: fixed;
-//  bottom: 32px;
-//  width: 71%;
 //}
 //

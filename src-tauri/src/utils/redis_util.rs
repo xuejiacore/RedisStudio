@@ -219,23 +219,38 @@ pub fn parse_redis_info<T: AsRef<str>>(info_str: T) -> Option<Info> {
 }
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug)]
-pub struct AnalyseTypeScatter {
-    type_name: String,
-    count: usize,
+pub struct TtlAgg {
+    total: usize,
+    lv: u16,
+    group_by_ns: HashMap<String, usize>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug)]
 pub struct AnalysisResult {
+    /// key count group by key type.
     pub type_count: HashMap<String, usize>,
+    /// memory usage group by key type.
     pub type_memory: HashMap<String, usize>,
+    /// key count group by namespace
     pub ns_count: HashMap<String, usize>,
+    /// memory group by namespace
     pub ns_memory: HashMap<String, usize>,
+    /// TTL group by time unit.
+    pub ttl_sec: HashMap<String, TtlAgg>,
+    /// analysis had finished.
     pub finished: bool,
+    /// scan total count.
     pub scan_total: usize,
+    /// scan total memory.
     pub mem_total: usize,
+    /// scan progress
     pub progress: f64,
+    /// scan start timestamp.
     pub start_time: i64,
+    /// analysis elapsed.
     pub elapsed: i64,
+    /// dbsize
+    pub dbsize: usize,
 }
 
 /// analysis the database
@@ -244,6 +259,7 @@ pub struct AnalysisResult {
 /// * `callback` - report snippet
 pub async fn async_analysis_database<F, S>(
     connection: Arc<Mutex<MultiplexedConnection>>,
+    key_pattern: Option<String>,
     scan_count: Option<usize>,
     page_size: usize,
     separator: S,
@@ -254,38 +270,47 @@ where
     F: FnMut(AnalysisResult) + Send + 'static,
     S: AsRef<str>,
 {
-    let scan_total = match scan_count {
-        None => {
-            let mut mutex = connection.lock().await;
-            cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap_or(0usize)
-        }
-        Some(total) => total
+    let current_db_size = {
+        let mut mutex = connection.lock().await;
+        cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap_or(0usize)
     };
+    let scan_total = std::cmp::min(current_db_size, scan_count.unwrap_or(current_db_size));
 
+    let match_pattern = key_pattern.unwrap_or("*".to_string());
     let regex = Regex::new(separator.as_ref()).unwrap_or(Regex::new(":").unwrap());
     let cloned_connection = connection.clone();
     let ch = tokio::sync::mpsc::channel::<Vec<String>>(128);
     let sender = ch.0;
+
+    let now = Local::now();
+    let start_time = now.timestamp_millis();
     let scan_key_handle = tokio::spawn(async move {
         // scan keys and emit to another
-        scan_keys_and_emit(connection, sender, scan_total, page_size).await;
+        scan_keys_and_emit(connection, sender, scan_total, page_size, &match_pattern).await;
     });
 
     let mut receiver = ch.1;
     let calculate_handle = tokio::spawn(async move {
         let mut result = AnalysisResult::default();
-        let now = Local::now();
-        result.start_time = now.timestamp_millis() % 1000;
+        result.start_time = start_time;
+        // query key types
+        result.dbsize = {
+            let mut mutex = cloned_connection.lock().await;
+            cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap()
+        };
+
         loop {
             if let Some(keys) = receiver.recv().await {
                 let count = keys.len();
                 let mut type_pipeline = redis::pipe();
                 let mut memory_pipeline = redis::pipe();
+                let mut ttl_pipeline = redis::pipe();
 
                 let cloned_keys = keys.clone();
                 keys.iter().for_each(|k| {
                     type_pipeline.cmd("TYPE").arg(&k);
                     memory_pipeline.cmd("MEMORY").arg("USAGE").arg(&k);
+                    ttl_pipeline.cmd("TTL").arg(&k);
                 });
 
                 // query key types
@@ -300,13 +325,30 @@ where
                     memory_pipeline.query_async(mutex.deref_mut()).await.unwrap()
                 };
 
+                // query key TTL
+                let ttls: Vec<i64> = {
+                    let mut mutex = cloned_connection.lock().await;
+                    ttl_pipeline.query_async(mutex.deref_mut()).await.unwrap()
+                };
+
                 result.scan_total += count;
                 for idx in 0..cloned_keys.len() {
                     let key_name = &cloned_keys[idx];
                     let type_name = &types[idx];
                     let memory = &memories[idx];
+                    let ttl = &ttls[idx];
+                    let (lv, ttl_time_unit) = time_unit_from_ttl(*ttl);
 
                     result.mem_total += memory;
+
+                    if let Some(val) = result.ttl_sec.get_mut(&ttl_time_unit) {
+                        (*val).total += 1;
+                    } else {
+                        let mut ttl_agg = TtlAgg::default();
+                        ttl_agg.total += 1;
+                        ttl_agg.lv = lv;
+                        result.ttl_sec.insert(ttl_time_unit.clone(), ttl_agg);
+                    }
 
                     // type statistics
                     if let Some(val) = result.type_memory.get_mut(type_name) {
@@ -330,13 +372,32 @@ where
                             break;
                         }
 
-                        let joined_ns = knife[0..this_layer + 1].join("\0");
+                        let mut joined_ns = knife[0..this_layer + 1].join("\0");
                         let namespace = joined_ns.as_str();
+
+                        // aggregate by ttl time unit, namespace
+                        if let Some(val) = result.ttl_sec.get_mut(&ttl_time_unit) {
+                            if let Some(ns_val) = (*val).group_by_ns.get_mut(namespace) {
+                                *ns_val += 1;
+                            } else {
+                                (*val).group_by_ns.insert(namespace.to_string(), 1);
+                            };
+                        } else {
+                            let mut ttl_agg = TtlAgg::default();
+                            ttl_agg.total += 1;
+                            ttl_agg.lv = lv;
+                            ttl_agg.group_by_ns.insert(namespace.to_string(), 1);
+                            result.ttl_sec.insert(ttl_time_unit.to_string(), ttl_agg);
+                        }
+
+                        // memory usage group by namespace
                         if let Some(val) = result.ns_memory.get_mut(namespace) {
                             *val += memory;
                         } else {
                             result.ns_memory.insert(namespace.to_string(), *memory);
                         }
+
+                        // key count group by namespace
                         if let Some(val) = result.ns_count.get_mut(namespace) {
                             *val += 1;
                         } else {
@@ -349,9 +410,11 @@ where
                 result.finished = had_finished;
 
                 let progress = result.scan_total as f64 / scan_total as f64;
-                let now = Local::now();
                 result.progress = progress.min(1f64);
-                result.elapsed = now.timestamp_millis() % 1000 - result.start_time;
+                if had_finished {
+                    let now = Local::now();
+                    result.elapsed = now.timestamp_millis() - result.start_time;
+                }
                 callback(result.clone());
                 if had_finished {
                     break;
@@ -370,14 +433,19 @@ async fn scan_keys_and_emit(
     sender: Sender<Vec<String>>,
     scan_count: usize,
     page_size: usize,
+    key_pattern: &str,
 ) {
     let mut cursor = 0;
     let mut scanned = 0;
+    if scan_count == 0 {
+        let _ = sender.send(vec![]).await;
+        return;
+    }
     loop {
         let remain = std::cmp::min(page_size + scanned, scan_count) - scanned;
         let (new_cursor, results): (u64, Vec<String>) = {
             let mut mutex = connection.lock().await;
-            cmd("SCAN").arg(cursor).arg("MATCH").arg("*").arg("COUNT").arg(remain)
+            cmd("SCAN").arg(cursor).arg("MATCH").arg(key_pattern).arg("COUNT").arg(remain)
                 .query_async(mutex.deref_mut())
                 .await
                 .unwrap()
@@ -391,5 +459,33 @@ async fn scan_keys_and_emit(
             let _ = sender.send(vec![]).await;
             break;
         }
+    }
+}
+
+fn time_unit_from_ttl(ttl: i64) -> (u16, String) {
+    if ttl < 0 {
+        (999, "perm".to_string())
+    } else if ttl >= 60 && ttl < 60 * 10 {
+        (0, "＜10min".to_string())
+    } else if ttl >= 60 * 10 && ttl < 60 * 30 {
+        (1, "＜30min".to_string())
+    } else if ttl >= 60 * 30 && ttl < 3600 {
+        (2, "＜1hrs".to_string())
+    } else if ttl >= 3600 && ttl < 3600 * 3 {
+        (3, "＜3hrs".to_string())
+    } else if ttl >= 3600 * 3 && ttl < 3600 * 7 {
+        (4, "＜7hrs".to_string())
+    } else if ttl >= 3600 * 7 && ttl < 86400 {
+        (5, "＜1d".to_string())
+    } else if ttl >= 86400 && ttl < 86400 * 3 {
+        (6, "＜3d".to_string())
+    } else if ttl >= 86400 * 3 && ttl < 86400 * 7 {
+        (7, "＜1w".to_string())
+    } else if ttl >= 86400 * 7 && ttl < 86400 * 30 {
+        (8, "＜1mon".to_string())
+    } else if ttl >= 86400 * 30 && ttl < 86400 * 90 {
+        (9, "＜3mon".to_string())
+    } else {
+        (10, "≥3mon".to_string())
     }
 }

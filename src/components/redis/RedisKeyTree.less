@@ -1,5 +1,7 @@
 @import "../../common-style.less";
 
+@window-title-bar-height: 32px;
+
 .command-query {
   margin: 4px 4px 4px 14px;
   text-align: left;
@@ -16,7 +18,7 @@
 .redis-key-tree-panel {
   text-align: center;
   background: #2B2D30;
-  height: calc(100vh);
+  height: calc(100vh - 32px);
   border-right: 1px #1E1F22 solid;
 
   .datasource-tree-panel-search {
@@ -122,13 +124,13 @@
 
   .ant-tree.ant-tree-directory {
     .ant-tree-treenode-selected::before {
-      background: #43454a;
-      border-radius: 3px;
+      display: none;
+      height: 0;
     }
 
     .ant-tree-treenode-selected:hover::before, .ant-tree.ant-tree-directory .ant-tree-treenode-selected::before {
-      background: #43454a;
-      border-radius: 3px;
+      display: none;
+      height: 0;
     }
   }
 }
@@ -145,6 +147,7 @@
   }
 
   .scan-more-area {
+    padding: 4px 12px;
 
     .scan-more-icon {
     }
@@ -186,4 +189,24 @@
 
 .ant-dropdown-menu-sub {
   width: 80px;
+}
+
+.ant-splitter {
+  .ant-splitter-bar {
+    .ant-splitter-bar-dragger:hover {
+    }
+
+    .ant-splitter-bar-dragger:after {
+      background: #6A6E77;
+    }
+
+    .ant-splitter-bar-dragger:hover:not(.ant-splitter-bar-dragger-active):before {
+      background: #35373a;
+    }
+
+    .ant-splitter-bar-dragger-active:before {
+      background: #35373a;
+    }
+  }
+
 }

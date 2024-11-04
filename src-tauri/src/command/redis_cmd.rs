@@ -1,6 +1,7 @@
 use crate::indexer::redis_indexer::RedisIndexer;
 use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
+use crate::utils::redis_util;
 use crate::{command, CmdError};
 use futures::future::MaybeDone::Future;
 use log::debug;
@@ -67,6 +68,32 @@ pub async fn redis_invoke(
     redis_indexer: State<'_, RedisIndexer>,
 ) -> Result<String> {
     Ok(dispatch_redis_cmd(data, app, window, redis_pool, sqlite, redis_indexer).await.to_string())
+}
+
+#[tauri::command]
+pub async fn database_analysis(
+    datasource: String,
+    database: i64,
+    key_pattern: Option<String>,
+    scan_count: Option<usize>,
+    page_size: usize,
+    separator: Option<String>,
+    app: AppHandle,
+    window: Window<Wry>,
+    redis_pool: State<'_, RedisPool>,
+) -> Result<String> {
+    let sep = separator.unwrap_or("[:]".to_string());
+    let mutex = redis_pool.select_connection(datasource, Some(database)).await;
+    redis_util::async_analysis_database(mutex, key_pattern, scan_count, page_size, sep, 2, move |r| {
+        if r.finished {
+            // output result
+            println!("Receive Reporter: {}", json!(r));
+        } else {
+            println!("Analysing ... {}", r.progress);
+        }
+        app.emit("database/analysis", r).unwrap();
+    }).await;
+    Ok(json!({}).to_string())
 }
 
 #[tauri::command]

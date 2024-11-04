@@ -1,18 +1,17 @@
-import {Col, Empty, Row} from "antd";
-import React, {Key, useEffect, useState} from "react";
+import {Col, Row, Splitter} from "antd";
+import React, {Key, useEffect, useRef, useState} from "react";
 import "./index.less";
 import RedisKeyTree, {CustomDataNode} from "./RedisKeyTree";
-import mac_cmd_icon from '../../assets/images/icons/mac_cmd_icon.svg';
 import HashOperator from "./type/hash/HashOperator.tsx";
 import RedisScript from "./redis-scripts/RedisScript.tsx";
 import StringOperator from "./type/string/StringOperator.tsx";
 import RightWatcherPanel from "./watcher/RightWatcherPanel.tsx";
 import {ValueChanged} from "./watcher/ValueEditor.tsx";
-import no_data_svg from "../../assets/images/icons/no-data.svg";
 import ZSetOperator from "./type/zset/ZSetOperator.tsx";
 import ListOperator from "./type/list/ListOperator.tsx";
 import SetOperator from "./type/set/SetOperator.tsx";
 import {OutlineAction} from "./watcher/KeyOutline.tsx";
+import MiniRedisDashboardMini from "./dashboard/HomeDashboardMini.tsx";
 
 interface RedisProps {
     windowId: number;
@@ -33,33 +32,15 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     const [nodeData, setNodeData] = useState<CustomDataNode>();
     const [selectedField, setSelectedField] = useState<ValueChanged>();
     const [outlineAction, setOutlineAction] = useState<OutlineAction>();
+    const [showAnalysis, setShowAnalysis] = useState(true);
 
-    const empty = (<>
-        <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%'}}>
-            <Empty
-                image={no_data_svg}
-                imageStyle={{height: 150}}
-                description={
-                    <>
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            height: '100%'
-                        }}>
-                            <div className={'empty-panel-tips-icon shortcut'}>
-                                <img src={mac_cmd_icon} alt={'cmd'}/>
-                            </div>
-                            <div className={'empty-panel-tips-icon shortcut'}>K</div>
-                            <div className={'empty-panel-tips-icon tips'}>Open Anything</div>
-                        </div>
-                    </>
-                }>
-            </Empty>
-        </div>
-    </>)
-    const [content, setContent] = useState(empty);
+    const datasourceRef = useRef(props.datasourceId);
+    const databaseRef = useRef(props.selectedDatabase);
+
+    const [content, setContent] = useState(<></>);
     useEffect(() => {
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
         setDatasource(props.datasourceId);
         setDatabase(props.selectedDatabase);
     }, [props.datasourceId, props.selectedDatabase]);
@@ -104,6 +85,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
         if (nodeData?.key) {
             setCurrentKey(nodeData.key as string);
             setCurrentKeyType(nodeData.keyType as string);
+            setShowAnalysis(false);
             switch (nodeData.keyType) {
                 case 'hash':
                     setContent(hashOperator);
@@ -120,9 +102,6 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                 case 'set':
                     setContent(setOperator);
                     break;
-                default:
-                    setContent(empty);
-                    return;
             }
         }
     }, [nodeData]);
@@ -144,25 +123,31 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     const onCommandQueryOpen = () => setContent(redisScript);
 
     return (<>
-        <Row>
-            {/* 左侧面板 */}
-            <Col span={5}>
+        <Splitter className={'redis-main-container'}>
+            <Splitter.Panel defaultSize="24%" min="20%" max="40%">
                 <RedisKeyTree
                     windowId={props.windowId}
                     datasourceId={datasource}
                     selectedDatabase={database}
                     parentHeight={parentHeight}
                     onSelect={onKeyNodeSelected}
-                    onCmdOpen={onCommandQueryOpen}/>
-            </Col>
+                    onCmdOpen={onCommandQueryOpen}
+                    onAnalysisOpen={e => setShowAnalysis(true)}
+                />
+            </Splitter.Panel>
 
-            <Col span={19} className={'redis-main-panel'}>
-                <Row style={{height: '100vh'}}>
+            <Splitter.Panel>
+                <Row className={'redis-main-panel'}>
                     {/* 中间主区域 */}
-                    <Col className={'main-container'} span={17}>{content}</Col>
+                    <Col className={'main-container'} span={showAnalysis ? 24 : 17}>
+                        {showAnalysis ?
+                            <MiniRedisDashboardMini className={`mini-dashboard`}
+                                                    datasource={datasource}
+                                                    database={database}/> : content}
+                    </Col>
 
                     {/* 右侧属性面板 */}
-                    <Col className={'right-watcher-panel'} span={7}>
+                    <Col className={'right-watcher-panel'} span={showAnalysis ? 0 : 7}>
                         <RightWatcherPanel currentKey={currentKey}
                                            keyType={currentKeyType}
                                            selectedField={selectedField}
@@ -171,8 +156,8 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                                            selectedDatabase={database}/>
                     </Col>
                 </Row>
-            </Col>
-        </Row>
+            </Splitter.Panel>
+        </Splitter>
     </>);
 }
 

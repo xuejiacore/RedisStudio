@@ -19,10 +19,13 @@ const RedisDatasourceEditor: React.FC<RedisDatasourceEditorProp> = (props, conte
                     <Form.Item label="Host">
                         <Input className={'ds-input'}
                                placeholder={'Enter Hostname / IP address / Connection URL'}
-                               style={{width: 'calc(30vw)'}}/>
+                               style={{width: 'calc(32vw)'}}/>
                     </Form.Item>
                     <Form.Item label="Port" tooltip={'Should not exceed 65535.'}>
                         <Input className={'ds-input'} placeholder={'6379'} style={{width: '120px'}}/>
+                    </Form.Item>
+                    <Form.Item label="Database">
+                        <Input className={'ds-input'} placeholder={'0 <default>'} style={{width: '120px'}}/>
                     </Form.Item>
                 </Flex>
                 <Flex className={'redis-url-tips'} justify="start" align={"start"} vertical={true}>
@@ -38,8 +41,6 @@ const RedisDatasourceEditor: React.FC<RedisDatasourceEditorProp> = (props, conte
                 </Flex>
             </Flex>
 
-
-            <Divider type={"horizontal"} className={'divider'}/>
             <Form.Item>
                 <Form
                     layout="inline"
@@ -56,7 +57,7 @@ const RedisDatasourceEditor: React.FC<RedisDatasourceEditorProp> = (props, conte
                         <Select
                             className={'ds-input'}
                             defaultValue="keychain"
-                            style={{ width: '200px' }}
+                            style={{width: '200px'}}
                             options={[
                                 {value: 'keychain', label: 'Store in keychain'},
                                 {value: 'ask', label: 'Ask every time'},
@@ -74,8 +75,6 @@ const RedisDatasourceEditor: React.FC<RedisDatasourceEditorProp> = (props, conte
                 Username is supported after Redis 6 with Redis ACL.
             </div>
 
-            <Divider type={"horizontal"} className={'divider'}/>
-
             <Form.Item label="Connect Mode">
                 <Select
                     className={'ds-input'}
@@ -87,8 +86,6 @@ const RedisDatasourceEditor: React.FC<RedisDatasourceEditorProp> = (props, conte
                     ]}
                 />
             </Form.Item>
-
-            <Divider type={"horizontal"} className={'divider'}/>
 
         </Form>
     </>)

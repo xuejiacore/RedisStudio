@@ -20,6 +20,8 @@ interface TitleBarProp {
 const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
     const [datasource, setDatasource] = useState('datasource01');
     const [database, setDatabase] = useState(0);
+    const [datasourceName, setDatasourceName] = useState('Localhost');
+    const [datasourceColor, setDatasourceColor] = useState('#0099cc');
 
     const [cpuPercentage, setCpuPercentage] = useState('-%');
     const [clients, setClients] = useState(0);
@@ -53,9 +55,16 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                 listen('datasource/changed', event => {
                     const payload: any = event.payload;
                     if (payload.winId == props.windowId) {
-                        setDatasource(payload.datasource);
-                        datasourceRef.current = payload.datasource;
-                        setDatasourceInfo(payload.host + ":" + payload.port);
+                        setDatasource(payload.props.datasourceId);
+                        datasourceRef.current = payload.props.datasourceId;
+                        setDatasourceInfo(payload.props.host + ":" + payload.props.port);
+                        setDatasourceName(payload.props.name);
+                        setDatasourceColor(payload.props.dscolor);
+                        setDatabaseKeySize(payload.props.keySpac);
+                        setClients(0);
+                        setCpuPercentage("-%");
+                        setCommands("-");
+                        lastStats.current = undefined;
                     }
                 }).then(resolveFn);
 
@@ -63,8 +72,9 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                     const payload = event.payload as DataSourceChangedEvent;
                     if (payload.winId == props.windowId) {
                         setDatabase(payload.props.database);
-                        databaseRef.current = payload.props.database;
                         setDatabaseKeySize(payload.props.keySpac);
+                        lastStats.current = undefined;
+                        databaseRef.current = payload.props.database;
                     }
                 }).then(resolveFn);
 
@@ -79,20 +89,21 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
 
                 listen("datasource/info", event => {
                     const payload: any = event.payload;
+                    if (payload.datasource === datasourceRef.current) {
+                        if (lastStats.current) {
+                            const last = lastStats.current;
+                            const diff_ts = payload.sample_ts - last.sample_ts - 200;
 
-                    if (lastStats.current) {
-                        const last = lastStats.current;
-                        const diff_ts = payload.sample_ts - last.sample_ts - 200;
+                            const percentage = (payload.info.cpu.used_cpu_sys + payload.info.cpu.used_cpu_user
+                                - last.info.cpu.used_cpu_sys - last.info.cpu.used_cpu_user) / (diff_ts / 1000) * 100;
+                            setCpuPercentage((percentage <= 0 ? 0 : percentage.toFixed(2)) + "%");
+                            const commandProcessed = (payload.info.stats.total_commands_processed - last.info.stats.total_commands_processed) / (diff_ts / 1000);
+                            setCommands(commandProcessed <= 0 ? '0' : humanNumber(parseInt(commandProcessed.toFixed(0))));
+                        }
 
-                        const percentage = (payload.info.cpu.used_cpu_sys + payload.info.cpu.used_cpu_user
-                            - last.info.cpu.used_cpu_sys - last.info.cpu.used_cpu_user) / (diff_ts / 1000) * 100;
-                        setCpuPercentage(percentage.toFixed(2) + "%");
-                        const commandProcessed = (payload.info.stats.total_commands_processed - last.info.stats.total_commands_processed) / (diff_ts / 1000);
-                        setCommands(humanNumber(parseInt(commandProcessed.toFixed(0))));
+                        setClients(payload.info.clients.connected_clients);
+                        lastStats.current = payload;
                     }
-
-                    setClients(payload.info.clients.connected_clients);
-                    lastStats.current = payload;
                 }).then(resolveFn)
             });
         };
@@ -113,7 +124,6 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
         };
     }, []);
 
-    const datasourceColor = '#0099cc';
     const datasourceBackground = `linear-gradient(to right, ${datasourceColor}00, ${datasourceColor}50 25%, ${datasourceColor}00)`;
 
     const onDatasourceClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -125,7 +135,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
         const leftBottomX = rect.left;
         const leftBottomY = rect.top + rect.height;
         invoke('open_datasource_window', {
-            datasourceId: datasource,
+            datasourceId: datasourceRef.current,
             winId: props.windowId,
             x: leftBottomX,
             y: leftBottomY
@@ -171,7 +181,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                     <Flex className={'project-selector'} gap={4} align='center' justify={'start'}>
                         <Space className={'selector'} onClick={onDatasourceClick}>
                             <div className={'project-icon'} style={{background: datasourceColor}}>BS</div>
-                            <div className={`project-name database-status ${connectedStatus}`}>Localhost</div>
+                            <div className={`project-name database-status ${connectedStatus}`}>{datasourceName}</div>
                             <div className={'down-arrow'}></div>
                         </Space>
                         <Space className={'selector'} onClick={onDatabaseSelectorClick}>

@@ -33,6 +33,11 @@
       border-inline-end: 1px solid @tree-line-color;
     }
 
+    .ant-tree-treenode:hover:before {
+      background: #354b78;
+      border-radius: 4px;
+    }
+
     .ant-tree-treenode-leaf-last .ant-tree-switcher-leaf-line:before {
       height: 24px !important;
     }
@@ -43,13 +48,15 @@
     }
 
     .ant-tree-treenode-selected::before {
-      background: #2E436E !important;
+      background: #273b63;
+      border-radius: 4px;
     }
 
     /* antd 树 END */
 
     .group-name-node {
       font-weight: bold;
+      line-height: 20px;
     }
 
     .datasource-tree-node {

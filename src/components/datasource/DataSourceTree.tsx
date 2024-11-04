@@ -161,7 +161,7 @@ const treeData: TreeDataNode[] = [
 const DataSourceTree: React.FC<DataSourceTreeProp> = (props, context) => {
     const calParentHeight = () => (window.innerHeight
         || document.documentElement.clientHeight
-        || document.body.clientHeight) - 70;
+        || document.body.clientHeight) - 90;
     const [comHeight, setComHeight] = useState(calParentHeight());
     useEffect(() => {
         const handleResize = () => {

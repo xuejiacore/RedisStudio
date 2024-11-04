@@ -69,7 +69,7 @@ pub async fn sys_prop(storage: State<'_, SqliteStorage>, property: &str) -> std:
         .fetch_all(&*db)
         .await?;
     if rows.len() > 0 {
-        Ok(rows[0].try_get("value").unwrap())
+        Ok(rows[0].try_get("value")?)
     } else {
         Ok("".to_string())
     }

@@ -5,14 +5,15 @@ interface BsButtonProp {
     label?: ReactNode
     width?: number | string
     type?: string | 'default' | 'submit'
+    className?: string
 }
 
 const BsButton: React.FC<BsButtonProp> = (props, context) => {
 
-    let btnType = props.type;
+    const btnType = props.type;
 
     return (<>
-        <div className={'bs-button ' + btnType} style={{width: props.width}}>
+        <div className={`bs-button ${btnType} ${props.className}`} style={{width: props.width}}>
             {props.label}
         </div>
     </>)

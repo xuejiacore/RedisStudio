@@ -8,6 +8,7 @@ export default defineConfig(async () => ({
             input: {
                 modifykey: 'windows/modify-key.html',
                 createnewkey: 'windows/create-new-key.html',
+                spotlight: 'windows/spotlight-search.html',
                 splashscreen: 'windows/splashscreen.html',
                 datasourcedropdown: 'windows/datasource-dropdown.html',
                 datasourcedatabaseselector: 'windows/datasource-database-selector.html',

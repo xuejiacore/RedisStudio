@@ -36,7 +36,7 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
                 listen('datasource/changed', event => {
                     const payload: any = event.payload;
                     if (payload.winId == props.windowId) {
-                        setDatasourceId(payload.datasource);
+                        setDatasourceId(payload.props.datasourceId);
                     }
                 }).then(resolveFn);
 

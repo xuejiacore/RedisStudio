@@ -17,11 +17,13 @@ use redisstudio::Launcher;
 use serde_json::json;
 use sqlx::{Connection, Pool};
 use std::collections::HashSet;
+use std::fs;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{App, AppHandle, Emitter, Listener, Manager, State, WebviewWindow, WindowEvent, Wry};
 use tauri_plugin_sql::Error;
+use tauri_plugin_store::StoreExt;
 use tokio::time;
 
 pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
@@ -33,6 +35,31 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         let handle = app.handle();
         tray::create_tray(handle)?;
     }
+
+    let package_info = app.package_info();
+    let env = app.env();
+    let resource_dir = tauri::utils::platform::resource_dir(package_info, &env).unwrap();
+    println!("{:?}", resource_dir);
+    let resource_path = resource_dir.join("resources/default_setting.json");
+    let content = fs::read_to_string(&resource_path)?;
+    let json: serde_json::Value = serde_json::from_str(&content)?;
+    println!("读取资源数据: {}", json);
+
+    // Create a new store or load the existing one
+    // this also put the store in the app's resource table
+    // so your following calls `store` calls (from both rust and js)
+    // will reuse the same store
+    let store = app.store(resource_path)?;
+    // Note that values must be serde_json::Value instances,
+    // otherwise, they will not be compatible with the JavaScript bindings.
+    // store.set("some-key", json!({ "value": 5 }));
+
+    // Get a value from the store.
+    // let value = store.get("some-key").expect("Failed to get value from store");
+    // println!("{}", value); // {"value":5}
+
+    // Remove the store from the resource table
+    store.close_resource();
 
     init_spotlight_search_window(app);
 
@@ -116,12 +143,12 @@ async fn prepare_datasource_manager(cloned_app_handler: AppHandle) {
     let demo_ds = RedisProp::new("172.31.72.5", 6379, None, Some(10));
     datasource_manager.add_prop("datasource01", demo_ds).await;
 
+    let demo_ds = RedisProp::new("172.31.65.68", 6379, None, Some(0));
+    datasource_manager.add_prop("datasource02", demo_ds).await;
+
     let cloned_for_connection_mgr = cloned_app_handler.clone();
     let redis_connection_pool = RedisPool::new(datasource_manager, Arc::new(tokio::sync::Mutex::new(move |s, d| {
-        let payload = json!({
-                "datasource": s,
-                "database": d
-            });
+        let payload = json!({"datasource": s, "database": d});
         cloned_for_connection_mgr.emit("connection/lost", payload).unwrap();
     })));
     cloned_app_handler.manage(redis_connection_pool);
@@ -138,11 +165,8 @@ async fn prepare_datasource_manager(cloned_app_handler: AppHandle) {
             let mut processed = HashSet::<String>::new();
             let pool = redis_pool.get_pool().await;
             for db_key in keys {
-                let datasource = db_key.split("#")
-                    .collect::<Vec<&str>>()
-                    .get(0)
-                    .expect("unrecognized pattern")
-                    .to_string();
+                let datasource = db_key.split("#").collect::<Vec<&str>>().get(0)
+                    .expect("unrecognized pattern").to_string();
 
                 if processed.contains(&datasource) {
                     continue;

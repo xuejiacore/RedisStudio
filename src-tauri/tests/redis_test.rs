@@ -290,13 +290,15 @@ pub async fn test_analysis() {
     let connection = redis_pool.select_connection("datasource01", None).await;
 
     // DO TEST
-    let scan_count = Some(1000);
+    let key_pattern = Some("*".to_string());
+    let scan_count = Some(10000);
     let page_size = 200;
     let ns_layer = 2;
-    let separator = "[:_]";
+    let separator = "[:]";
 
     redis_util::async_analysis_database(
         connection,
+        key_pattern,
         scan_count,
         page_size,
         separator,
@@ -304,6 +306,8 @@ pub async fn test_analysis() {
             if r.finished {
                 // output result
                 println!("Receive Reporter: {}", json!(r));
+            } else {
+                println!("Analysing ... {}", r.progress);
             }
         },
     ).await;
