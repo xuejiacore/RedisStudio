@@ -1,2 +1,5 @@
 pub mod redis_pattern_dao;
-mod types;
+pub mod datasource_dao;
+pub mod types;
+
+pub const DEFAULT_SQLITE_NAME: &str = "default";

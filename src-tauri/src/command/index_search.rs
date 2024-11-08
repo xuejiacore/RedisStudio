@@ -1,20 +1,21 @@
+use crate::dao::datasource_dao;
 use crate::indexer::indexer_initializer::{IDX_NAME_FAVOR, IDX_NAME_KEY_PATTERN, IDX_NAME_RECENTLY_ACCESS};
 use crate::indexer::redis_indexer::RedisIndexer;
 use crate::indexer::tantivy_indexer::{SearchResult, TantivyIndexer};
 use crate::storage::redis_pool::RedisPool;
+use crate::storage::sqlite_storage::SqliteStorage;
 use crate::CmdError;
 use futures::FutureExt;
 use redis::{cmd, RedisResult};
 use regex::Regex;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
-use std::future::Future;
+use std::collections::{HashMap, HashSet};
 use std::ops::DerefMut;
 use tantivy::query::{BooleanQuery, Occur, Query, RegexQuery, TermQuery};
 use tantivy::schema::{IndexRecordOption, Schema};
 use tantivy::{doc, Index, TantivyError, Term};
-use tauri::{AppHandle, Emitter, Runtime, State, Wry};
+use tauri::{AppHandle, Emitter, Runtime, State};
 use tokio::time::Instant;
 
 type Result<T> = std::result::Result<T, CmdError>;
@@ -47,6 +48,7 @@ impl SearchResultDto {
 /// search documents by provided query string.
 #[tauri::command]
 pub async fn spotlight_search<R: Runtime>(
+    datasource: String,
     unique_id: i64,
     query: &str,
     limit: usize,
@@ -54,18 +56,18 @@ pub async fn spotlight_search<R: Runtime>(
     offset: usize,
     indexer: State<'_, TantivyIndexer>,
     redis_pool: State<'_, RedisPool>,
-    handle: tauri::AppHandle<R>,
-    window: tauri::Window<Wry>,
+    sqlite: State<'_, SqliteStorage>,
+    handle: AppHandle<R>,
 ) -> Result<String> {
     let timer = Instant::now();
     let mut search_result = SearchResultDto::new();
 
     let list_database = list_database(query, &redis_pool, &handle);
     let search_from_index = search_from_tantivy(query, limit, offset, &indexer, &handle);
-    let recently_search = recently_search(query, &indexer, &redis_pool, &handle);
-    let search_from_datasource = datasource_search(query);
+    let recently_search = recently_search(query, &datasource, &indexer, &redis_pool, &handle);
+    let search_from_datasource = datasource_search(query, sqlite, &redis_pool, &handle);
     let scanned_keys = key_scan_match(query, &redis_pool, scan_size);
-    let favor_list = search_favor(query, &indexer, &redis_pool, scan_size);
+    let favor_list = search_favor(query, &datasource, &indexer, &redis_pool);
 
     let (
         list_database_result,
@@ -147,13 +149,14 @@ async fn search_from_tantivy<R: Runtime>(
                 let mut query_str = String::from(".*");
                 query_str.push_str(query);
                 query_str.push_str(".*");
+                // TODO: with datasource condition
                 match RegexQuery::from_pattern(query_str.as_str(), normalize_field) {
                     Ok(regex_query) => {
                         params_builder
                             .with_limit_offset(limit, offset)
                             .with_query(Box::new(regex_query));
                     }
-                    Err(err) => {}
+                    Err(_) => {}
                 }
             }).then(|result| {
                 async {
@@ -238,6 +241,7 @@ async fn list_database<R: Runtime>(
 
 async fn recently_search<R: Runtime>(
     query: &str,
+    datasource: &str,
     indexer: &State<'_, TantivyIndexer>,
     redis_pool: &State<'_, RedisPool>,
     handle: &AppHandle<R>,
@@ -249,7 +253,7 @@ async fn recently_search<R: Runtime>(
     };
     let result = TantivyIndexer::searching_with_params(&index, |index, search_params| {
         let schema = index.schema();
-        let datasource_term_query = build_text_term(&schema, "datasource.keyword", "datasource01");
+        let datasource_term_query = build_text_term(&schema, "datasource.keyword", &datasource);
         let key_kw_term_query = build_text_term(&schema, "key", query);
 
         let mut should_query = vec![
@@ -264,11 +268,11 @@ async fn recently_search<R: Runtime>(
             Ok(regex_query) => {
                 should_query.push((Occur::Should, Box::new(regex_query)))
             }
-            Err(err) => {}
+            Err(_) => {}
         }
 
         let should_sub_query = Box::new(BooleanQuery::new(should_query));
-        let mut sub_query = vec![
+        let sub_query = vec![
             (Occur::Must, datasource_term_query),
             (Occur::Must, should_sub_query),
         ];
@@ -341,15 +345,50 @@ fn build_text_term(schema: &Schema, field_name: &str, field_value: &str) -> Box<
 }
 
 /// search matched datasource from all configurations.
-async fn datasource_search(query: &str) -> Option<Vec<Value>> {
-    if query.starts_with("use ") || query.eq("use")
-        || query.starts_with("select ") || query.eq("select") {
-        return Some(vec![
-            json!({"hostport": "localhost:6379", "desc": "localhost","connected": true}),
-            json!({"hostport": "192.168.3.321:6379", "desc": "biz test01", "connected": false}),
-        ]);
-    }
-    None
+async fn datasource_search<R: Runtime>(
+    query: &str,
+    sqlite: State<'_, SqliteStorage>,
+    redis_pool: &State<'_, RedisPool>,
+    handle: &AppHandle<R>,
+) -> Option<Vec<Value>> {
+    let timer = Instant::now();
+    datasource_dao::query_flat_datasource(Some(query.to_string()), sqlite).then(|result| {
+        async {
+            match result {
+                Ok(r) => {
+                    let elapsed = timer.elapsed().as_millis();
+                    let connected_ds = {
+                        let m = redis_pool.get_pool().await;
+                        m.keys()
+                            .map(|k| {
+                                let datasource = k.split("#").collect::<Vec<&str>>().get(0)
+                                    .expect("unrecognized pattern").to_string();
+                                datasource
+                            })
+                            .collect::<HashSet<String>>()
+                    };
+
+                    let documents = r.iter().map(|t| {
+                        let id = t.id.to_string();
+                        let host = t.host.clone();
+                        let desc = t.datasource_name.clone();
+                        let connected = connected_ds.contains(&id);
+                        json!({"hostport": host,"desc": desc, "connected": connected})
+                    }).collect::<Vec<Value>>();
+                    let hits = documents.len();
+                    let dto = SearchResultItem {
+                        scene: "recently".to_string(),
+                        hits: hits,
+                        documents: documents.clone(),
+                        elapsed: Some(elapsed),
+                    };
+                    handle.emit("spotlight/search-result", dto).unwrap();
+                    Some(documents)
+                }
+                Err(_) => None
+            }
+        }
+    }).await
 }
 
 /// exactly matched key name and type.
@@ -415,25 +454,25 @@ async fn key_scan_match(query: &str, redis_pool: &State<'_, RedisPool>, limit: u
         match &ret {
             Ok(tp) => {
                 if !tp.eq("none") {
-                    anyhow::Result::Ok(vec![json!({"key": query, "type": tp})])
+                    Ok(vec![json!({"key": query, "type": tp})])
                 } else {
-                    anyhow::Result::Ok(vec![])
+                    Ok(vec![])
                 }
             }
-            Err(e) => anyhow::Result::Ok(vec![])
+            Err(_) => Ok(vec![])
         }
     }
 }
 
 /// search user favor keys.
-async fn search_favor(query: &str, indexer: &State<'_, TantivyIndexer>, redis_pool: &State<'_, RedisPool>, limit: usize) -> Option<Vec<Value>> {
+async fn search_favor(query: &str, datasource: &str, indexer: &State<'_, TantivyIndexer>, redis_pool: &State<'_, RedisPool>) -> Option<Vec<Value>> {
     let index = {
         let idx = indexer.indexes.lock().unwrap();
         idx.get(IDX_NAME_FAVOR).unwrap().clone()
     };
     let result = TantivyIndexer::searching_with_params(&index, |index, search_params| {
         let schema = index.schema();
-        let datasource_term_query = build_text_term(&schema, "datasource.keyword", "datasource01");
+        let datasource_term_query = build_text_term(&schema, "datasource.keyword", &datasource);
         let key_kw_term_query = build_text_term(&schema, "key", query);
 
         let mut should_query = vec![
@@ -448,11 +487,11 @@ async fn search_favor(query: &str, indexer: &State<'_, TantivyIndexer>, redis_po
             Ok(regex_query) => {
                 should_query.push((Occur::Should, Box::new(regex_query)))
             }
-            Err(err) => {}
+            Err(_) => {}
         }
 
         let should_sub_query = Box::new(BooleanQuery::new(should_query));
-        let mut sub_query = vec![
+        let sub_query = vec![
             (Occur::Must, datasource_term_query),
             (Occur::Must, should_sub_query),
         ];
@@ -502,8 +541,7 @@ pub async fn write_index<R: Runtime>(
     index_name: &str,
     document: &str,
     indexer: State<'_, TantivyIndexer>,
-    _handle: tauri::AppHandle<R>,
-    window: tauri::Window<Wry>,
+    _handle: AppHandle<R>,
 ) -> Result<String> {
     match indexer.write(index_name, document).await {
         Ok(_) => Ok(json!({"success": true}).to_string()),
@@ -516,8 +554,7 @@ pub async fn infer_redis_key_pattern<R: Runtime>(
     datasource: &str,
     key: &str,
     redis_indexer: State<'_, RedisIndexer>,
-    _handle: tauri::AppHandle<R>,
-    window: tauri::Window<Wry>,
+    _handle: AppHandle<R>,
 ) -> Result<String> {
     match redis_indexer.infer(datasource, key).await {
         None => {
@@ -544,7 +581,6 @@ pub async fn record_key_access_history<R: Runtime>(
     key_type: &str,
     redis_indexer: State<'_, RedisIndexer>,
     _handle: tauri::AppHandle<R>,
-    window: tauri::Window<Wry>,
 ) -> Result<String> {
     redis_indexer.record_key_access_history(datasource, key, key_type).await;
     Ok(json!({}).to_string())

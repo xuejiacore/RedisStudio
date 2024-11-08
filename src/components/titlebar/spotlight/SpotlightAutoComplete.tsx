@@ -10,6 +10,8 @@ import EmptySearchResult from "./EmptySearchResult.tsx";
 import {SearchResultDto, SearchSceneResult, wrapSearchResult} from "./SearchResultOptionsUtil.tsx";
 import type {BaseSelectRef} from "rc-select";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
+import {hash} from "../../../utils/Util.ts";
+import {DEFAULT_DATASOURCE_COLOR} from "../../../utils/RedisTypeUtil.ts";
 
 interface SpotlightSearchProp {
     global?: boolean;
@@ -25,6 +27,11 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
     const [stillSearching, setStillSearching] = useState(false);
     const [datasource, setDatasource] = useState('');
     const [database, setDatabase] = useState(0);
+    const [datasourceName, setDatasourceName] = useState('');
+    const [datasourceColor, setDatasourceColor] = useState('');
+    const datasourceRef = useRef('');
+    const databaseRef = useRef(0);
+
     const [autoCompleteDataId, setAutoCompleteDataId] = useState(Date.now());
     const changeDatabaseManual = useRef(false);
 
@@ -39,6 +46,14 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                 autoCompleteRef.current?.focus();
             }
         }
+        const wrapDatasourceColor = (color: string, ds: any) => {
+            if (color) {
+                return color;
+            }
+            const index = Math.abs(hash(`${ds.id}_${ds.host}_${ds.port}`) % DEFAULT_DATASOURCE_COLOR.length)
+            return DEFAULT_DATASOURCE_COLOR[index];
+        };
+
         const addListenerAsync = async () => {
             return new Promise<UnlistenFn>(resolve => {
                 const resolveFn = (unlistenFn: UnlistenFn) => {
@@ -62,8 +77,16 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                 listen("spotlight/activated-datasource", event => {
                     const payload = event.payload as { datasource: string, database: number };
                     console.log("activate datasource changed: ", event);
+                    invoke('query_datasource_detail', {
+                        datasource: payload.datasource,
+                    }).then((r: any) => {
+                        setDatasourceName(r.name);
+                        setDatasourceColor(wrapDatasourceColor(r.ds_color, r))
+                    })
                     setDatasource(payload.datasource);
                     setDatabase(payload.database);
+                    datasourceRef.current = payload.datasource;
+                    databaseRef.current = payload.database;
                 }).then(resolveFn);
             });
         }
@@ -138,6 +161,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
 
             const searchUniqueId = Date.now();
             invoke("spotlight_search", {
+                datasource: datasourceRef.current,
                 uniqueId: searchUniqueId,
                 query: `${val}`,
                 limit: limit,
@@ -192,7 +216,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                             invoke('record_key_access_history', {
                                 key: keyName,
                                 keyType,
-                                datasource: "datasource01"
+                                datasource: datasourceRef.current
                             }).then(r => {
                                 console.log("record finished")
                             })
@@ -261,7 +285,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                     <MacCommandIcon style={{width: 12, color: '#505153'}}/> + P {t('redis.spotlight.input.placeholder')}
                     </span>
                     <div className={'activated-datasource-info'}>
-                        <span className={'activated-datasource'}>{datasource}</span>
+                        <span className={'activated-datasource'} style={{background: `${datasourceColor}80`}}>{datasourceName}</span>
                         <span className={'activated-database'}>DB{database}</span>
                     </div>
                 </Flex>

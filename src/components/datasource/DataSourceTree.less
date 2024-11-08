@@ -1,90 +1,112 @@
-.datasource-tree-panel {
-  background: #2B2D30;
-  border-right: 1px solid #00000070;
-  width: calc(100% - 1px);
+.datasource-tree-div {
   height: 100%;
 
-  .datasource-operators {
-    width: 100%;
-    margin-left: 10px;
-    margin-top: 5px;
+  .datasource-tree-panel {
+    background: #2B2D30;
+    border-right: 1px solid #00000070;
+    width: calc(100% - 1px);
+    height: 100%;
 
-    span {
-      color: #a3a4a8;
-    }
+    .datasource-operators {
+      width: 100%;
+      margin-left: 10px;
+      margin-top: 5px;
 
-    span:hover {
-      color: white;
-      background: #0099cc;
-    }
-  }
-
-  .datasource-tree {
-
-    /* antd 树 START */
-    @tree-line-color: #4E5157;
-
-    .ant-tree-indent-unit {
-      left: 14px;
-    }
-
-    .ant-tree-indent-unit:before,
-    .ant-tree-switcher-leaf-line:before {
-      border-inline-end: 1px solid @tree-line-color;
-    }
-
-    .ant-tree-treenode:hover:before {
-      background: #354b78;
-      border-radius: 4px;
-    }
-
-    .ant-tree-treenode-leaf-last .ant-tree-switcher-leaf-line:before {
-      height: 24px !important;
-    }
-
-    .ant-tree-switcher-leaf-line:after {
-      border-bottom: 1px solid @tree-line-color;
-      top: 12px;
-    }
-
-    .ant-tree-treenode-selected::before {
-      background: #273b63;
-      border-radius: 4px;
-    }
-
-    /* antd 树 END */
-
-    .group-name-node {
-      font-weight: bold;
-      line-height: 20px;
-    }
-
-    .datasource-tree-node {
-
-      .node-icon {
-        background: #9C54E0;
-        padding: 0 2px;
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: bold;
+      span {
+        color: #a3a4a8;
       }
 
-      .node-desc-area {
-        margin-left: 10px;
+      span:hover {
+        color: white;
+        background: #0099cc;
+      }
+    }
 
-        .project-name-text {
+    .datasource-tree {
+
+      /* antd 树 START */
+      @tree-line-color: #4E5157;
+
+      .ant-tree-indent-unit {
+        left: 14px;
+      }
+
+      .ant-tree-indent-unit:before,
+      .ant-tree-switcher-leaf-line:before {
+        border-inline-end: 1px solid @tree-line-color;
+      }
+
+      .ant-tree-treenode-selected {
+        .desc-text {
+          color: #96989c !important;
+        }
+
+        .ant-tree-node-content-wrapper:hover:before {
+          background: #354b78 !important;
+          border-radius: 4px;
+        }
+
+        .ant-tree-node-content-wrapper:before {
+          background: #3d5587 !important;
+          border-radius: 4px;
+        }
+      }
+
+      .ant-tree-node-content-wrapper:hover {
+        .desc-text {
+          color: #96989c !important;
+        }
+      }
+
+      .ant-tree-node-content-wrapper:hover:before {
+        background: #354b78A0 !important;
+        border-radius: 4px;
+      }
+
+      .ant-tree-treenode-leaf-last .ant-tree-switcher-leaf-line:before {
+        height: 24px !important;
+      }
+
+      .ant-tree-switcher-leaf-line:after {
+        border-bottom: 1px solid @tree-line-color;
+        top: 12px;
+      }
+
+      /* antd 树 END */
+
+      .group-name-node {
+        font-weight: bold;
+        line-height: 20px;
+      }
+
+      .datasource-tree-node {
+
+        .node-icon {
+          background: #9C54E0;
+          padding: 0 2px;
+          border-radius: 4px;
+          font-size: 12px;
           font-weight: bold;
         }
 
-        .desc-text {
-          color: #5F6268;
-          font-size: 10px;
-          overflow: hidden;
-          width: calc(18vw);
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        .node-desc-area {
+          margin-left: 10px;
+
+          .project-name-text {
+            font-weight: bold;
+          }
+
+          .desc-text {
+            color: #5F6268;
+            font-size: 10px;
+            overflow: hidden;
+            width: calc(18vw);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
         }
       }
     }
   }
+
 }

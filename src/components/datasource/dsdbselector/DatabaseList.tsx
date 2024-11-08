@@ -8,6 +8,7 @@ import Scrollbar from "smooth-scrollbar";
 import {Window} from "@tauri-apps/api/window";
 import {emitTo} from "@tauri-apps/api/event";
 import {DataSourceChangedEvent} from "../DataSourceChangedEvent.ts";
+import {invoke} from "@tauri-apps/api/core";
 
 interface DatabaseListProp {
 }
@@ -21,11 +22,14 @@ const DatabaseList: React.FC<DatabaseListProp> = (props, context) => {
     const containerRef = useRef(null);
     const scrollbarRef = useRef<Scrollbar>();
     const winIdRef = useRef(0);
+
+    const datasourceRef = useRef('');
     const [databases, setDatabases] = useState<Database[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [databaseComs, setDatabaseComs] = useState<React.ReactNode>(<></>);
 
-    const loadAllDatabase = (winId: number, selected: number, data: string, database_count: number) => {
+    const loadAllDatabase = (winId: number, selected: number, data: string, datasource: string, database_count: number) => {
+        datasourceRef.current = datasource;
         const resp: Database[] = JSON.parse(data);
         const map = new Map();
         resp.forEach(d => {
@@ -78,7 +82,7 @@ const DatabaseList: React.FC<DatabaseListProp> = (props, context) => {
         const payload: DataSourceChangedEvent = {
             winId: winIdRef.current,
             props: {
-                datasourceId: "datasource01",
+                datasourceId: "1",
                 host: "localhost",
                 port: 6379,
                 database: index,
@@ -86,6 +90,10 @@ const DatabaseList: React.FC<DatabaseListProp> = (props, context) => {
             }
         }
         emitTo("main", "datasource/database-changed", payload).finally();
+        invoke('change_active_datasource', {
+            datasource: datasourceRef.current,
+            defaultDatabase: index,
+        }).finally();
     };
 
     useEffect(() => {

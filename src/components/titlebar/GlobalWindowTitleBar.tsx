@@ -18,7 +18,7 @@ interface TitleBarProp {
 }
 
 const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
-    const [datasource, setDatasource] = useState('datasource01');
+    const [datasource, setDatasource] = useState('1');
     const [database, setDatabase] = useState(0);
     const [datasourceName, setDatasourceName] = useState('Localhost');
     const [datasourceColor, setDatasourceColor] = useState('#0099cc');
@@ -61,10 +61,12 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                         setDatasourceName(payload.props.name);
                         setDatasourceColor(payload.props.dscolor);
                         setDatabaseKeySize(payload.props.keySpac);
+                        setDatabase(payload.props.database);
                         setClients(0);
                         setCpuPercentage("-%");
                         setCommands("-");
                         lastStats.current = undefined;
+                        databaseRef.current = payload.props.database;
                     }
                 }).then(resolveFn);
 
@@ -177,7 +179,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
         <>
             <Row data-tauri-drag-region style={{background: '#2b2D30', borderBottom: '1px solid #1F1F226F'}}>
                 <Col data-tauri-drag-region style={{background: datasourceBackground}}
-                     className={'window-title-bar-left-col'} span={6} offset={0}>
+                     className={'window-title-bar-left-col'} span={8} offset={0}>
                     <Flex className={'project-selector'} gap={4} align='center' justify={'start'}>
                         <Space className={'selector'} onClick={onDatasourceClick}>
                             <div className={'project-icon'} style={{background: datasourceColor}}>BS</div>
@@ -200,7 +202,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                         </Flex>
                     </Flex>
                 </Col>
-                <Col span={18}>
+                <Col span={16}>
                     <div className={'window-title-bar'} data-tauri-drag-region>
                         <Flex gap={2} className={'setting-tools'} align={'center'} justify={'end'}
                               data-tauri-drag-region>

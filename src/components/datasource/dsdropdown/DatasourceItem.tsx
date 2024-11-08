@@ -7,6 +7,7 @@ export interface Datasource {
     name: string;
     port: number;
     datasource: string;
+    default_database: number;
     dscolor: string;
 }
 
@@ -15,6 +16,7 @@ interface DatasourceItemProp {
     name: string;
     host: string;
     port: number;
+    default_database: number;
     datasourceId: string;
     dscolor: string;
 }
@@ -28,6 +30,7 @@ const DatasourceItem: React.FC<DatasourceItemProp> = (props, context) => {
             datasource: props.datasourceId,
             dscolor: props.dscolor,
             name: props.name,
+            default_database: props.default_database,
         });
     };
 

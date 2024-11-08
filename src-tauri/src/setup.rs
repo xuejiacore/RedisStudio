@@ -7,7 +7,7 @@ use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use redisstudio::menu::main_menu;
 use redisstudio::menu::menu_manager::MenuContext;
 use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
-use redisstudio::storage::redis_pool::{DataSourceManager, RedisPool, RedisProp};
+use redisstudio::storage::redis_pool::{DataSourceManager, RedisPool};
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::utils::redis_util;
 use redisstudio::view::command::CommandDispatcher;
@@ -120,7 +120,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
             "tips": "connect to redis"
         })).unwrap();
 
-        prepare_datasource_manager(cloned_app_handler).await;
+        prepare_datasource_manager(cloned_app_handler, protocol.as_str()).await;
 
         // initialize your app here instead of sleeping :)
         println!("Initializing...");
@@ -138,14 +138,8 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn prepare_datasource_manager(cloned_app_handler: AppHandle) {
-    let datasource_manager = DataSourceManager::new();
-    let demo_ds = RedisProp::new("172.31.72.5", 6379, None, Some(10));
-    datasource_manager.add_prop("datasource01", demo_ds).await;
-
-    let demo_ds = RedisProp::new("172.31.65.68", 6379, None, Some(0));
-    datasource_manager.add_prop("datasource02", demo_ds).await;
-
+async fn prepare_datasource_manager(cloned_app_handler: AppHandle, connect_protocol: &str) {
+    let datasource_manager = DataSourceManager::with_protocol(connect_protocol).await;
     let cloned_for_connection_mgr = cloned_app_handler.clone();
     let redis_connection_pool = RedisPool::new(datasource_manager, Arc::new(tokio::sync::Mutex::new(move |s, d| {
         let payload = json!({"datasource": s, "database": d});

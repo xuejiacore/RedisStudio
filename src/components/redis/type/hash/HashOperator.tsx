@@ -140,7 +140,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             old_field: oldField,
             field: fieldName,
             value: content,
-            datasource_id: 'datasource01'
+            datasource_id: datasourceRef.current
         };
         console.log("保存数据--->Field", payload, req)
         redis_invoke('redis_update', payload, props.datasourceId, props.selectedDatabase).then(r => {
@@ -172,7 +172,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             key_type: 'hash',
             field: fieldName,
             value: content,
-            datasource_id: 'datasource01'
+            datasource_id: datasourceRef.current
         };
         console.log("保存数据--->Value", payload, req)
         redis_invoke('redis_update', payload, props.datasourceId, props.selectedDatabase).then(r => {

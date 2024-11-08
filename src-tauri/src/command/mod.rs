@@ -1,5 +1,5 @@
 use crate::spotlight_command;
-use tauri::{Builder, Runtime, Wry};
+use tauri::{Builder, Wry};
 
 pub mod index_search;
 pub mod menu_controller;
@@ -7,9 +7,16 @@ pub mod redis_cmd;
 pub mod window_controller;
 pub mod pattern_manager;
 pub mod common_cmd;
+pub mod datasource_mgr_command;
+
 pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
 {
     builder.invoke_handler(tauri::generate_handler![
+            datasource_mgr_command::list_flat_datasource,
+            datasource_mgr_command::change_active_datasource,
+            datasource_mgr_command::query_datasource_detail,
+            datasource_mgr_command::list_treed_datasource,
+
             redis_cmd::redis_invoke,
             redis_cmd::reconnect_redis,
             redis_cmd::select_redis_database,

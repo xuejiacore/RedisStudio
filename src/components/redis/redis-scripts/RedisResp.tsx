@@ -110,7 +110,7 @@ const RedisResp: FC<RedisRespProp> = (props, context) => {
             <Flex align={'center'} justify={'start'}>
                 <span className="redis-output-args">
                     <span className={`command-symbol ${errstyle}`}>→</span>
-                    <span className="redis-execute-time">[{formatTimestamp(Date.now() / 1000, 'HH:mm:ss')}]</span>&nbsp;
+                    <span className="redis-execute-time">[{formatTimestamp(Date.now(), 'HH:mm:ss')}]</span>&nbsp;
                     <span className={`redis-output-cmd ${type}`}>{baseCommand}</span>&nbsp;
                     {keyName}
                     {remainCommand}

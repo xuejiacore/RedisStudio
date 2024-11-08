@@ -100,7 +100,7 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
             field: e.fieldName,
             value: e.value,
             old_value: e.oldValue,
-            datasource_id: 'datasource01'
+            datasource_id: datasourceRef.current
         };
 
         redis_invoke('redis_update', payload, datasourceRef.current, databaseRef.current).then(r => {

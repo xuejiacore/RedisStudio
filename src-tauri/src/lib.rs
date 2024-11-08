@@ -18,11 +18,17 @@ pub mod menu;
 pub mod spotlight_command;
 pub mod win;
 pub mod utils;
+pub mod docs;
+
 #[derive(Debug, thiserror::Error)]
 pub enum CmdError {
     #[error("unsupported datatype: {0}")]
     Unknown(String),
+    #[error("Datasource err: {0}")]
+    Datasource(String),
 }
+
+pub type CmdResult<T> = Result<T, CmdError>;
 
 impl Serialize for CmdError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

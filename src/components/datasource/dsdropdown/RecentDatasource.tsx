@@ -1,5 +1,5 @@
 /* eslint-disable */
-import React, {useEffect, useRef} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import DatasourceItem, {Datasource} from "./DatasourceItem.tsx";
 import {Flex} from "antd";
 import "./index.less";
@@ -7,6 +7,9 @@ import Scrollbar from "smooth-scrollbar";
 import {Window} from "@tauri-apps/api/window";
 import {DataSourceChangedEvent} from "../DataSourceChangedEvent.ts";
 import {emitTo} from "@tauri-apps/api/event";
+import {DEFAULT_DATASOURCE_COLOR} from "../../../utils/RedisTypeUtil.ts";
+import {hash} from "../../../utils/Util.ts";
+import {invoke} from "@tauri-apps/api/core";
 
 interface RecentDatasourceProp {
 
@@ -15,10 +18,12 @@ interface RecentDatasourceProp {
 const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
     const containerRef = useRef(null);
     const scrollbarRef = useRef<Scrollbar>();
+    const [datasourceList, setDatasourceList] = useState<any[]>([]);
     const winIdRef = useRef(0);
 
     const loadAllDatasource = (winId: number, selected: string, data: string) => {
         winIdRef.current = winId;
+        setDatasourceList(JSON.parse(data));
     };
 
     useEffect(() => {
@@ -43,7 +48,6 @@ const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
     }, []);
 
     const onDatasourceChange = (ds: Datasource) => {
-        console.log("选中数据源：", ds, winIdRef.current);
         //setSelectedIndex(index);
         Window.getByLabel("datasource-dropdown").then(r => r?.hide());
         const payload: DataSourceChangedEvent = {
@@ -54,12 +58,23 @@ const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
                 port: ds.port,
                 name: ds.name,
                 dscolor: ds.dscolor,
-                database: 0,
+                database: ds.default_database,
                 keySpac: 0
             }
         }
-        console.log(payload)
         emitTo("main", "datasource/changed", payload).finally();
+        invoke('change_active_datasource', {
+            datasource: ds.datasource,
+            defaultDatabase: ds.default_database,
+        }).finally();
+    };
+
+    const wrapDatasourceColor = (color: string, ds: any) => {
+        if (color) {
+            return color;
+        }
+        const index = Math.abs(hash(`${ds.id}_${ds.host}_${ds.port}`) % DEFAULT_DATASOURCE_COLOR.length)
+        return DEFAULT_DATASOURCE_COLOR[index];
     };
 
     return <>
@@ -67,20 +82,17 @@ const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
             <span className={'recent-datasource-label'}>Recent Sources</span>
             <div ref={containerRef} className="scrollbar-container">
                 <div className="scroll-content">
-                    <DatasourceItem name={'贪吃蛇测试服'}
-                                    host={'172.31.86.29'}
-                                    port={6379}
-                                    datasourceId={'datasource01'}
-                                    dscolor={'#51A374'}
-                                    onClick={onDatasourceChange}
-                    />
-                    <DatasourceItem name={'测试服'}
-                                    host={'172.31.65.68'}
-                                    port={6379}
-                                    datasourceId={'datasource02'}
-                                    dscolor={'#BC50A7'}
-                                    onClick={onDatasourceChange}
-                    />
+                    {datasourceList.map(ds => {
+                        return <DatasourceItem key={ds.id}
+                                               name={ds.datasource_name}
+                                               host={ds.host}
+                                               port={ds.port}
+                                               default_database={parseInt(ds.default_database)}
+                                               datasourceId={`${ds.id}`}
+                                               dscolor={wrapDatasourceColor(ds.color, ds)}
+                                               onClick={onDatasourceChange}
+                        />
+                    })}
                 </div>
             </div>
         </Flex>

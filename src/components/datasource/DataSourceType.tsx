@@ -3,6 +3,7 @@ import RedisDatasourceEditor from "./redis/RedisDatasourceEditor.tsx";
 import './DataSourceType.less'
 import BsButton from "../../utils/button/BsButton.tsx";
 import {Flex, Space} from "antd";
+import {invoke} from "@tauri-apps/api/core";
 
 interface DataSourceTypeProp {
     type: string
@@ -20,6 +21,10 @@ const DataSourceType: React.FC<DataSourceTypeProp> = (props, context) => {
             datasourceEditor = (<RedisDatasourceEditor/>)
             break;
         default:
+    }
+
+    const onConnectionTest = () => {
+
     }
 
     return (<>
@@ -40,7 +45,8 @@ const DataSourceType: React.FC<DataSourceTypeProp> = (props, context) => {
 
             <Flex justify={"end"}>
                 <Space>
-                    <BsButton className={'test-connection-btn'} type={"default"} label={'Test connection'}/>
+                    <BsButton className={'test-connection-btn'} type={"default"} label={'Test connection'}
+                              onClick={onConnectionTest}/>
                     <BsButton className={'save-connection'} type={"submit"} label={'Save'}/>
                 </Space>
             </Flex>

@@ -45,14 +45,17 @@ function createSystemTables(executeInitSql: (sql: string, bindValues?: unknown[]
             id                 INTEGER NOT NULL
                 CONSTRAINT tbl_datasource_pk
                     PRIMARY KEY AUTOINCREMENT,
-            type               INTEGER NOT NULL, -- 1:redis, 2:mysql, 3:elasticsearch
-            host               TEXT,             -- host 
-            port               INTEGER,          -- port
-            user_name          TEXT,             -- username
-            password           TEXT,             -- password
-            ssh_tunnel_enabled INTEGER,          -- 1:ssh tunnel enabled, 2:disabled
-            properties         TEXT,             -- configuration properties json
-            create_time        INTEGER
+            datasource_name    TEXT,                 -- datasource name
+            host               TEXT,                 -- host 
+            port               INTEGER default 3306, -- port
+            user_name          TEXT,                 -- username
+            password           TEXT,                 -- password
+            default_database   INTEGER default 0,    -- default database
+            ssh_tunnel_enabled INTEGER,              -- 1:ssh tunnel enabled, 2:disabled
+            color              TEXT,                 -- datasource color
+            properties         TEXT,                 -- configuration properties json
+            create_time        INTEGER,              -- create time
+            path               TEXT    default '/'   -- path of directory
         )
     `);
 
@@ -87,6 +90,20 @@ function createSystemTables(executeInitSql: (sql: string, bindValues?: unknown[]
             update_time   INTEGER, -- update time
             mode          INTEGER, -- match mode, 1: exact 2: fuzzy
             pin_meta      TEXT     -- pinned field
+        )
+    `);
+
+    executeInitSql(`
+        CREATE TABLE IF NOT EXISTS tbl_database_analysis_result
+        (
+            id                   INTEGER NOT NULL
+                CONSTRAINT tbl_database_analysis_result_pk
+                    PRIMARY KEY AUTOINCREMENT,
+            datasource_id        TEXT,    -- datasource id
+            database             INTEGER, -- database index
+            create_time          INTEGER, -- create time
+            analysis_json_result TEXT,    -- analysis json result
+            ver                  INTEGER  -- version
         )
     `);
 

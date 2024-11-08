@@ -1,18 +1,19 @@
-import {Col, Row} from "antd";
+import {Splitter} from "antd";
 import React from "react";
 import DataSourceConfig from "./DataSourceConfig";
 import DataSourceTree from "./DataSourceTree.tsx";
 
 const DataSource: React.FC = () => {
     return (<>
-        <Row className={'datasource'}>
-            <Col span={6}>
+        <Splitter className={'datasource'}>
+            <Splitter.Panel defaultSize="26%" min="20%" max="40%">
                 <DataSourceTree/>
-            </Col>
-            <Col span={18}>
+
+            </Splitter.Panel>
+            <Splitter.Panel>
                 <DataSourceConfig/>
-            </Col>
-        </Row>
+            </Splitter.Panel>
+        </Splitter>
     </>);
 }
 

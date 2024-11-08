@@ -1,6 +1,8 @@
+use crate::dao::types::TblDatasource;
 use futures::FutureExt;
 use redis::aio::MultiplexedConnection;
 use redis::{cmd, AsyncConnectionConfig, ConnectionAddr, ConnectionInfo, IntoConnectionInfo, RedisConnectionInfo, RedisResult};
+use sqlx::{Error, Pool, Sqlite};
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -16,7 +18,7 @@ pub struct RedisProp {
     host: String,
     port: u16,
     password: Option<String>,
-    default_database: Option<i64>,
+    default_database: Option<u16>,
 }
 
 impl RedisProp {
@@ -24,7 +26,7 @@ impl RedisProp {
         Self::new(host, 6379, None, None)
     }
 
-    pub fn new<T: AsRef<str>>(host: T, port: u16, password: Option<String>, database: Option<i64>) -> Self {
+    pub fn new<T: AsRef<str>>(host: T, port: u16, password: Option<String>, database: Option<u16>) -> Self {
         RedisProp {
             host: host.as_ref().to_string(),
             port,
@@ -33,7 +35,7 @@ impl RedisProp {
         }
     }
 
-    pub fn select_db(&self, database: i64) -> Self {
+    pub fn select_db(&self, database: u16) -> Self {
         let mut cloned = self.clone();
         cloned.default_database = Some(database);
         cloned
@@ -44,7 +46,7 @@ impl IntoConnectionInfo for RedisProp {
     fn into_connection_info(self) -> RedisResult<ConnectionInfo> {
         let addr = ConnectionAddr::Tcp(self.host, self.port);
         let redis = RedisConnectionInfo {
-            db: self.default_database.unwrap_or(0),
+            db: self.default_database.unwrap_or(0) as i64,
             username: None,
             password: self.password,
             protocol: Default::default(),
@@ -57,13 +59,23 @@ impl IntoConnectionInfo for RedisProp {
 }
 
 pub struct DataSourceManager {
+    pool: Option<Pool<Sqlite>>,
     configs: Arc<Mutex<HashMap<String, RedisProp>>>,
 }
 
 impl DataSourceManager {
     pub fn new() -> Self {
         DataSourceManager {
-            configs: Arc::new(Mutex::new(HashMap::new()))
+            pool: None,
+            configs: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    pub async fn with_protocol(protocol: &str) -> Self {
+        let pool = Pool::connect(protocol).await.unwrap();
+        DataSourceManager {
+            pool: Some(pool),
+            configs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -78,6 +90,30 @@ impl DataSourceManager {
                 m.insert(id_str.to_string(), prop);
             }
             Some(_) => {}
+        }
+    }
+
+    pub async fn query_prop<T: AsRef<str>>(&self, ds_id: T) -> Option<RedisProp> {
+        match &self.pool {
+            None => None,
+            Some(p) => {
+                let dsid = String::from(ds_id.as_ref());
+                let rows: Result<Vec<TblDatasource>, Error> = sqlx::query_as("select * from tbl_datasource where id = $1")
+                    .bind(dsid)
+                    .fetch_all(&*p)
+                    .await;
+                match rows {
+                    Ok(row) => row.first().map(|t| {
+                        let host = t.host.clone();
+                        let port = t.port.clone();
+                        let password = t.password.clone();
+                        let default_database = t.default_database;
+                        let redis_prop = RedisProp::new(host, port.unwrap_or(6379), password, default_database);
+                        redis_prop
+                    }),
+                    Err(_) => None
+                }
+            }
         }
     }
 }
@@ -140,18 +176,60 @@ impl RedisPool {
         mutex.await.insert(datasource_id, Arc::new(Mutex::new(connection)));
     }
 
+    /** release connection */
+    pub async fn release_connection<T: AsRef<str>>(&self, datasource_id: T, database: Option<i64>) -> bool {
+        let ds_id = datasource_id.as_ref();
+
+        let exists = {
+            let ds_prop = self.data_source_manager.lock().await;
+            ds_prop.query_prop(ds_id).await
+        };
+
+        if let Some(_) = exists {
+            if let Some(spec_database) = database {
+                let with_db_key = format!("{ds_id}#{spec_database}");
+                let mut mutex = self.pool.lock().await;
+                let mut removed_connection = mutex.remove(&with_db_key);
+                if let Some(connection) = removed_connection {
+                    drop(connection);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                // release all database with id `datasource_id`
+                let mut mutex = self.pool.lock().await;
+                let keys = mutex.keys();
+                let mut rm_keys = vec![];
+                for key in keys {
+                    let cloned_key = key.clone();
+                    let ds_prefix = format!("{ds_id}#").to_string();
+                    if cloned_key.starts_with(ds_prefix.as_str()) {
+                        rm_keys.push(key.clone());
+                    }
+                }
+
+                for key in rm_keys {
+                    mutex.remove(&key);
+                }
+                true
+            }
+        } else {
+            panic!("Datasource not exists.");
+        }
+    }
+
     pub async fn try_connect<T: AsRef<str>>(&self, datasource_id: T, selected_db: Option<i64>) -> bool {
         let ds_id = datasource_id.as_ref();
         let mut cached_connection = self.pool.lock().await;
         let ds_prop = self.data_source_manager.lock().await;
-        let ds_map = ds_prop.configs.lock().await;
 
-        let ds = ds_map.get(&ds_id.to_string());
+        let ds = ds_prop.query_prop(&ds_id.to_string()).await;
         let redis_prop = match ds {
             None => panic!("Fail to find datasource {ds_id}"),
             Some(ds_prop) => match selected_db {
                 None => ds_prop.clone(),
-                Some(db) => ds_prop.select_db(db)
+                Some(db) => ds_prop.select_db(db as u16)
             }
         };
 
@@ -169,13 +247,13 @@ impl RedisPool {
                         cached_connection.insert(with_db_key.clone(), Arc::new(Mutex::new(con)));
                         match cached_connection.get(&with_db_key) {
                             None => panic!("Fail to find datasource {ds_id}"),
-                            Some(ds) => true
+                            Some(_) => true
                         }
                     }
-                    Err(err) => false
+                    Err(_) => false
                 }
             }
-            Some(ds) => true
+            Some(_) => true
         }
     }
 
@@ -186,14 +264,12 @@ impl RedisPool {
         let ds_id = datasource_id.as_ref();
         let mut cached_connection = self.pool.lock().await;
         let ds_prop = self.data_source_manager.lock().await;
-        let ds_map = ds_prop.configs.lock().await;
-
-        let ds = ds_map.get(&ds_id.to_string());
+        let ds = ds_prop.query_prop(&ds_id.to_string()).await;
         let redis_prop = match ds {
             None => panic!("Fail to find datasource {ds_id}"),
             Some(ds_prop) => match selected_db {
                 None => ds_prop.clone(),
-                Some(db) => ds_prop.select_db(db)
+                Some(db) => ds_prop.select_db(db as u16)
             }
         };
 
@@ -228,7 +304,7 @@ impl RedisPool {
                             Some(ds) => Arc::clone(ds)
                         }
                     }
-                    Err(err) => panic!("Fail to connect database.")
+                    Err(_) => panic!("Fail to connect database.")
                 }
             }
             Some(ds) => Arc::clone(ds)

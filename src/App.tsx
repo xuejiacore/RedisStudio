@@ -15,7 +15,7 @@ interface AppProp {
 const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
     // change default datasource and database index
     const [activityKey, setActivityKey] = useState("redis");
-    const [datasourceId, setDatasourceId] = useState('datasource01');
+    const [datasourceId, setDatasourceId] = useState('1');
     const [database, setDatabase] = useState(0);
 
     const removeListenerRef = useRef<UnlistenFn>();
@@ -37,6 +37,7 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
                     const payload: any = event.payload;
                     if (payload.winId == props.windowId) {
                         setDatasourceId(payload.props.datasourceId);
+                        setDatabase(payload.props.database);
                     }
                 }).then(resolveFn);
 

@@ -105,8 +105,8 @@ impl RedisIndexer {
     /// * `key` - key name for infer
     pub async fn fast_infer<T: AsRef<str>>(&self, datasource_id: &str, key: &Vec<T>) -> Option<InferResult> {
         let try_engine = {
-            let mut engine = self.inference_engine.lock().unwrap();
-            let mut inference = engine.datasource_pattern.lock().unwrap();
+            let engine = self.inference_engine.lock().unwrap();
+            let inference = engine.datasource_pattern.lock().unwrap();
             inference.get(datasource_id).cloned()
         };
         let inference_input = key.iter().map(|v| v.as_ref().to_string()).collect();
@@ -188,7 +188,7 @@ impl RedisIndexer {
         let pattern = infer_result.recognized_pattern.clone();
         let score = infer_result.score;
         let normalized_pattern = infer_result.normalized();
-        let mut try_engine = {
+        let try_engine = {
             let engines = self.inference_engine.lock().unwrap();
             let mut inference = engines.datasource_pattern.lock().unwrap();
             inference.get_mut(datasource_id).cloned()
@@ -236,7 +236,7 @@ impl RedisIndexer {
                         };
                         let schema = index.schema();
                         let pattern_keyword = schema.get_field("pattern.keyword").unwrap();
-                        let delete_term = Term::from_field_text(pattern_keyword, pattern_ref);
+                        let _delete_term = Term::from_field_text(pattern_keyword, pattern_ref);
                         // if !tantivy_indexer.delete(IDX_NAME_KEY_PATTERN, delete_term).await.unwrap() {
                         //     return Err(IndexError::SystemErr(String::from("fail to delete old document.")));
                         // }
@@ -335,7 +335,7 @@ impl RedisIndexer {
     }
 
     /// construct sub query by provided tokenizer.
-    fn construct_sub_query(key_ref: &str, schema: Schema, mut sub_query: &mut Vec<(Occur, Box<dyn Query>)>) {
+    fn construct_sub_query(key_ref: &str, schema: Schema, sub_query: &mut Vec<(Occur, Box<dyn Query>)>) {
         let mut tokenizer = RedisKeyTokenizer;
         let mut token_stream = tokenizer.token_stream(key_ref);
         // build effective (exclude number) subquery by `Should` condition.
@@ -418,11 +418,11 @@ impl RedisIndexer {
             None => {}
             Some(index) => {
                 // check data exists
-                let result = TantivyIndexer::searching_with_params(&index, |idx, params| {
+                let result = TantivyIndexer::searching_with_params(&index, |_idx, params| {
                     let schema = index.schema();
                     let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource);
                     let key_kw_term_query = build_text_term(&schema, "key.keyword", key);
-                    let mut sub_query = vec![
+                    let sub_query = vec![
                         (Occur::Must, datasource_term_query),
                         (Occur::Must, key_kw_term_query),
                     ];
@@ -458,7 +458,7 @@ impl RedisIndexer {
     /// * `key` - key name
     /// * `key_type` - type of key
     /// * `op_type` - operate type, -1: delete, 1: add
-    pub async fn operate_favor(&self, datasource: &str, database: i64, key: &str, key_type: &str, op_type: i16) {
+    pub async fn operate_favor(&self, datasource: &str, _database: i64, key: &str, key_type: &str, op_type: i16) {
         let now = Utc::now();
         let timestamp_millis = now.timestamp_millis();
         let doc_id = Uuid::new_v4().to_string();
@@ -480,11 +480,11 @@ impl RedisIndexer {
             None => {}
             Some(index) => {
                 // check data exists
-                let result = TantivyIndexer::searching_with_params(&index, |idx, params| {
+                let result = TantivyIndexer::searching_with_params(&index, |_idx, params| {
                     let schema = index.schema();
                     let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource);
                     let key_kw_term_query = build_text_term(&schema, "key.keyword", key);
-                    let mut sub_query = vec![
+                    let sub_query = vec![
                         (Occur::Must, datasource_term_query),
                         (Occur::Must, key_kw_term_query),
                     ];
@@ -518,38 +518,6 @@ impl RedisIndexer {
             }
         }
     }
-}
-
-async fn index_or_update(
-    datasource: &str,
-    pattern: &str,
-    score: f32,
-    tantivy_indexer: &TantivyIndexer,
-    normalized_pattern: String,
-    similar_keys: &Vec<String>,
-    scope: u64,
-) -> Result<()> {
-
-    //
-    // match query_exists_result {
-    //     Ok(result) => {
-    //         if result.size() > 0 {
-    //             let indexer = tantivy_indexer.get_indexer(IDX_NAME_KEY_PATTERN).await.unwrap();
-    //             let schema = indexer.schema();
-    //             let pattern_keyword = schema.get_field("pattern.keyword").unwrap();
-    //             let delete_term = Term::from_field_text(pattern_keyword, pattern);
-    //             if !tantivy_indexer.delete(IDX_NAME_KEY_PATTERN, delete_term).await.unwrap() {
-    //                 return Err(IndexError::SystemErr(String::from("fail to delete old document.")));
-    //             }
-    //         }
-    //         match tantivy_indexer.write_json(IDX_NAME_KEY_PATTERN, doc).await {
-    //             Ok(_result) => Ok(()),
-    //             Err(_err) => Err(IndexError::Unknown(String::from(""))),
-    //         }
-    //     }
-    //     Err(err) => Err(IndexError::Unknown(err.to_string())),
-    // }
-    Ok(())
 }
 
 /// index redis key name by tantivy indexer.

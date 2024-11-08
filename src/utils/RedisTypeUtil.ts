@@ -1,4 +1,9 @@
-// 定义 Redis 命令和数据类型
+export const DEFAULT_DATASOURCE_COLOR = [
+    '#D8876C', '#AC8932', '#99A462',
+    '#68A374', '#4F9FA1', '#5989C5',
+    '#566CE8', '#9159D9', '#B1569B'
+];
+
 export type RedisCommand =
     | 'APPEND' | 'AUTH' | 'BGREWRITEAOF' | 'BGSAVE' | 'BITCOUNT' | 'BITFIELD' | 'BITOP' | 'BITPOS' | 'BLPOP' | 'BRPOP'
     | 'BRPOPLPUSH' | 'BZPOPMIN' | 'BZPOPMAX' | 'CLIENT' | 'CLUSTER' | 'COMMAND' | 'CONFIG' | 'DBSIZE' | 'DEBUG'

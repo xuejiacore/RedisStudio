@@ -2,25 +2,20 @@ use crate::indexer::redis_indexer::RedisIndexer;
 use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
 use crate::utils::redis_util;
-use crate::{command, CmdError};
-use futures::future::MaybeDone::Future;
+use crate::CmdError;
 use log::debug;
-use redis::aio::{ConnectionLike, MultiplexedConnection};
-use redis::{cmd, Cmd, Commands, Connection, FromRedisValue, RedisResult, RedisWrite};
-use regex::{Match, Regex};
+use redis::aio::MultiplexedConnection;
+use redis::{cmd, Cmd, Commands, FromRedisValue, RedisResult};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::map::Values;
 use serde_json::{json, Value};
 use sqlx::{ColumnIndex, Row};
-use std::collections::{BTreeMap, HashMap};
-use std::fmt::{Error, Write};
+use std::collections::HashMap;
+use std::fmt::Write;
 use std::ops::DerefMut;
 use std::str::from_utf8;
-use std::string::FromUtf8Error;
-use std::sync::Mutex;
-use std::time::Instant;
 use std::vec::Vec;
-use tauri::{AppHandle, Emitter, Manager, Pattern, State, Window, Wry};
+use tauri::{AppHandle, Emitter, State, Window, Wry};
 use tokio::sync::MutexGuard;
 
 type Result<T> = std::result::Result<T, CmdError>;
@@ -85,12 +80,6 @@ pub async fn database_analysis(
     let sep = separator.unwrap_or("[:]".to_string());
     let mutex = redis_pool.select_connection(datasource, Some(database)).await;
     redis_util::async_analysis_database(mutex, key_pattern, scan_count, page_size, sep, 2, move |r| {
-        if r.finished {
-            // output result
-            println!("Receive Reporter: {}", json!(r));
-        } else {
-            println!("Analysing ... {}", r.progress);
-        }
         app.emit("database/analysis", r).unwrap();
     }).await;
     Ok(json!({}).to_string())
@@ -122,7 +111,7 @@ pub async fn dispatch_redis_cmd(
     let datasource_id = redis_cmd.datasource_id;
     let database = redis_cmd.database;
     let arc = redis_pool.select_connection(datasource_id.as_str(), Some(database)).await;
-    let mut con = arc.lock().await;
+    let con = arc.lock().await;
     match &redis_cmd.cmd as &str {
         "redis_list_datasource" => json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}]),
         "redis_get_database_info" => execute_get_database_info(con).await,
@@ -1039,7 +1028,7 @@ struct ScanCmd {
 async fn execute_scan_cmd(
     datasource_id: String,
     database: i64,
-    mut redis_pool: State<'_, RedisPool>,
+    redis_pool: State<'_, RedisPool>,
     params: ScanCmd,
     window: Window,
 ) -> Value {

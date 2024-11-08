@@ -10,14 +10,12 @@ type Result<T> = std::result::Result<T, CmdError>;
 
 #[tauri::command]
 pub async fn show_database_list_menu<R: Runtime>(
-    datasource: String,
+    _datasource: String,
     handle: AppHandle<R>,
     window: Window,
-    menu_context: State<'_, MenuContext>,
-    redis_pool: State<'_, RedisPool>,
+    _menu_context: State<'_, MenuContext>,
+    _redis_pool: State<'_, RedisPool>,
 ) -> Result<()> {
-    let arc = redis_pool.fetch_connection("datasource01").await;
-    let mut con = arc.lock().await;
     let app_handle = handle.app_handle();
     let _pkg_info = app_handle.package_info();
 
@@ -235,10 +233,10 @@ pub fn show_add_new_key_menu<R: Runtime>(
 /// open auto refresh timer on datatable toolkits
 #[tauri::command]
 pub fn show_auto_refresh_menu<R: Runtime>(
-    handle: tauri::AppHandle<R>,
+    handle: AppHandle<R>,
     window: Window,
-    x: f64,
-    y: f64,
+    _x: f64,
+    _y: f64,
 ) {
     let app_handle = handle.app_handle();
     let _pkg_info = app_handle.package_info();

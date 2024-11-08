@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 #[derive(Debug, FromRow)]
@@ -22,4 +23,17 @@ pub struct TblRedisCustomTag {
     update_time: Option<i64>,
     // mode
     mode: Option<i64>,
+}
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct TblDatasource {
+    pub id: i64,
+    pub datasource_name: String,
+    pub host: String,
+    pub port: Option<u16>,
+    pub user_name: Option<String>,
+    pub password: Option<String>,
+    pub default_database: Option<u16>,
+    pub color: Option<String>,
+    pub path: String,
 }

@@ -126,7 +126,7 @@ const ValueEditor: React.FC<ValueViewerProp> = (props, context) => {
             field: req.field,
             value: req.value,
             old_value: oldValue.current,
-            datasource_id: 'datasource01'
+            datasource_id: '1'
         };
 
         redis_invoke('redis_update', payload, props.datasourceId, props.selectedDatabase).then(r => {

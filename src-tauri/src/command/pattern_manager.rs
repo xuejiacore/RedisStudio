@@ -1,10 +1,9 @@
 use crate::indexer::redis_indexer::RedisIndexer;
-use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
 use crate::CmdError;
 use serde_json::{json, Value};
 use sqlx::Row;
-use tauri::{AppHandle, State, Window, Wry};
+use tauri::State;
 
 type Result<T> = std::result::Result<T, CmdError>;
 
@@ -13,9 +12,6 @@ pub async fn pattern_add_tag(datasource_id: &str,
                              key: &str,
                              pin_field: &str,
                              op: &str,
-                             app: AppHandle,
-                             window: Window<Wry>,
-                             redis_pool: State<'_, RedisPool>,
                              sqlite: State<'_, SqliteStorage>,
                              redis_indexer: State<'_, RedisIndexer>,
 ) -> Result<Value> {
@@ -39,7 +35,7 @@ pub async fn pattern_add_tag(datasource_id: &str,
             if rows.len() > 0 {
                 let pin_meta_str: &str = rows[0].try_get("pin_meta").unwrap();
                 let mut metas = pin_meta_str.split(";").collect::<Vec<&str>>();
-                if (is_add) {
+                if is_add {
                     if !metas.contains(&pin_field) {
                         metas.push(&pin_field);
                     }

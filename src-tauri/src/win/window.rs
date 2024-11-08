@@ -1,4 +1,3 @@
-use rand::Rng;
 use tauri::{Emitter, Manager, Runtime, WebviewWindow};
 use tauri_nspanel::{
     cocoa::{

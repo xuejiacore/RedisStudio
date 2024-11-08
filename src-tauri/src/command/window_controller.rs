@@ -1,11 +1,12 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::fmt::format;
+use crate::dao::datasource_dao;
 use crate::storage::redis_pool::RedisPool;
+use crate::storage::sqlite_storage::SqliteStorage;
 use crate::win::pinned_windows::PinnedWindows;
 use crate::win::window::WebviewWindowExt;
-use crate::CmdError;
+use crate::{CmdError, CmdResult};
 use futures::FutureExt;
 use rand::Rng;
 use redis::cmd;
@@ -23,19 +24,30 @@ type Result<T> = std::result::Result<T, CmdError>;
 const REDIS_PIN_LABEL_PREFIX: &str = "redispin_win:";
 
 #[tauri::command]
-pub fn open_datasource_window<R: Runtime>(x: f64, y: f64, win_id: i64, datasource_id: String, handle: tauri::AppHandle<R>) {
+pub async fn open_datasource_window<R: Runtime>(
+    x: f64,
+    y: f64,
+    win_id: i64,
+    datasource_id: String,
+    handle: tauri::AppHandle<R>,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<()> {
     let window = handle.get_webview_window("datasource-dropdown");
     match window {
-        None => {}
+        None => Ok(()),
         Some(win) => {
+            let datasource = datasource_dao::query_flat_datasource(None, sqlite).await?;
+            let datasource_json = json!(datasource).to_string();
+
             let main_window = handle.get_webview_window("main").unwrap();
             let pos = main_window.outer_position().unwrap();
             let log_pos: LogicalPosition<f64> = LogicalPosition::from_physical(pos, main_window.scale_factor().unwrap());
             win.set_size(Size::Logical(LogicalSize::new(270f64, 400f64))).unwrap();
             win.set_position(Position::Logical(LogicalPosition::new(x + log_pos.x, y + log_pos.y - 4f64))).unwrap();
-            let script = format!("window.loadAllDatasource({win_id}, '{datasource_id}', '')");
+            let script = format!("window.loadAllDatasource({win_id}, '{datasource_id}', '{datasource_json}')");
             win.eval(script.as_str()).unwrap();
             win.show().unwrap();
+            Ok(())
         }
     }
 }
@@ -95,7 +107,7 @@ pub async fn open_database_selector_window<R: Runtime>(
             let database_count = &databases_info[1];
 
             let json_data = json!(key_space_info).to_string();
-            win.eval(format!("window.loadAllDatabase({win_id}, {database}, '{json_data}', {database_count})").as_str()).unwrap();
+            win.eval(format!("window.loadAllDatabase({win_id}, {database}, '{json_data}', '{datasource_id}', {database_count})").as_str()).unwrap();
             win.show().unwrap();
         }
     }

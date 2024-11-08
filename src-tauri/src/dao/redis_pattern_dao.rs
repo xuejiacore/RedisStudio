@@ -1,5 +1,5 @@
 use crate::dao::types::TblRedisCustomTag;
-use sqlx::{Pool, Row};
+use sqlx::Pool;
 
 type Db = sqlx::sqlite::Sqlite;
 type Result<T> = std::result::Result<T, tauri_plugin_sql::Error>;

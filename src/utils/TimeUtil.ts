@@ -3,7 +3,7 @@ function padZero(num: number): string {
 }
 
 export function formatTimestamp(timestamp: number, format: string = 'YYYY-MM-DD HH:mm:ss'): string {
-    const date = new Date(timestamp * 1000); // JavaScript 时间戳是以毫秒为单位的，所以需要乘以 1000
+    const date = new Date(timestamp); // JavaScript 时间戳是以毫秒为单位的，所以需要乘以 1000
 
     const year = date.getFullYear();
     const month = padZero(date.getMonth() + 1); // 月份是从 0 开始的，所以需要加 1

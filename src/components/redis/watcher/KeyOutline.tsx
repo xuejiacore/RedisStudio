@@ -135,7 +135,12 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
     const [dataLen, setDataLen] = useState(0);
     const [tagVariablesComponent, setTagVariablesComponent] = useState(<></>)
     const [dataTime, setDataTime] = useState(<></>);
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.selectedDatabase);
+    const datasourceRef = useRef(props.datasourceId);
+    const databaseRef = useRef(props.selectedDatabase);
     const datepickerRef = useRef<any>();
+    const searchInputRef = useRef<InputRef>(null);
 
     useEffect(() => {
         if (keyInfo?.ttl && keyInfo?.ttl > 0) {
@@ -158,7 +163,7 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
     useEffect(() => {
         switch (props.action?.type) {
             case "RELOAD":
-                setDataTime(<>{formatTimestamp(Date.now() / 1000)}</>);
+                setDataTime(<>{formatTimestamp(Date.now())}</>);
                 break;
         }
     }, [props.action]);
@@ -166,7 +171,7 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
     function setOutlineInfo(keyInfo: KeyInfo) {
         setKeyInfo(keyInfo);
         setTtlCountDown(formatTtl(keyInfo));
-        setDataTime(<>{formatTimestamp(Date.now() / 1000)}</>);
+        setDataTime(<>{formatTimestamp(Date.now())}</>);
         if (keyInfo.ttl > 0) {
             const expireAt = Math.round(Date.now() / 1000) + keyInfo.ttl;
             setExpireAt('[' + formatTimestamp(expireAt) + ']');
@@ -196,12 +201,17 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
         redis_invoke("redis_key_info", {
             key: props.selectedKey,
             key_type: props.selectedKeyType
-        }, props.datasourceId, props.selectedDatabase).then(r => {
+        }, datasourceRef.current, databaseRef.current).then(r => {
             const keyInfo: KeyInfo = JSON.parse(r as string);
             setOutlineInfo(keyInfo);
         });
     }, [props.selectedKey]);
-    const searchInputRef = useRef<InputRef>(null);
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+    }, [props.datasourceId, props.selectedDatabase]);
 
     const showTagVars = (id: any) => {
         customTags.forEach(v => {
@@ -289,7 +299,7 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
             </Divider>
 
             <Flex gap="4px 0" wrap="wrap">
-                <RedisKeyTags selectedKey={props.selectedKey} datasource={'datasource01'}/>
+                <RedisKeyTags selectedKey={props.selectedKey} datasource={datasource}/>
             </Flex>
 
             {/* Custom Tags */}

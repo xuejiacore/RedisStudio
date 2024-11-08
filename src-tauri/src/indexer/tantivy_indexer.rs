@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::fmt;
-use std::fmt::{Formatter, Write};
+use std::fmt::Formatter;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tantivy::collector::{Collector, SegmentCollector, TopDocs};
@@ -158,7 +158,7 @@ impl TantivyIndexer {
         let schema = index.schema();
         let default_fields: Vec<Field> = schema
             .fields()
-            .filter(|&(field, entry)| {
+            .filter(|&(_field, entry)| {
                 let mut search_enabled = false;
                 if let FieldType::Str(ref text_options) = entry.field_type() {
                     if text_options.get_indexing_options().is_some() {
@@ -242,7 +242,7 @@ impl TantivyIndexer {
     pub async fn search_with_params<F>(
         &self,
         index_name: &str,
-        mut search_params_builder: F,
+        search_params_builder: F,
     ) -> Result<SearchResult>
     where
         F: FnMut(&Index, &mut SearchParams),

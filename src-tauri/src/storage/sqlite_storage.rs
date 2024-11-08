@@ -1,6 +1,5 @@
-use sqlx::{Connection, Executor, Pool, SqliteConnection};
+use sqlx::Pool;
 use std::collections::HashMap;
-use tauri_plugin_sql::Error;
 use tokio::sync::Mutex;
 
 type Db = sqlx::sqlite::Sqlite;
