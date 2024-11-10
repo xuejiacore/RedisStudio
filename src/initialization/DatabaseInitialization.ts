@@ -1,5 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
-import SystemProperties, {SysProp} from "../utils/SystemProperties.ts";
+import {SysProp} from "../utils/SystemProperties.ts";
 
 const SYS_DB_VERSION: string = '0.0.1';
 
@@ -15,7 +15,6 @@ function initializeDefaultSystemProperties(executeInitSql: (sql: string, bindVal
     };
 
     addProp(SysProp.FIELD_NAME_SYS_DB_VERSION, SYS_DB_VERSION);
-    addProp(SysProp.FIELD_SYS_REDIS_SEPARATOR, ':');
 }
 
 /**
@@ -118,8 +117,6 @@ function createSystemTables(executeInitSql: (sql: string, bindValues?: unknown[]
             where field = $2
         `, [SYS_DB_VERSION, SysProp.FIELD_NAME_SYS_DB_VERSION]);
     }
-
-    SystemProperties.initialize();
 }
 
 /**
@@ -154,8 +151,6 @@ async function initializeSystemDatabase(db: Database) {
                 createSystemTables(executeInitSql, 0)
             } else if (version[0].value != SYS_DB_VERSION) {
                 createSystemTables(executeInitSql, 1)
-            } else {
-                SystemProperties.initialize();
             }
         } else {
             console.error('error result', r);

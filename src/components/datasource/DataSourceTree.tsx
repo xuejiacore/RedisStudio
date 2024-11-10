@@ -1,15 +1,16 @@
 /* eslint-disable */
 import React, {useEffect, useRef, useState} from 'react';
 import {CarryOutOutlined, CopyOutlined, MinusOutlined, PlusOutlined} from '@ant-design/icons';
-import {Space, TreeDataNode} from 'antd';
+import {Flex, Space, TreeDataNode} from 'antd';
 import "./DataSourceTree.less";
 import DirectoryTree from "antd/es/tree/DirectoryTree";
 import DataSourceItem from "./DataSourceItem.tsx";
 import DataSourceGroup from "./DataSourceGroup.tsx";
 import {invoke} from "@tauri-apps/api/core";
+import {wrapColor} from "../../utils/Util.ts";
 
 interface DataSourceTreeProp {
-
+    onSelected: (datasource: number) => void;
 }
 
 function parseTree(node: any): TreeDataNode | undefined {
@@ -17,7 +18,6 @@ function parseTree(node: any): TreeDataNode | undefined {
         const children = node.children.map((c: any) => {
             return parseTree(c);
         });
-        console.log('children = ', children, node);
         return {
             title: (<DataSourceGroup name={node.name}/>),
             key: node.path,
@@ -27,11 +27,13 @@ function parseTree(node: any): TreeDataNode | undefined {
     } else if (node.node_type === 2) {
         return {
             title: (<DataSourceItem
-                    color={node.color}
+                    id={node.id}
+                    color={wrapColor(node.color, node.id, node.host, node.port)}
                     title={node.host}
-                    desc={'175.23.33.33s'}/>
+                    desc={'175.23.33.33s'}
+                    path={node.path}/>
             ),
-            key: node.path,
+            key: `ds#${node.id}`,
             icon: <CarryOutOutlined/>,
         }
     } else {
@@ -49,7 +51,6 @@ const DataSourceTree: React.FC<DataSourceTreeProp> = (props, context) => {
                 if (entry.isIntersecting) {
                     invoke('list_treed_datasource', {}).then((r: any) => {
                         const td = parseTree(r);
-                        console.log('解析后', td);
                         if (td) {
                             // @ts-ignore
                             setTreeData(td.children);
@@ -69,29 +70,25 @@ const DataSourceTree: React.FC<DataSourceTreeProp> = (props, context) => {
         }
     }, []);
     const onSelect = (selectedKeys: React.Key[], info: any) => {
-        console.log('selected', selectedKeys, info);
+        const children = info.node.children;
+        console.log(info);
+        if (!children || children.length > 0) {
+            props.onSelected(info.node.title.props.id);
+        }
     };
-
 
     return (<>
         <div ref={ref} className={'datasource-tree-div'}>
             <Space className={'datasource-tree-panel'} direction={"vertical"}>
-                <Space className={'datasource-operators'}>
-                    <PlusOutlined/>
-                    <MinusOutlined/>
-                    <CopyOutlined/>
-                </Space>
                 <DirectoryTree
                     className={'datasource-tree'}
-                    multiple
+                    multiple={false}
                     defaultExpandAll={true}
-                    defaultExpandParent={true}
                     showLine={false}
                     showIcon={false}
-                    // onExpand={onExpand}
                     treeData={treeData}
                     checkable={false}
-                    // onSelect={props.onSelect}
+                    onSelect={onSelect}
                     // titleRender={onTitleRender}
                     style={{
                         background: "#2B2D30",

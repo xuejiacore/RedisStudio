@@ -9,7 +9,7 @@ use redisstudio::menu::menu_manager::MenuContext;
 use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::storage::redis_pool::{DataSourceManager, RedisPool};
 use redisstudio::storage::sqlite_storage::SqliteStorage;
-use redisstudio::utils::redis_util;
+use redisstudio::utils::{redis_util, system};
 use redisstudio::view::command::CommandDispatcher;
 use redisstudio::win::pinned_windows::PinnedWindows;
 use redisstudio::win::window::WebviewWindowExt;
@@ -17,13 +17,11 @@ use redisstudio::Launcher;
 use serde_json::json;
 use sqlx::{Connection, Pool};
 use std::collections::HashSet;
-use std::fs;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{App, AppHandle, Emitter, Listener, Manager, State, WebviewWindow, WindowEvent, Wry};
 use tauri_plugin_sql::Error;
-use tauri_plugin_store::StoreExt;
 use tokio::time;
 
 pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
@@ -36,31 +34,7 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         tray::create_tray(handle)?;
     }
 
-    let package_info = app.package_info();
-    let env = app.env();
-    let resource_dir = tauri::utils::platform::resource_dir(package_info, &env).unwrap();
-    println!("{:?}", resource_dir);
-    let resource_path = resource_dir.join("resources/default_setting.json");
-    let content = fs::read_to_string(&resource_path)?;
-    let json: serde_json::Value = serde_json::from_str(&content)?;
-    println!("读取资源数据: {}", json);
-
-    // Create a new store or load the existing one
-    // this also put the store in the app's resource table
-    // so your following calls `store` calls (from both rust and js)
-    // will reuse the same store
-    let store = app.store(resource_path)?;
-    // Note that values must be serde_json::Value instances,
-    // otherwise, they will not be compatible with the JavaScript bindings.
-    // store.set("some-key", json!({ "value": 5 }));
-
-    // Get a value from the store.
-    // let value = store.get("some-key").expect("Failed to get value from store");
-    // println!("{}", value); // {"value":5}
-
-    // Remove the store from the resource table
-    store.close_resource();
-
+    system::initialize(app)?;
     init_spotlight_search_window(app);
 
     let launcher = Launcher::new();

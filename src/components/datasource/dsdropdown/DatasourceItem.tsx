@@ -6,9 +6,11 @@ export interface Datasource {
     host: string;
     name: string;
     port: number;
+    password?: string;
     datasource: string;
     default_database: number;
     dscolor: string;
+    path?: string;
 }
 
 interface DatasourceItemProp {

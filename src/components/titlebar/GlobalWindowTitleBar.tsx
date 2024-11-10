@@ -2,7 +2,7 @@
 
 import React, {useEffect, useRef, useState} from "react";
 import "./index.less";
-import {Col, Divider, Flex, Row, Space} from "antd";
+import {Col, Divider, Flex, Row, Space, Tag} from "antd";
 import DatabaseNumberIcon from "../icons/DatabaseNumberIcon.tsx";
 import {HistoryOutlined, LoadingOutlined, SettingOutlined} from "@ant-design/icons";
 import {invoke} from "@tauri-apps/api/core";
@@ -11,17 +11,26 @@ import {DataSourceChangedEvent} from "../datasource/DataSourceChangedEvent.ts";
 import CpuIcon from "../icons/CpuIcon.tsx";
 import ClientsNumIcon from "../icons/ClientNumIcon.tsx";
 import MetricIcon from "../icons/MetricIcon.tsx";
-import {humanNumber} from "../../utils/Util.ts";
+import {humanNumber, wrapColor} from "../../utils/Util.ts";
 
 interface TitleBarProp {
-    windowId: number;
+    windowId: number,
+    datasourceId?: number,
+    datasource: string,
+    database: number,
+    host?: string,
+    port?: number,
+    dsname?: string,
+    color?: string
 }
 
 const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
-    const [datasource, setDatasource] = useState('1');
-    const [database, setDatabase] = useState(0);
-    const [datasourceName, setDatasourceName] = useState('Localhost');
-    const [datasourceColor, setDatasourceColor] = useState('#0099cc');
+    const [datasource, setDatasource] = useState(props.datasource);
+    const [database, setDatabase] = useState(props.database);
+
+
+    const [datasourceName, setDatasourceName] = useState(props.dsname);
+    const [datasourceColor, setDatasourceColor] = useState(wrapColor(props.color, props.datasourceId, props.host, props.port));
 
     const [cpuPercentage, setCpuPercentage] = useState('-%');
     const [clients, setClients] = useState(0);
@@ -35,7 +44,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
     const [reconnecting, setReconnecting] = useState(false);
 
     const [databaseKeySize, setDatabaseKeySize] = useState(0);
-    const [datasourceInfo, setDatasourceInfo] = useState('172.31.86.29:6379');
+    const [datasourceInfo, setDatasourceInfo] = useState(`${props.host}:${props.port}`);
 
     const removeListenerRef = useRef<UnlistenFn>();
     const removeListenerIdRef = useRef(0);
@@ -199,6 +208,9 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                             <div className={`reconnect-btn ${connectedStatus}`} onClick={tryReconnect}>Reconnect</div>
                             <LoadingOutlined className={`connected-spin ${reconnecting ? '' : 'invisible'}`}
                                              spin={true}/>
+                        </Flex>
+                        <Flex>
+                            <div className={'datasource-tag'}>PRO</div>
                         </Flex>
                     </Flex>
                 </Col>

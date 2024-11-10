@@ -16,6 +16,7 @@ import ConsoleIcon from "../icons/ConsoleIcon.tsx";
 import {invoke} from "@tauri-apps/api/core";
 import {humanNumber} from "../../utils/Util.ts";
 import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
+import {SysManager} from "../../utils/SysManager.ts";
 
 const {Search} = Input;
 
@@ -108,7 +109,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const [comHeight, setComHeight] = useState(calParentHeight());
 
     const [scannedKeyCount, setScannedKeyCount] = useState(0);
-    let redisSeparator = SystemProperties.value(FIELD_SYS_REDIS_SEPARATOR);
+    let redisSeparator = SysManager.value(FIELD_SYS_REDIS_SEPARATOR, ':');
     if (!redisSeparator) {
         console.error('无法获取redisSeparator分隔符');
         redisSeparator = ':';

@@ -1,3 +1,5 @@
+import {DEFAULT_DATASOURCE_COLOR} from "./RedisTypeUtil.ts";
+
 export function toHexString(byteArray: Uint8Array | undefined): string {
     if (byteArray == undefined) {
         return '';
@@ -31,4 +33,13 @@ export function humanNumber(num: number): string {
         return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'k';
     }
     return num.toString();
+}
+
+export function wrapColor(color: string | undefined, dsId: string | number | undefined, host?: string, port?: number): string {
+    if (color) {
+        return color;
+    }
+
+    const index = Math.abs(hash(`${dsId}_${host}_${port}`) % DEFAULT_DATASOURCE_COLOR.length)
+    return DEFAULT_DATASOURCE_COLOR[index];
 }

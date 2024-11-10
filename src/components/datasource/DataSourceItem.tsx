@@ -2,9 +2,11 @@ import React from "react";
 import {Flex, Space} from "antd";
 
 interface DataSourceItemProp {
-    color?: string
-    title: string
-    desc?: string
+    id?: string | number;
+    color?: string;
+    title: string;
+    desc?: string;
+    path?: string;
 }
 
 const DataSourceItem: React.FC<DataSourceItemProp> = (props, context) => {

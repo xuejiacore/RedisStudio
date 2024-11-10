@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, {useEffect, useRef, useState} from "react";
 import {Button, Flex, Progress} from "antd";
 import {AreaChartOutlined, KeyOutlined, SaveOutlined} from "@ant-design/icons";
@@ -6,7 +7,7 @@ import MemoryFreeOverTime, {DataItem} from "./MemoryFreeOverTime.tsx";
 import {invoke} from "@tauri-apps/api/core";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import {humanNumber} from "../../../../utils/Util.ts";
-import {SqlLiteManager} from "../../../../utils/SqlLiteManager.ts";
+import {SysManager} from "../../../../utils/SysManager.ts";
 import {formatTimestamp} from "../../../../utils/TimeUtil.ts";
 
 interface AnalysisDashboardProps {
@@ -113,7 +114,7 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = props => {
                     if (payload.finished) {
                         const ts = Date.now();
                         setReportDateTime(formatTimestamp(ts));
-                        SqlLiteManager.use(db => {
+                        SysManager.use(db => {
                             db.execute(`
                                 INSERT INTO tbl_database_analysis_result(datasource_id, database, create_time, analysis_json_result, ver)
                                 VALUES ($1, $2, $3, $4, $5)
@@ -151,7 +152,7 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = props => {
         setDatabase(props.database);
         datasourceRef.current = props.datasource;
         databaseRef.current = props.database;
-        SqlLiteManager.use(db => {
+        SysManager.use(db => {
             db.select<string>("select * from tbl_database_analysis_result where datasource_id = $1 and database = $2", [
                 datasourceRef.current,
                 databaseRef.current
@@ -198,8 +199,8 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = props => {
     return <>
         <Flex className={'statistic-generate-info'} vertical={true}>
             <Progress percent={scanPercentage}
-                      strokeWidth={3}
-                      size={'small'}
+                      // @ts-ignore
+                      size={{width: '100%', height: 3}}
                       status={progressStatus}
                       strokeColor={{from: '#046db8', to: '#63f126'}}/>
 

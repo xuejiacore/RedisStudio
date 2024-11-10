@@ -1,13 +1,16 @@
 use crate::dao::datasource_dao;
 use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
+use crate::utils::system::{prop, SETTING_PATH};
 use crate::CmdResult;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use tauri::{AppHandle, Emitter, Runtime, State};
+use tauri::path::BaseDirectory;
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri_plugin_store::StoreExt;
 
 /// list flatted datasource list.
 #[tauri::command]
@@ -23,6 +26,7 @@ pub async fn list_flat_datasource<R: Runtime>(
 pub struct TreeNode {
     /// type of node: 1: group 2: leaf
     node_type: u16,
+    id: i64,
     name: String,
     short_name: Option<String>,
     color: Option<String>,
@@ -69,11 +73,13 @@ pub async fn list_treed_datasource<R: Runtime>(
 
         let mut dir = dir_map.get_mut(&ds.path).expect("Direction not exists");
         let mut node = TreeNode::default();
+        node.id = ds.id;
         node.node_type = 2;
         node.name = ds.datasource_name;
         node.host = Some(ds.host);
         node.port = ds.port;
         node.color = ds.color;
+        node.path = Some(ds.path);
         dir.borrow_mut().children.push(Rc::new(RefCell::new(node)));
     }
 
@@ -87,8 +93,34 @@ pub async fn change_active_datasource<R: Runtime>(
     default_database: i64,
     handle: AppHandle<R>,
     redis_pool: State<'_, RedisPool>,
+    sqlite: State<'_, SqliteStorage>,
 ) -> CmdResult<Value> {
     redis_pool.change_active_connection(Some(datasource.clone()), Some(default_database)).await;
+
+    let datasource_id = datasource.parse().expect("err occur");
+    let datasource_detail = datasource_dao::query_datasource(datasource_id, sqlite).await?;
+
+    let resource_path = &handle.path().resolve(SETTING_PATH, BaseDirectory::AppData).unwrap();
+    let store = handle.store(&resource_path).unwrap();
+
+    let ds_name = datasource_detail.datasource_name;
+    let ds_color = datasource_detail.color.unwrap_or(String::from(""));
+    let host = datasource_detail.host;
+    let port = datasource_detail.port;
+    let id = datasource_detail.id;
+    let path = datasource_detail.path;
+
+    store.set(prop::P_LAST_DATASOURCE, json!({
+        "datasource": datasource,
+        "database": default_database,
+        "dsname": ds_name,
+        "color": ds_color,
+        "host": host,
+        "port": port,
+        "id": id,
+        "path": path
+    }));
+    store.save().unwrap();
 
     let resp = json!({"datasource": &datasource, "database": default_database});
     handle.emit("spotlight/activated-datasource", resp).expect("Notify error.");
@@ -116,7 +148,19 @@ pub async fn query_datasource_detail<R: Runtime>(
     let ds_id = datasource_detail.id;
     let host = datasource_detail.host;
     let port = datasource_detail.port;
-    Ok(json!({"name": ds_name, "ds_color": ds_color, "id": ds_id, "host": host, "port": port}))
+    let default_database = datasource_detail.default_database;
+    let password = datasource_detail.password;
+    let path = datasource_detail.path;
+    Ok(json!({
+        "name": ds_name,
+        "ds_color": ds_color,
+        "id": ds_id,
+        "host": host,
+        "port": port,
+        "default_database": default_database,
+        "password": password,
+        "path": path
+    }))
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]

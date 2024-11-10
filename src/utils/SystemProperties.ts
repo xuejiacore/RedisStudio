@@ -1,9 +1,10 @@
-import {SqlLiteManager} from "./SqlLiteManager.ts";
+import {SysManager} from "./SysManager.ts";
 import {invoke} from "@tauri-apps/api/core";
+import {LazyStore} from "@tauri-apps/plugin-store";
 
 export namespace SysProp {
     export const FIELD_NAME_SYS_DB_VERSION = 'f_db_version';
-    export const FIELD_SYS_REDIS_SEPARATOR = 'f_redis_separator';
+    export const FIELD_SYS_REDIS_SEPARATOR = 'f_separator';
 }
 
 /**
@@ -11,20 +12,30 @@ export namespace SysProp {
  */
 class SystemProperties {
 
-    static properties = new Map<string, string>();
+    static properties = new Map<string, any>();
 
     /**
      * initialize system properties from databases
      */
     public static initialize() {
-        SqlLiteManager.use(db => {
-            db.select(`
-                SELECT field, value
-                FROM tbl_system
-            `).then((result: any) => {
-                result.forEach((row: any) => this.properties.set(row.field, row.value));
+        const store = new LazyStore("resources/setting.json", {autoSave: true});
+        store.entries().then(entries => {
+            entries.forEach(entry => {
+                const key = entry[0];
+                const value = entry[1];
+                this.properties.set(key, value);
             });
-        })
+            console.log('-------->>2', this.properties);
+        });
+        console.log('-------->>', this.properties);
+        // SqlLiteManager.use(db => {
+        //     db.select(`
+        //         SELECT field, value
+        //         FROM tbl_system
+        //     `).then((result: any) => {
+        //         result.forEach((row: any) => this.properties.set(row.field, row.value));
+        //     });
+        // })
     }
 
     /**
@@ -45,7 +56,7 @@ class SystemProperties {
      * @param value value
      */
     public static set(key: string, value: string) {
-        SqlLiteManager.use(db => {
+        SysManager.use(db => {
             db.execute(`
                 UPDATE tbl_system
                 SET value       = $1,
