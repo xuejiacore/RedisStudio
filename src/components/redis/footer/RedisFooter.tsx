@@ -166,6 +166,8 @@ const RedisFooter: React.FC<RedisFooterProps> = (props, context) => {
     const handleMouseDown = (e: any) => {
         console.log('mouseDown ---------------')
         setIsDragging(true);
+        invoke('resize_redis_pushpin_window', {keyName: props.keyName, x: e.screenX, y: e.screenY}).then(r => {
+        });
     };
 
     const handleMouseMove = (e: any) => {
@@ -173,8 +175,6 @@ const RedisFooter: React.FC<RedisFooterProps> = (props, context) => {
             // const touch = e.touches[0]; // 取第一个触点
             console.log(e.screenX, e.screenY);
             // setPosition({x: touch.clientX, y: touch.clientY});
-            invoke('resize_redis_pushpin_window', {keyName: props.keyName, x: e.screenX, y: e.screenY}).then(r => {
-            });
         }
     };
 

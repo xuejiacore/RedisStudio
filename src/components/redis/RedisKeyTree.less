@@ -21,6 +21,11 @@
   height: calc(100vh - 32px);
   border-right: 1px #1E1F22 solid;
 
+  .ant-collapse-expand-icon {
+    height: 18px !important;
+    line-height: 18px !important;
+  }
+
   .datasource-tree-panel-search {
     padding: 4px 8px;
 
@@ -102,9 +107,9 @@
   }
 
   .redis-key-name {
-    color: #f6f6f6;
+    color: #EAEAEA;
+    font-size: 12px;
     font-family: JetBrainsMonoBold, sans-serif;
-    line-height: 20px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -114,6 +119,10 @@
   .redis-key-name.empty {
     color: #646464;
     padding-left: 4px;
+  }
+
+  .ant-tree-treenode {
+    margin-bottom: 0;
   }
 
   .ant-tree-treenode-selected {
@@ -136,6 +145,29 @@
 }
 
 .core-redis-keys-tree {
+
+  .collapse-icon {
+    color: #cccbcb;
+  }
+
+  .ant-collapse-header-text {
+    text-align: left;
+    color: rgba(126, 125, 125, 0.74);
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .ant-collapse-item-active {
+    .ant-collapse-header-text {
+      color: #EAEAEA;
+      font-weight: 800;
+    }
+  }
+
+  .favor-header {
+
+  }
+
   .ant-collapse-content-box {
     padding-top: 0 !important;
     padding-bottom: 0 !important;

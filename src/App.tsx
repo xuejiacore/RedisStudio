@@ -10,13 +10,16 @@ import {DataSourceChangedEvent} from "./components/datasource/DataSourceChangedE
 
 interface AppProp {
     windowId: number;
+    datasourceId?: number,
+    datasource: string,
+    database: number,
 }
 
 const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
     // change default datasource and database index
     const [activityKey, setActivityKey] = useState("redis");
-    const [datasourceId, setDatasourceId] = useState('1');
-    const [database, setDatabase] = useState(0);
+    const [datasourceId, setDatasourceId] = useState(props.datasourceId?.toString());
+    const [database, setDatabase] = useState(props.database);
 
     const removeListenerRef = useRef<UnlistenFn>();
     const removeListenerIdRef = useRef(0);
@@ -66,7 +69,7 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
         };
     }, []);
 
-    const activatedColor = '#DBDDE2';
+    const activatedColor = '#b283ff';
     const deactivatedColor = '#5E5F62';
     const colorFn = (currentKey: string, targetKey: string) => {
         if (currentKey === targetKey) {
@@ -89,7 +92,7 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
                     label: <><RedisIcon style={{width: '15px', color: colorFn(activityKey, 'redis')}}/></>,
                     key: 'redis',
                     children: <><Redis windowId={props.windowId}
-                                       datasourceId={datasourceId}
+                                       datasourceId={datasourceId!}
                                        selectedDatabase={database}/></>
                 },
                 {

@@ -15,7 +15,6 @@ pub mod view;
 pub mod constant;
 pub mod dao;
 pub mod menu;
-pub mod spotlight_command;
 pub mod win;
 pub mod utils;
 pub mod docs;

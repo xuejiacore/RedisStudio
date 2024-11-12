@@ -1,3 +1,4 @@
+use crate::utils::system::constant::{PIN_WINDOW_MIN_HEIGHT, PIN_WINDOW_MIN_WIDTH};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicI16;
 use std::sync::{Arc, Mutex};
@@ -36,8 +37,8 @@ impl PinnedWindows {
 
         let url: WebviewUrl = WebviewUrl::App(WEBVIEW_URL.into());
         let window = tauri::webview::WebviewWindowBuilder::new(manager, label.clone(), url)
-            .inner_size(410f64, 290f64)
-            .min_inner_size(410f64, 170f64)
+            .inner_size(PIN_WINDOW_MIN_WIDTH, PIN_WINDOW_MIN_HEIGHT)
+            .min_inner_size(PIN_WINDOW_MIN_WIDTH, PIN_WINDOW_MIN_HEIGHT)
             .transparent(true)
             .visible(false)
             .decorations(false)

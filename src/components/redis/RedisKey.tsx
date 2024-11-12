@@ -2,6 +2,7 @@ import React, {ReactNode, useEffect, useRef, useState} from "react";
 import type {DataNode} from "antd/es/tree";
 import {redis_invoke} from "../../utils/RustIteractor";
 import "./RedisKey.less";
+import {Flex} from "antd";
 
 type CustomDataNode = DataNode & {
     keyType?: string,
@@ -11,7 +12,6 @@ type CustomDataNode = DataNode & {
 
 interface RedisKeyProp {
     node: CustomDataNode
-
     datasourceId: string;
     selectedDatabase: number;
 }
@@ -60,8 +60,10 @@ const RedisKey: React.FC<RedisKeyProp> = (props, context) => {
 
     return <>
         <div ref={ref} className="tree-node-name">
-            <div className={"redis-type " + keyType + deleteClz}>{keyTypeFirstChart}</div>
-            <div className={`redis-key-name ${title ? '' : 'empty'}`}>{title ? title : '<Empty>'}</div>
+            <Flex justify="center" align={"center"} gap={3}>
+                <div className={"redis-type " + keyType + deleteClz}>{keyTypeFirstChart}</div>
+                <div className={`redis-key-name ${title ? '' : 'empty'}`}>{title ? title : '<Empty>'}</div>
+            </Flex>
         </div>
     </>
 }

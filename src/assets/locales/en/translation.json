@@ -17,6 +17,7 @@
       "sub_tree": {
         "favor_count": "FAVORITE ({{count}})",
         "keys_count": "KEYS ({{keyCount}} SCANNED)",
+        "data_view": "DATA VIEW ({{count}})",
         "keys_tree": {
           "scan_more_result": "Scan More",
           "scan_no_more_result": "No More Result",

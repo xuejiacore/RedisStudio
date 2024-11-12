@@ -186,7 +186,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
         } catch (error) {
             console.error('Error fetching query result:', error);
         }
-    }, 350); // 设置防抖时间为500毫秒
+    }, 500); // 设置防抖时间为500毫秒
 
     const onSelect = (searchingStatus: boolean, value: any, option: any) => {
         let updateSearchText = true;

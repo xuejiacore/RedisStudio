@@ -1,12 +1,12 @@
 use crate::tray;
 use chrono::Utc;
 use redis::cmd;
+use redisstudio::command::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::indexer::redis_indexer::RedisIndexer;
 use redisstudio::indexer::simple_infer_pattern::PatternInferenceEngines;
 use redisstudio::indexer::tantivy_indexer::TantivyIndexer;
 use redisstudio::menu::main_menu;
 use redisstudio::menu::menu_manager::MenuContext;
-use redisstudio::spotlight_command::SPOTLIGHT_LABEL;
 use redisstudio::storage::redis_pool::{DataSourceManager, RedisPool};
 use redisstudio::storage::sqlite_storage::SqliteStorage;
 use redisstudio::utils::{redis_util, system};
@@ -21,10 +21,11 @@ use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{App, AppHandle, Emitter, Listener, Manager, State, WebviewWindow, WindowEvent, Wry};
+use tauri_nspanel::cocoa::appkit::NSEvent;
 use tauri_plugin_sql::Error;
 use tokio::time;
 
-pub type TauriResult<T> = std::result::Result<T, tauri::Error>;
+pub type TauriResult<T> = Result<T, tauri::Error>;
 
 /// setup
 pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
@@ -133,7 +134,9 @@ async fn prepare_datasource_manager(cloned_app_handler: AppHandle, connect_proto
             let mut processed = HashSet::<String>::new();
             let pool = redis_pool.get_pool().await;
             for db_key in keys {
-                let datasource = db_key.split("#").collect::<Vec<&str>>().get(0)
+                let datasource = db_key.split("#")
+                    .collect::<Vec<&str>>()
+                    .get(0)
                     .expect("unrecognized pattern").to_string();
 
                 if processed.contains(&datasource) {

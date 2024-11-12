@@ -56,7 +56,7 @@ async fn test_datasource_pool() {
     let mut start = Instant::now();
     {
         start = Instant::now();
-        let c1 = pool.fetch_connection("datasource01".into());
+        let c1 = pool.select_connection("datasource01", None);
         println!("获得连接耗时：{:?}", start.elapsed());
         let binding = c1.await;
         let mut mutex = binding.lock().await;
@@ -67,7 +67,7 @@ async fn test_datasource_pool() {
 
     {
         start = Instant::now();
-        let c1 = pool.fetch_connection("datasource01".into());
+        let c1 = pool.select_connection("datasource01", None);
         println!("获得连接耗时：{:?}", start.elapsed());
         let binding = c1.await;
         let mut mutex = binding.lock().await;
@@ -78,7 +78,7 @@ async fn test_datasource_pool() {
 
     {
         start = Instant::now();
-        let c1 = pool.fetch_connection("datasource01".into());
+        let c1 = pool.select_connection("datasource01", None);
         println!("获得连接耗时：{:?}", start.elapsed());
         let binding = c1.await;
         let mut mutex = binding.lock().await;

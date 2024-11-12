@@ -4,6 +4,7 @@
 use crate::dao::datasource_dao;
 use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
+use crate::utils::system::constant::{PIN_WINDOW_MIN_HEIGHT, PIN_WINDOW_MIN_WIDTH};
 use crate::win::pinned_windows::PinnedWindows;
 use crate::win::window::WebviewWindowExt;
 use crate::{CmdError, CmdResult};
@@ -14,9 +15,11 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::ops::DerefMut;
-use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Position, Runtime, Size, State, WebviewWindow, Wry};
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalSize, Position, Runtime, Size, State, WebviewWindow, Wry};
 use tauri_nspanel::cocoa::appkit::NSEvent;
 use tauri_nspanel::cocoa::base::nil;
+use tauri_nspanel::cocoa::foundation::NSUInteger;
 use tauri_nspanel::ManagerExt;
 
 type Result<T> = std::result::Result<T, CmdError>;
@@ -195,26 +198,39 @@ pub fn resize_redis_pushpin_window<R: Runtime>(
     window: tauri::Window<Wry>,
     pin_win_man: State<'_, PinnedWindows>,
 ) {
+    let monitor = monitor::get_monitor_with_cursor().expect("fail to obtain monitor [1]");
+    let scale_factor = monitor.scale_factor();
+    let monitor_size = monitor.size();
+
     let window = pin_win_man.fetch_idle_window(key_name.to_string(), &handle);
     let pos = window.outer_position().unwrap();
-    println!("pos: {:?}, x={}, y={}", pos, x, y);
 
-    // 获得鼠标的位置
-    unsafe {
-        // 获取鼠标位置
-        let event = NSEvent::mouseLocation(nil);
-        let mut mouse_x = event.x;
-        let mut mouse_y = event.y; // Flip y-coordinate for macOS
+    let monitor_height = monitor_size.height as f64;
+    let fix_pos_y = pos.y as f64 - 18f64;
+    let fixed_monitor_height = monitor_height - fix_pos_y;
+    let fix_pos_x = pos.x as f64 - 18f64;
+    tauri::async_runtime::spawn(async move {
+        let press = NSUInteger::from(1u64);
+        loop {
+            unsafe {
+                let mouse_logic_pos = NSEvent::mouseLocation(nil);
+                let mouse_status = NSEvent::pressedMouseButtons(nil);
+                if !mouse_status.eq(&press) {
+                    println!("release mouse");
+                    return;
+                }
 
-        let aft_x = mouse_x as f64 - pos.x as f64 + 4f64;
-        let aft_y = mouse_y as f64 - pos.y as f64 + 4f64;
-        println!("mouse ({}, {}), afterSize = ({}, {})", mouse_x, mouse_y, aft_x, aft_y);
-        // window.set_size(Size::Logical(LogicalSize::new(af_width, af_height))).unwrap();
-    }
+                let mouse_phy_x = mouse_logic_pos.x * scale_factor;
+                let mouse_phy_y = mouse_logic_pos.y * scale_factor;
 
-    let af_width = x - pos.x as f64;
-    let af_height = y - pos.y as f64;
-    // window.set_size(Size::Logical(LogicalSize::new(af_width, af_height))).unwrap();
+                let new_width = (PIN_WINDOW_MIN_WIDTH * scale_factor).max(mouse_phy_x - fix_pos_x);
+                let new_height = (PIN_WINDOW_MIN_HEIGHT * scale_factor).max(fixed_monitor_height - mouse_phy_y);
+                let size = PhysicalSize::from((new_width, new_height));
+                window.set_size::<PhysicalSize<f64>>(size).expect("fail to resize");
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        }
+    });
 }
 
 #[tauri::command]

@@ -1,63 +1,75 @@
 @import "../../utils/RedisTypeStyle";
 
-.redis-type {
-  float: left;
-  font-weight: bold;
-  width: 10px;
-  height: 16px;
-  line-height: 16px;
-  padding: 0 3px;
-  margin-right: 3px;
-  position: relative;
-  top: 2px;
-  border-radius: 2px;
-  color: white;
-  text-align: center;
+.ant-tree-treenode-selected {
+  .ant-tree-node-content-wrapper:hover:before {
+    border-radius: 2px !important;
+  }
+
+  .ant-tree-node-content-wrapper:before {
+    background: #3d5587 !important;
+    border-radius: 3px !important;
+  }
+}
+
+.ant-tree-node-content-wrapper:hover:before {
+  background: #354b78A0 !important;
+  border-radius: 3px !important;
+}
+
+
+.tree-node-name {
+
+  .redis-type {
+    font-weight: bold;
+    line-height: 16px;
+    padding: 0 3px;
+    border-radius: 2px;
+    color: white;
+  }
+
+  .redis-type.deleted {
+    background: #646464 !important;
+  }
+
+  .redis-type.hash {
+    background: linear-gradient(to top left, @--typeHashLinearColor, @--typeHashColor);
+  }
+
+  .redis-type.string {
+    background: linear-gradient(to top left, @--typeStringLinearColor, @--typeStringColor);
+  }
+
+  .redis-type.zset {
+    background: linear-gradient(to top left, @--typeZSetLinearColor, @--typeZSetColor);
+  }
+
+  .redis-type.set {
+    background: linear-gradient(to top left, @--typeSetLinearColor, @--typeSetColor);
+  }
+
+  .redis-type.list {
+    background: linear-gradient(to top left, @--typeListLinearColor, @--typeListColor);
+  }
 }
 
 .redis-directory {
-  line-height: 19px;
-  align-items: center;
 
   .redis-directory-key-title {
-    color: #f6f6f6;
+    color: #EAEAEA;
     font-family: JetBrainsMonoBold, sans-serif;
-    font-size: small;
+    font-size: 12px;
   }
 
   .redis-directory-key-counter {
-    margin-left: 5px;
-    padding: 0 3px;
-    border-radius: 1px;
-    color: #8a8b91;
-    background: #393B40;
-    font-weight: bold;
-    font-size: 8px;
+    padding: 0 4px;
+    height: 14px;
+    line-height: 14px;
+    border-radius: 2px;
+    color: #bebfc3;
+    background: #46484a;
     text-align: center;
+    font-weight: bold;
+    font-size: 10px;
     box-shadow: 0 0 2px 1px #8a8b9130;
   }
-}
-
-.redis-type.deleted {
-  background: #646464 !important;
-}
-
-.redis-type.hash {
-  background: linear-gradient(to top left, @--typeHashLinearColor, @--typeHashColor);
-}
-
-.redis-type.string {
-  background: linear-gradient(to top left, @--typeStringLinearColor, @--typeStringColor);
-}
-
-.redis-type.zset {
-  background: linear-gradient(to top left, @--typeZSetLinearColor, @--typeZSetColor);
-}
-
-.redis-type.set {
-  background: linear-gradient(to top left, @--typeSetLinearColor, @--typeSetColor);
-}
-
-.redis-type.list {
-  background: linear-gradient(to top left, @--typeListLinearColor, @--typeListColor);
 }

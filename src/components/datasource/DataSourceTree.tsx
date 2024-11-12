@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React, {useEffect, useRef, useState} from 'react';
-import {CarryOutOutlined, CopyOutlined, MinusOutlined, PlusOutlined} from '@ant-design/icons';
-import {Flex, Space, TreeDataNode} from 'antd';
+import {CarryOutOutlined} from '@ant-design/icons';
+import {Space, TreeDataNode} from 'antd';
 import "./DataSourceTree.less";
 import DirectoryTree from "antd/es/tree/DirectoryTree";
 import DataSourceItem from "./DataSourceItem.tsx";
@@ -25,12 +25,15 @@ function parseTree(node: any): TreeDataNode | undefined {
             children: children,
         };
     } else if (node.node_type === 2) {
+        console.log(node);
         return {
             title: (<DataSourceItem
                     id={node.id}
                     color={wrapColor(node.color, node.id, node.host, node.port)}
-                    title={node.host}
-                    desc={'175.23.33.33s'}
+                    host={node.host}
+                    port={node.port}
+                    default_database={node.default_database}
+                    name={node.name}
                     path={node.path}/>
             ),
             key: `ds#${node.id}`,

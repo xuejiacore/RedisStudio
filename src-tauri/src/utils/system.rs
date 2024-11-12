@@ -11,6 +11,11 @@ pub mod prop {
     pub const P_REDIS_KEY_SEPA: &str = "f_separator";
 }
 
+pub mod constant {
+    pub const PIN_WINDOW_MIN_WIDTH: f64 = 410f64;
+    pub const PIN_WINDOW_MIN_HEIGHT: f64 = 290f64;
+}
+
 pub fn initialize(app: &mut App<Wry>) -> Result<(), Error> {
     let resource_path = &app.path().resolve(SETTING_PATH, BaseDirectory::AppData)?;
     let store = app.store(&resource_path)?;

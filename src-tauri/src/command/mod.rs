@@ -1,4 +1,3 @@
-use crate::spotlight_command;
 use tauri::{Builder, Wry};
 
 pub mod index_search;
@@ -8,6 +7,7 @@ pub mod window_controller;
 pub mod pattern_manager;
 pub mod common_cmd;
 pub mod datasource_mgr_command;
+pub mod spotlight_command;
 
 pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
 {
@@ -52,6 +52,5 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             menu_controller::show_auto_refresh_menu,
             menu_controller::show_add_new_key_menu,
             menu_controller::show_key_tree_right_menu,
-            menu_controller::show_database_list_menu,
         ])
 }

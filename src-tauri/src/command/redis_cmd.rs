@@ -110,26 +110,30 @@ pub async fn dispatch_redis_cmd(
     debug!("cmd = {}, params = {}", &redis_cmd.cmd.clone(), cmd_data);
     let datasource_id = redis_cmd.datasource_id;
     let database = redis_cmd.database;
-    let arc = redis_pool.select_connection(datasource_id.as_str(), Some(database)).await;
-    let con = arc.lock().await;
-    match &redis_cmd.cmd as &str {
-        "redis_list_datasource" => json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}]),
-        "redis_get_database_info" => execute_get_database_info(con).await,
-        "redis_key_scan" => execute_scan_cmd(datasource_id, database, redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_key_type" => execute_type_cmd(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_get_hash" => execute_get_hash(con, datasource_id, serde_json::from_str(cmd_data).unwrap(), window, redis_indexer, sqlite).await,
-        "redis_get_string" => execute_get_string(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_key_info" => execute_key_info(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_zrange_members" => execute_zrange_members(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_lrange_members" => execute_lrange_members(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_sscan" => execute_sscan(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_update" => update_value(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "run_redis_command" => execute_redis_command(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_new_key" => execute_redis_new_key(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_rename" => execute_redis_rename(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_duplicate" => execute_redis_duplicate(con, serde_json::from_str(cmd_data).unwrap(), window).await,
-        "redis_analysis" => execute_redis_analysis(datasource_id, database, redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await,
-        _ => unimplemented!(),
+
+    if redis_cmd.cmd.eq("redis_key_scan") {
+        execute_scan_cmd(datasource_id, database, redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await
+    } else {
+        let arc = redis_pool.select_connection(datasource_id.as_str(), Some(database)).await;
+        let con = arc.lock().await;
+        match &redis_cmd.cmd as &str {
+            "redis_list_datasource" => json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}]),
+            "redis_get_database_info" => execute_get_database_info(con).await,
+            "redis_key_type" => execute_type_cmd(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_get_hash" => execute_get_hash(con, datasource_id, serde_json::from_str(cmd_data).unwrap(), window, redis_indexer, sqlite).await,
+            "redis_get_string" => execute_get_string(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_key_info" => execute_key_info(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_zrange_members" => execute_zrange_members(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_lrange_members" => execute_lrange_members(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_sscan" => execute_sscan(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_update" => update_value(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "run_redis_command" => execute_redis_command(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_new_key" => execute_redis_new_key(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_rename" => execute_redis_rename(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_duplicate" => execute_redis_duplicate(con, serde_json::from_str(cmd_data).unwrap(), window).await,
+            "redis_analysis" => execute_redis_analysis(datasource_id, database, redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await,
+            _ => unimplemented!(),
+        }
     }
 }
 
@@ -1019,6 +1023,7 @@ async fn execute_sscan(
 
 #[derive(Serialize, Deserialize)]
 struct ScanCmd {
+    force_scan: Option<bool>,
     count: Option<usize>,
     page_size: Option<usize>,
     cursor: Option<u64>,
@@ -1032,6 +1037,26 @@ async fn execute_scan_cmd(
     params: ScanCmd,
     window: Window,
 ) -> Value {
+    let pattern = params.pattern.as_str();
+    let pure_key = pattern.replace("*", "");
+
+    let force_scan = params.force_scan.unwrap_or(false);
+    if !force_scan {
+        let exists: i32 = {
+            let arc = redis_pool.select_connection(datasource_id.clone(), Some(database)).await;
+            let mut mutex = arc.lock().await;
+            cmd("EXISTS").arg(&pure_key).query_async(mutex.deref_mut()).await.unwrap()
+        };
+
+        if exists == 1 {
+            // found exactly key
+            let keys = vec![&pure_key];
+            let payload = json!({"cursor": 0, "keys": keys, "exactly_key": true, "finished": true});
+            window.emit("redis_scan_event", payload).unwrap();
+            return json!({});
+        }
+    }
+
     let arc = redis_pool.select_connection(datasource_id, Some(database)).await;
     tokio::spawn(async move {
         let mut con = arc.lock().await;
@@ -1046,7 +1071,7 @@ async fn execute_scan_cmd(
             } else {
                 page_size
             };
-            let (new_cursor, results): (u64, Vec<String>) = cmd("SCAN")
+            let (new_cursor, mut results): (u64, Vec<String>) = cmd("SCAN")
                 .arg(cursor)
                 .arg("MATCH")
                 .arg(pattern)
@@ -1062,8 +1087,8 @@ async fn execute_scan_cmd(
                 0
             };
             cursor = new_cursor;
-
-            let payload_json = json!({"cursor": cursor,"keys": results});
+            results.retain(|x| !x.eq(&pure_key));
+            let payload_json = json!({"cursor": cursor, "keys": results});
             window.emit("redis_scan_event", payload_json).unwrap();
             if remain_expect_count == 0 || cursor == 0 {
                 let payload_json = json!({"finished": true});

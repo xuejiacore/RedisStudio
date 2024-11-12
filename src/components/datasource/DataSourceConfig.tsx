@@ -41,7 +41,9 @@ const DataSourceConfig: React.FC<DataSourceConfigProp> = (props, context) => {
     const [host, setHost] = useState('');
     const [port, setPort] = useState(6379);
     const [datasourceDetail, setDatasourceDetail] = useState<Datasource>();
-    const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItemType[]>();
+    const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItemType[]>([{
+        title: <FolderOutlined/>
+    }]);
 
     const [selectedTabKey, setSelectedTabKey] = useState('1');
     const [datasourceType, setDatasourceType] = useState('redis')
@@ -68,8 +70,9 @@ const DataSourceConfig: React.FC<DataSourceConfigProp> = (props, context) => {
                 setHost(r.host);
                 setPort(r.port);
                 setDatasourceDetail(r);
-                if (r.path) {
-                    let breadcrumb = r.path.split("/").map((t: string) => {
+                const path = r.path ?? '/';
+                if (path) {
+                    let breadcrumb = path.split("/").map((t: string) => {
                         if (t.length == 0) {
                             return {
                                 title: <FolderOutlined/>
@@ -80,7 +83,6 @@ const DataSourceConfig: React.FC<DataSourceConfigProp> = (props, context) => {
                             }
                         }
                     });
-                    console.log(breadcrumb)
                     setBreadcrumb(breadcrumb);
                 }
             });

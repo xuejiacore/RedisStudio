@@ -31,7 +31,11 @@ SysManager.use(db => {
                                       color={color}
                 />
                 <div className={'project-drop-down'}></div>
-                <App windowId={windowId}/>
+                <App windowId={windowId}
+                     datasourceId={id}
+                     datasource={last_datasource_id}
+                     database={last_database}
+                />
             </div>
         </StrictMode>
     );

@@ -10,6 +10,7 @@ use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
 
 pub const SPOTLIGHT_LABEL: &str = "spotlight-search";
 
+/// hide spotlight search
 #[tauri::command]
 pub fn hide_spotlight(app_handle: AppHandle,
                       window: tauri::Window<Wry>,
@@ -43,11 +44,9 @@ pub async fn resize_spotlight_window<R: Runtime>(
     search_win.set_focus().unwrap();
 }
 
-
+/// binding spotlight shortcut key
 pub fn spotlight_key_shortcut(app: &AppHandle, shortcut: &HotKey, event: GlobalHotKeyEvent) {
     if event.state == ShortcutState::Pressed && shortcut.matches(Modifiers::SUPER, Code::KeyK) {
-        let window = app.get_webview_window(SPOTLIGHT_LABEL).unwrap();
-
         let panel = app.get_webview_panel(SPOTLIGHT_LABEL).unwrap();
 
         if panel.is_visible() {
@@ -63,10 +62,16 @@ pub fn spotlight_key_shortcut(app: &AppHandle, shortcut: &HotKey, event: GlobalH
                         let datasource = active_info.0;
                         let database = active_info.1;
                         let resp = json!({"datasource": datasource, "database": database});
-                        app.emit("spotlight/activated-datasource", resp).unwrap();
+                        let window = app.get_webview_window(SPOTLIGHT_LABEL).unwrap();
+                        window.eval("console.log('invoke by rust')").expect("fail to eval");
+
+                        // TODO: query from recently.
+
+                        app.emit("spotlight/activated-datasource", resp).expect("fail to emit activated datasource");
                     }
                 }).await
             });
+            let window = app.get_webview_window(SPOTLIGHT_LABEL).unwrap();
             window.center_at_cursor_monitor().unwrap();
             panel.show();
         }

@@ -33,6 +33,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     const [selectedField, setSelectedField] = useState<ValueChanged>();
     const [outlineAction, setOutlineAction] = useState<OutlineAction>();
     const [showAnalysis, setShowAnalysis] = useState(true);
+    const [showCommandLine, setShowCommandLine] = useState(false);
 
     const datasourceRef = useRef(props.datasourceId);
     const databaseRef = useRef(props.selectedDatabase);
@@ -86,6 +87,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
             setCurrentKey(nodeData.key as string);
             setCurrentKeyType(nodeData.keyType as string);
             setShowAnalysis(false);
+            setShowCommandLine(false);
             switch (nodeData.keyType) {
                 case 'hash':
                     setContent(hashOperator);
@@ -102,7 +104,11 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                 case 'set':
                     setContent(setOperator);
                     break;
+                default:
+                    throw new Error(`Unsupported key type: ${nodeData.keyType}`);
             }
+
+            // TODO: mark recently access
         }
     }, [nodeData]);
 
@@ -120,7 +126,11 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
 
     /* Redis script 操作面板 */
     const redisScript = (<RedisScript datasourceId={datasource} selectedDatabase={database}/>);
-    const onCommandQueryOpen = () => setContent(redisScript);
+    const onCommandQueryOpen = () => {
+        setShowAnalysis(false);
+        setShowCommandLine(true);
+        setContent(redisScript);
+    };
 
     return (<>
         <Splitter className={'redis-main-container'}>
@@ -132,14 +142,17 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                     parentHeight={parentHeight}
                     onSelect={onKeyNodeSelected}
                     onCmdOpen={onCommandQueryOpen}
-                    onAnalysisOpen={e => setShowAnalysis(true)}
+                    onAnalysisOpen={e => {
+                        setShowAnalysis(true);
+                        setShowCommandLine(false);
+                    }}
                 />
             </Splitter.Panel>
 
             <Splitter.Panel>
                 <Row className={'redis-main-panel'}>
                     {/* 中间主区域 */}
-                    <Col className={'main-container'} span={showAnalysis ? 24 : 17}>
+                    <Col className={'main-container'} span={showAnalysis || showCommandLine ? 24 : 17}>
                         {showAnalysis ?
                             <MiniRedisDashboardMini className={`mini-dashboard`}
                                                     datasource={datasource}
@@ -147,7 +160,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                     </Col>
 
                     {/* 右侧属性面板 */}
-                    <Col className={'right-watcher-panel'} span={showAnalysis ? 0 : 7}>
+                    <Col className={'right-watcher-panel'} span={showAnalysis || showCommandLine ? 0 : 7}>
                         <RightWatcherPanel currentKey={currentKey}
                                            keyType={currentKeyType}
                                            selectedField={selectedField}

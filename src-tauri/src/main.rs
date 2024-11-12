@@ -12,9 +12,10 @@ use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 use redisstudio::log::project_logger;
 use redisstudio::win::window::WebviewWindowExt;
-use redisstudio::{command, spotlight_command};
+use redisstudio::command;
 use tauri_nspanel::ManagerExt;
 use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
+use redisstudio::command::spotlight_command;
 
 mod setup;
 mod tray;

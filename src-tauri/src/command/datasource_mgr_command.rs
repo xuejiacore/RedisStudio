@@ -34,6 +34,7 @@ pub struct TreeNode {
     port: Option<u16>,
     path: Option<String>,
     children: Vec<Rc<RefCell<TreeNode>>>,
+    default_database: Option<u16>,
 }
 
 /// list treed datasource
@@ -80,6 +81,7 @@ pub async fn list_treed_datasource<R: Runtime>(
         node.port = ds.port;
         node.color = ds.color;
         node.path = Some(ds.path);
+        node.default_database = ds.default_database;
         dir.borrow_mut().children.push(Rc::new(RefCell::new(node)));
     }
 

@@ -311,10 +311,6 @@ impl RedisPool {
         }
     }
 
-    pub async fn fetch_connection(&self, datasource_id: &str) -> Arc<Mutex<MultiplexedConnection>> {
-        self.select_connection(datasource_id, None).await
-    }
-
     pub async fn get_active_info(&self) -> (String, i64) {
         let cloned = {
             let mutex = self.active_connection.lock().await;

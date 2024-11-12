@@ -4,19 +4,27 @@ import type {DataNode, EventDataNode} from 'antd/es/tree';
 import React, {Key, useEffect, useMemo, useRef, useState} from "react";
 import "./RedisKeyTree.less";
 import "../menu/Menu.less";
-import {AreaChartOutlined, LoadingOutlined, PlusOutlined, SearchOutlined} from "@ant-design/icons";
+import {
+    AreaChartOutlined,
+    KeyOutlined,
+    LoadingOutlined,
+    PlusOutlined,
+    SearchOutlined,
+    StarOutlined,
+    TableOutlined
+} from "@ant-design/icons";
 import DirectoryTree from 'antd/es/tree/DirectoryTree';
 import {redis_invoke} from '../../utils/RustIteractor';
-import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import RedisKey from "./RedisKey";
-import SystemProperties, {SysProp} from "../../utils/SystemProperties.ts";
+import {SysProp} from "../../utils/SystemProperties.ts";
 import FavoriteTree from "../favorite/FavoriteTree.tsx";
 import {useTranslation} from "react-i18next";
 import ConsoleIcon from "../icons/ConsoleIcon.tsx";
 import {invoke} from "@tauri-apps/api/core";
 import {humanNumber} from "../../utils/Util.ts";
-import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
 import {SysManager} from "../../utils/SysManager.ts";
+import {useEvent} from "../../utils/TauriUtil.tsx";
+import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
 
 const {Search} = Input;
 
@@ -61,16 +69,8 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     const datasourceRef = useRef(props.datasourceId);
     const databaseRef = useRef(props.selectedDatabase);
-    useEffect(() => {
-        setDatasource(props.datasourceId);
-        setDatabase(props.selectedDatabase);
-
-        datasourceRef.current = props.datasourceId;
-        databaseRef.current = props.selectedDatabase;
-        handleDataSourceChanged();
-    }, [props.datasourceId, props.selectedDatabase]);
     const [searchValue, setSearchValue] = useState('*');
-    const [cursor, setCursor] = useState(0);
+    const cursor = useRef(0);
     const [pageSize, setPageSize] = useState(500);
     const [scanCount, setScanCount] = useState(500);
     const [noMoreData, setNoMoreData] = useState(false);
@@ -85,27 +85,13 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const [selectedKeys, setSelectedKeys] = useState<Key[]>()
     const selectedKeysRef = useRef(selectedKeys);
     const treeDataRef = useRef(treeData);
+    const exactlySearch = useRef(true);
     const searchValueRef = useRef('');
-
-    useEffect(() => {
-        treeDataRef.current = treeData
-    }, [treeData]);
-    useEffect(() => {
-        selectedKeysRef.current = selectedKeys;
-    }, [selectedKeys]);
-    useEffect(() => {
-        let finalSearchVal = searchValue;
-        if (searchValue.length == 0) {
-            finalSearchVal = "*";
-        } else if (!searchValue.endsWith("!") && !searchValue.endsWith("*")) {
-            finalSearchVal += "*";
-        }
-        searchValueRef.current = finalSearchVal;
-    }, [searchValue]);
+    const scanTaskIdRef = useRef<number | undefined>();
 
     const calParentHeight = () => (window.innerHeight
         || document.documentElement.clientHeight
-        || document.body.clientHeight) - 198;
+        || document.body.clientHeight) - 210;
     const [comHeight, setComHeight] = useState(calParentHeight());
 
     const [scannedKeyCount, setScannedKeyCount] = useState(0);
@@ -222,154 +208,148 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         return undefined;
     };
 
-    const removeListenerRef = useRef<UnlistenFn>();
-    const removeListenerIdRef = useRef(0);
     useEffect(() => {
         const handleResize = () => {
             const newHeight = calParentHeight();
             setComHeight(newHeight);
         }
         window.addEventListener("resize", handleResize);
-
-        const ts = Date.now();
-        const addListenerAsync = async () => {
-            return new Promise<UnlistenFn>(resolve => {
-                const resolveFn = (unlistenFn: UnlistenFn) => {
-                    if (removeListenerIdRef.current != ts) {
-                        //loadData();
-                        resolve(unlistenFn);
-                    } else {
-                        unlistenFn();
-                    }
-                };
-                handleDataSourceChanged();
-                listen('key-tree/new-key', (event) => {
-                    // @ts-ignore
-                    const newKeyName = event.payload!.key;
-                    console.log("新增key", event.payload);
-                    receiveDataQueue.push({
-                        key: newKeyName,
-                        // @ts-ignore
-                        keyType: event.payload!.keyType,
-                    });
-                    const afterTree = cleaned ? [] : [...cachedTreeData];
-                    if (cleaned) {
-                        cleaned = false;
-                        treeDataContext.parentMapping.clear();
-                    }
-                    let dataItem: ScanItem | undefined;
-                    // eslint-disable-next-line no-cond-assign
-                    while (dataItem = receiveDataQueue.shift()) {
-                        if (dataItem) {
-                            const array = (dataItem.key as string).split(splitSymbol);
-                            treeDataContext.keyTotal += packageDataNode(afterTree, array, dataItem, '', 0, treeDataContext);
-                        }
-                    }
-
-                    setTreeData(afterTree);
-                    cachedTreeData = afterTree;
-                    clearInterval(refreshTimer);
-                    setScannedKeyCount(treeDataContext.keyTotal);
-                    setSelectedKeys([newKeyName]);
-
-                    const keySplits = (newKeyName as string).split(splitSymbol);
-                    const nodeInfo = findKey(keySplits, afterTree);
-                    props.onSelect?.([newKeyName], {node: nodeInfo});
-                }).then(resolveFn);
-                listen("datasource/info", event => {
-                    const payload: any = event.payload;
-                    if (payload.datasource === datasourceRef.current) {
-                        setMemoryUsage(payload.info.memory.used_memory_human);
-                        let sum = 0;
-                        for (const keyspace of payload.info.keyspace) {
-                            sum += keyspace.keys;
-                        }
-                        setDbsize(humanNumber(sum));
-                    }
-                }).then(resolveFn)
-
-                listen("key-tree/delete", (event) => {
-                    if (removeListenerIdRef.current != ts) {
-                        const payload: any = event.payload;
-                        const key: string = payload.key;
-                        const success: boolean = payload.success;
-                        if (success) {
-                            const afterTree = deleteNodeByKey(key, treeDataRef.current);
-                            cachedTreeData = afterTree;
-                            console.log('after Tree', afterTree)
-                            setTreeData(afterTree);
-                            // @ts-ignore
-                            const total = afterTree.reduce((acc, item) => acc + item.total, 0);
-                            setScannedKeyCount(total);
-                        }
-                    }
-                }).then(resolveFn);
-
-                listen('redis_scan_event', (event) => {
-                    if (removeListenerIdRef.current != ts) {
-                        const payload: any = event.payload;
-                        if (payload.finished) {
-                            setScanning(false);
-                            return;
-                        }
-
-                        payload.keys.forEach((key: any) => {
-                            receiveDataQueue.push({
-                                key: key
-                            });
-                        })
-                        const copy = cleaned ? [] : [...cachedTreeData];
-                        if (cleaned) {
-                            cleaned = false;
-
-                            treeDataContext.parentMapping.clear();
-                        }
-                        let dataItem: ScanItem | undefined;
-                        // eslint-disable-next-line no-cond-assign
-                        while (dataItem = receiveDataQueue.shift()) {
-                            if (dataItem) {
-                                const array = (dataItem.key as string).split(splitSymbol);
-                                treeDataContext.keyTotal += packageDataNode(copy, array, dataItem, '', 0, treeDataContext);
-                            }
-                        }
-
-                        setTreeData(copy);
-                        cachedTreeData = copy;
-                        clearInterval(refreshTimer);
-                        setScannedKeyCount(treeDataContext.keyTotal);
-                        setCursor(payload.cursor);
-                        if (payload.cursor == 0) {
-                            setNoMoreData(true);
-                        }
-                        refreshTimer = null;
-                    }
-                }).then(resolveFn);
-            });
-        };
-        (async () => {
-            removeListenerRef.current = await addListenerAsync();
-        })();
-        /*
-
-         */
+        cleanTreeData();
         return () => {
             window.removeEventListener("resize", handleResize);
-            removeListenerIdRef.current = ts;
-            const removeListenerAsync = async () => {
-                return new Promise<void>(resolve => {
-                    if (removeListenerRef.current) {
-                        removeListenerRef.current();
-                    }
-                    resolve();
-                })
-            }
-
-            removeListenerAsync().then(t => {
-            });
         };
     }, []);
+    useEffect(() => {
+        treeDataRef.current = treeData
+    }, [treeData]);
+    useEffect(() => {
+        selectedKeysRef.current = selectedKeys;
+    }, [selectedKeys]);
+    useEffect(() => {
+        let finalSearchVal = searchValue;
+        if (searchValue.length == 0) {
+            finalSearchVal = "*";
+        } else if (!searchValue.endsWith("!") && !searchValue.endsWith("*")) {
+            finalSearchVal += "*";
+        }
+        searchValueRef.current = finalSearchVal;
+    }, [searchValue]);
+    useEffect(() => {
+        setDatasource(props.datasourceId);
+        setDatabase(props.selectedDatabase);
+
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.selectedDatabase;
+
+        if (scanTaskIdRef.current) {
+            console.warn(`last scan mission not finished: ${scanTaskIdRef.current}`);
+        } else {
+            handleDataSourceChanged();
+        }
+        return () => {
+        };
+    }, [props.datasourceId, props.selectedDatabase]);
+
+    useEvent('redis_scan_event', (event) => {
+        const payload: any = event.payload;
+        if (payload.keys) {
+            payload.keys.forEach((key: any) => {
+                receiveDataQueue.push({
+                    key: key
+                });
+            })
+            const copy = cleaned ? [] : [...cachedTreeData];
+            if (cleaned) {
+                cleaned = false;
+
+                treeDataContext.parentMapping.clear();
+            }
+            let dataItem: ScanItem | undefined;
+            // eslint-disable-next-line no-cond-assign
+            while (dataItem = receiveDataQueue.shift()) {
+                if (dataItem) {
+                    const array = (dataItem.key as string).split(splitSymbol);
+                    treeDataContext.keyTotal += packageDataNode(copy, array, dataItem, '', 0, treeDataContext);
+                }
+            }
+
+            setTreeData(copy);
+            cachedTreeData = copy;
+            clearInterval(refreshTimer);
+            setScannedKeyCount(treeDataContext.keyTotal);
+            refreshTimer = null;
+        }
+        cursor.current = payload.cursor;
+        if (payload.cursor == 0 && !payload.exactly_key) {
+            setNoMoreData(true);
+        }
+        if (payload.finished) {
+            setScanning(false);
+            scanTaskIdRef.current = undefined;
+            return;
+        }
+    });
+    useEvent('key-tree/delete', (event) => {
+        const payload: any = event.payload;
+        const key: string = payload.key;
+        const success: boolean = payload.success;
+        if (success) {
+            const afterTree = deleteNodeByKey(key, treeDataRef.current);
+            cachedTreeData = afterTree;
+            console.log('after Tree', afterTree)
+            setTreeData(afterTree);
+            // @ts-ignore
+            const total = afterTree.reduce((acc, item) => acc + item.total, 0);
+            setScannedKeyCount(total);
+        }
+    });
+    useEvent('key-tree/new-key', (event) => {
+        // @ts-ignore
+        const newKeyName = event.payload!.key;
+        console.log("新增key", event.payload);
+        receiveDataQueue.push({
+            key: newKeyName,
+            // @ts-ignore
+            keyType: event.payload!.keyType,
+        });
+        const afterTree = cleaned ? [] : [...cachedTreeData];
+        if (cleaned) {
+            cleaned = false;
+            treeDataContext.parentMapping.clear();
+        }
+        let dataItem: ScanItem | undefined;
+        // eslint-disable-next-line no-cond-assign
+        while (dataItem = receiveDataQueue.shift()) {
+            if (dataItem) {
+                const array = (dataItem.key as string).split(splitSymbol);
+                treeDataContext.keyTotal += packageDataNode(afterTree, array, dataItem, '', 0, treeDataContext);
+            }
+        }
+
+        setTreeData(afterTree);
+        cachedTreeData = afterTree;
+        clearInterval(refreshTimer);
+        setScannedKeyCount(treeDataContext.keyTotal);
+        setSelectedKeys([newKeyName]);
+
+        const keySplits = (newKeyName as string).split(splitSymbol);
+        const nodeInfo = findKey(keySplits, afterTree);
+        props.onSelect?.([newKeyName], {node: nodeInfo});
+    });
+    useEvent('datasource/info', (event) => {
+        const payload: any = event.payload;
+        if (payload.datasource === datasourceRef.current) {
+            setMemoryUsage(payload.info.memory.used_memory_human);
+            let sum = 0;
+            for (const keyspace of payload.info.keyspace) {
+                sum += keyspace.keys;
+            }
+            setDbsize(humanNumber(sum));
+        }
+    });
 
     const handleDataSourceChanged = () => {
+        scanTaskIdRef.current = Date.now();
         cleanTreeData();
         setTreeUniqueId(Date.now());
         redis_invoke("redis_get_database_info", {}, datasourceRef.current, databaseRef.current).then(r => {
@@ -385,10 +365,12 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 setDbsize(humanNumber(sum));
                 setScanning(true);
                 redis_invoke("redis_key_scan", {
+                    taskId: scanTaskIdRef.current,
                     pattern: searchValueRef.current ? searchValueRef.current : "*",
                     page_size: pageSize,
-                    cursor: cursor,
-                    count: scanCount
+                    cursor: cursor.current,
+                    count: scanCount,
+                    force_scan: true
                 }, datasourceRef.current, databaseRef.current).finally()
             }
         });
@@ -403,8 +385,10 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             } else {
                 return <>
                     <div className={'redis-directory'}>
-                        <span className={'redis-directory-key-title'}>{data.title}</span>
-                        <span className={'redis-directory-key-counter'}>{data.total}</span>
+                        <Flex justify={"start"} align={"center"} gap={4}>
+                            <span className={'redis-directory-key-title'}>{data.title}</span>
+                            <span className={'redis-directory-key-counter'}>{data.total}</span>
+                        </Flex>
                     </div>
                 </>
             }
@@ -451,7 +435,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
     const onSearchPressEnter = (e: any) => {
         setScanning(true);
-        setCursor(0);
+        cursor.current = 0;
         setNoMoreData(false);
         cleanTreeData();
         setTreeUniqueId(Date.now());
@@ -460,8 +444,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         redis_invoke("redis_key_scan", {
             pattern: searchValueRef.current,
             page_size: pageSize,
-            cursor: cursor,
-            count: scanCount
+            cursor: cursor.current,
+            count: scanCount,
+            force_scan: false
         }, datasourceRef.current, databaseRef.current).finally();
     };
 
@@ -474,8 +459,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
             redis_invoke("redis_key_scan", {
                 pattern: searchValueRef.current ? searchValueRef.current : "*",
                 page_size: pageSize,
-                cursor: cursor,
-                count: scanCount
+                cursor: cursor.current,
+                count: scanCount,
+                force_scan: true
             }, datasourceRef.current, databaseRef.current).finally();
         }
     };
@@ -634,17 +620,38 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 </div>
 
                 {/* 收藏的树信息 */}
-                <Collapse defaultActiveKey={['2']} ghost accordion={true}
+                <Collapse defaultActiveKey={['1']} ghost accordion={true}
                           className={'core-redis-keys-tree'}
+                          expandIconPosition={'end'}
                           items={[
                               {
                                   key: '1',
-                                  label: t('redis.key_tree.sub_tree.favor_count', {'count': 17}),
-                                  children: <><FavoriteTree/></>
+                                  label: <>
+                                      <Flex className={'favor-header'} gap={6}>
+                                          <StarOutlined className={'collapse-icon'}/>
+                                          <span>{t('redis.key_tree.sub_tree.favor_count', {'count': 17})}</span>
+                                      </Flex>
+                                  </>,
+                                  children: <><FavoriteTree datasource={datasource} database={database}/></>
                               },
                               {
                                   key: '2',
-                                  label: t('redis.key_tree.sub_tree.keys_count', {'keyCount': scannedKeyCount}),
+                                  label: <>
+                                      <Flex className={'view-header'} gap={6}>
+                                          <TableOutlined className={'collapse-icon'}/>
+                                          <span>{t('redis.key_tree.sub_tree.data_view', {'count': 1})}</span>
+                                      </Flex>
+                                  </>,
+                                  children: <></>
+                              },
+                              {
+                                  key: '3',
+                                  label: <>
+                                      <Flex className={'keys-header'} gap={6}>
+                                          <KeyOutlined className={'collapse-icon'}/>
+                                          <span>{t('redis.key_tree.sub_tree.keys_count', {'keyCount': scannedKeyCount})}</span>
+                                      </Flex>
+                                  </>,
                                   children: treeDataDom
                               }
                           ]}/>

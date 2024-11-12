@@ -9,31 +9,6 @@ use tauri::{AppHandle, Manager, PhysicalPosition, Runtime, State, TitleBarStyle,
 type Result<T> = std::result::Result<T, CmdError>;
 
 #[tauri::command]
-pub async fn show_database_list_menu<R: Runtime>(
-    _datasource: String,
-    handle: AppHandle<R>,
-    window: Window,
-    _menu_context: State<'_, MenuContext>,
-    _redis_pool: State<'_, RedisPool>,
-) -> Result<()> {
-    let app_handle = handle.app_handle();
-    let _pkg_info = app_handle.package_info();
-
-    let mut databases = vec![];
-    for i in 0..128 {
-        let menu_item = MenuItem::with_id(app_handle, format!("tt@{}", i), format!("DB{} [{}]", i, 32), true, None::<&str>).unwrap();
-        databases.push(menu_item);
-    }
-
-    let menu = Menu::with_items(
-        app_handle,
-        &databases.iter().map(|item| item as &dyn IsMenuItem<R>).collect::<Vec<_>>(),
-    ).unwrap();
-    menu.popup(window).unwrap();
-    Ok(())
-}
-
-#[tauri::command]
 pub fn show_key_tree_right_menu<R: Runtime>(
     key: Option<String>,
     keys: Option<Vec<String>>,
