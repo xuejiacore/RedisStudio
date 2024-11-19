@@ -37,3 +37,17 @@ pub struct TblDatasource {
     pub color: Option<String>,
     pub path: String,
 }
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct DataViewDto {
+    pub dv_id: i64,
+    pub name: String,
+    pub dv_sort: i64,
+
+    pub data_view_item_id: i64,
+    pub path: String,
+    pub key: String,
+    pub key_type: String,
+    pub item_sort: i64,
+    pub last_var: Option<String>,
+}

@@ -35,17 +35,17 @@ export function timeUntil(timestamp: number): string {
     const symbol = diff > 0 ? '+' : '-';
     const absDiff = Math.abs(diff);
     if (absDiff > msInYear) {
-        return `${Math.floor(absDiff / msInYear)}y${symbol}`;
+        return `${symbol}${Math.floor(absDiff / msInYear)}year`;
     } else if (absDiff > msInMonth) {
-        return `${Math.floor(absDiff / msInMonth)}m${symbol}`;
+        return `${symbol}${Math.floor(absDiff / msInMonth)}mon`;
     } else if (absDiff > msInDay) {
-        return `${Math.floor(absDiff / msInDay)}d${symbol}`;
+        return `${symbol}${Math.floor(absDiff / msInDay)}day`;
     } else if (absDiff > msInHour) {
-        return `${Math.floor(absDiff / msInHour)}h${symbol}`;
+        return `${symbol}${Math.floor(absDiff / msInHour)}hour`;
     } else if (absDiff > msInMinute) {
-        return `${Math.floor(absDiff / msInMinute)}M${symbol}`;
+        return `${symbol}${Math.floor(absDiff / msInMinute)}min`;
     } else if (absDiff > msInSecond) {
-        return `${Math.floor(absDiff / msInSecond)}s${symbol}`;
+        return `${symbol}${Math.floor(absDiff / msInSecond)}sec`;
     } else {
         return '';
     }

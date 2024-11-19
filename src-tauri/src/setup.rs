@@ -61,7 +61,6 @@ pub fn init(app: &mut App<Wry>) -> Result<(), Box<dyn std::error::Error>> {
         // prepare redis datasource's pattern inference engines.
         let engines = PatternInferenceEngines::new();
         let redis_indexer = RedisIndexer::new(Arc::new(Mutex::new(indexer)), Arc::new(Mutex::new(engines)));
-        redis_indexer.initialize_datasource_pattern("datasource01").await;
         app_handler.manage(redis_indexer);
         Ok(())
     });

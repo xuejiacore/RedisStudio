@@ -62,7 +62,7 @@ const SmartData: React.FC<SmartDataProp> = (props, context) => {
         if (inputValue == 'null') {
             node =
                 <div className='table-row-data null-text' onDoubleClick={toggleEdit}>
-                    <Tooltip className={'tooltips'} title={'`null` string'} placement={"right"} color={'#424449'}>
+                    <Tooltip className={'tooltips'} title={'`null` string'} color={'#424449'}>
                         {inputValue}
                     </Tooltip>
                 </div>
@@ -73,7 +73,7 @@ const SmartData: React.FC<SmartDataProp> = (props, context) => {
             if (val != strVal) {
                 node = <>
                     <div className='table-row-data' onDoubleClick={toggleEdit}>
-                        <Tooltip className={'tooltips'} title={val} placement={"right"} color={'#424449'}>
+                        <Tooltip className={'tooltips'} title={val} color={'#424449'}>
                             {inputValue}
                         </Tooltip>
                     </div>

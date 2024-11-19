@@ -93,7 +93,11 @@ const RedisToolbar: React.FC<RedisToolbarProps> = (props, context) => {
         invoke('on_redis_pushpin_window_shown', {keyName}).then(r => {
             setPushpinBtnSelected((r === 'true') ? 'selected' : '');
         });
-        invoke('key_favor_status', {datasource: datasourceRef.current, key: keyName}).then(r => {
+        invoke('key_favor_status', {
+            datasource: datasourceRef.current,
+            database: databaseRef.current,
+            key: keyName
+        }).then(r => {
             const favored: boolean = JSON.parse(r as string).favored;
             setFavorBtnSelected(favored ? 'selected' : '');
         })

@@ -6,26 +6,31 @@ use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
 use crate::utils::system::constant::{PIN_WINDOW_MIN_HEIGHT, PIN_WINDOW_MIN_WIDTH};
 use crate::win::pinned_windows::PinnedWindows;
-use crate::win::window::WebviewWindowExt;
 use crate::{CmdError, CmdResult};
 use futures::FutureExt;
-use rand::Rng;
 use redis::cmd;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::ops::DerefMut;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalSize, Position, Runtime, Size, State, WebviewWindow, Wry};
+use tauri::{AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Position, Runtime, Size, State, WebviewWindow, Wry};
 use tauri_nspanel::cocoa::appkit::NSEvent;
 use tauri_nspanel::cocoa::base::nil;
 use tauri_nspanel::cocoa::foundation::NSUInteger;
 use tauri_nspanel::ManagerExt;
+use thiserror::Error;
 
 type Result<T> = std::result::Result<T, CmdError>;
 
 const REDIS_PIN_LABEL_PREFIX: &str = "redispin_win:";
+type TauriError = tauri::Error;
 
+#[derive(Error, Debug)]
+enum Error {
+    #[error("Monitor with cursor not found")]
+    MonitorNotFound,
+}
 #[tauri::command]
 pub async fn open_datasource_window<R: Runtime>(
     x: f64,
@@ -130,8 +135,28 @@ pub fn open_redis_pushpin_window<R: Runtime>(
     pin_win_man: State<'_, PinnedWindows>,
 ) {
     let window = pin_win_man.fetch_idle_window(key_name.to_string(), &handle);
+    let window_size = window.outer_size().expect("fail to obtain window size");
+    let semi_width = window_size.width as f64 / 2f64;
+    let offset_y = 16f64;
+
     let binding = window.clone();
     let label = binding.label();
+
+    let primary_monitor = handle.primary_monitor()
+        .expect("fail to obtain primary monitor")
+        .expect("fail to obtain primary monitor");
+    let primary_scale = primary_monitor.scale_factor();
+    let primary_size = primary_monitor.size();
+    // calculate mouse position
+    let mouse_position = unsafe { NSEvent::mouseLocation(nil) };
+    let mx = mouse_position.x;
+    let my = mouse_position.y;
+
+    let y = primary_size.height as f64 / primary_scale - my;
+    let position = PhysicalPosition::new(mx - semi_width, y - offset_y);
+
+    println!("position = {:?}", &position);
+    window.set_position(position).expect("fail to update position");
 
     if datasource.is_empty() {
         tauri::async_runtime::block_on(async move {
@@ -155,16 +180,7 @@ pub fn open_redis_pushpin_window<R: Runtime>(
 
 fn eval_script_and_show_pin<R: Runtime>(handle: &AppHandle<R>, window: &WebviewWindow<R>, label: &str, eval_script: &str) {
     window.eval(eval_script).unwrap();
-
     let panel = handle.get_webview_panel(label).unwrap();
-
-    let mut rng = rand::thread_rng();
-
-    if !panel.is_visible() {
-        let random_x: f64 = rng.gen_range(-30f64..=100f64);
-        let random_y: f64 = rng.gen_range(-30f64..=100f64);
-        window.random_center_at_cursor_monitor(random_x, random_y).unwrap();
-    }
     panel.show();
 }
 
@@ -198,17 +214,20 @@ pub fn resize_redis_pushpin_window<R: Runtime>(
     window: tauri::Window<Wry>,
     pin_win_man: State<'_, PinnedWindows>,
 ) {
+    let primary_monitor = handle.primary_monitor().expect("").unwrap();
+    let primary_scale = primary_monitor.scale_factor();
+    let primary_height = primary_monitor.size().height as f64;
+
     let monitor = monitor::get_monitor_with_cursor().expect("fail to obtain monitor [1]");
-    let scale_factor = monitor.scale_factor();
-    let monitor_size = monitor.size();
+    let this_scale_factor = monitor.scale_factor();
+    let scale_rate = this_scale_factor / primary_scale;
 
-    let window = pin_win_man.fetch_idle_window(key_name.to_string(), &handle);
-    let pos = window.outer_position().unwrap();
+    let pin_window = pin_win_man.fetch_idle_window(key_name.to_string(), &handle);
+    let pin_window_position = pin_window.outer_position().unwrap();
 
-    let monitor_height = monitor_size.height as f64;
-    let fix_pos_y = pos.y as f64 - 18f64;
-    let fixed_monitor_height = monitor_height - fix_pos_y;
-    let fix_pos_x = pos.x as f64 - 18f64;
+    let fix_pos_y = pin_window_position.y as f64 - 18f64 * scale_rate;
+    let fix_pos_x = pin_window_position.x as f64 - 18f64 * scale_rate;
+
     tauri::async_runtime::spawn(async move {
         let press = NSUInteger::from(1u64);
         loop {
@@ -216,17 +235,17 @@ pub fn resize_redis_pushpin_window<R: Runtime>(
                 let mouse_logic_pos = NSEvent::mouseLocation(nil);
                 let mouse_status = NSEvent::pressedMouseButtons(nil);
                 if !mouse_status.eq(&press) {
-                    println!("release mouse");
                     return;
                 }
 
-                let mouse_phy_x = mouse_logic_pos.x * scale_factor;
-                let mouse_phy_y = mouse_logic_pos.y * scale_factor;
+                let mouse_phy_x = mouse_logic_pos.x * this_scale_factor;
+                let mouse_phy_y = mouse_logic_pos.y * this_scale_factor;
 
-                let new_width = (PIN_WINDOW_MIN_WIDTH * scale_factor).max(mouse_phy_x - fix_pos_x);
-                let new_height = (PIN_WINDOW_MIN_HEIGHT * scale_factor).max(fixed_monitor_height - mouse_phy_y);
+                let new_width = (PIN_WINDOW_MIN_WIDTH * this_scale_factor).max(mouse_phy_x - fix_pos_x);
+                let new_height = (PIN_WINDOW_MIN_HEIGHT * this_scale_factor).max((primary_height * scale_rate - mouse_phy_y) - fix_pos_y);
+
                 let size = PhysicalSize::from((new_width, new_height));
-                window.set_size::<PhysicalSize<f64>>(size).expect("fail to resize");
+                pin_window.set_size::<PhysicalSize<f64>>(size).expect("fail to resize");
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }
         }

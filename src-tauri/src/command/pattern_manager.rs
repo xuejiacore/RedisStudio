@@ -8,12 +8,14 @@ use tauri::State;
 type Result<T> = std::result::Result<T, CmdError>;
 
 #[tauri::command]
-pub async fn pattern_add_tag(datasource_id: &str,
-                             key: &str,
-                             pin_field: &str,
-                             op: &str,
-                             sqlite: State<'_, SqliteStorage>,
-                             redis_indexer: State<'_, RedisIndexer>,
+pub async fn pattern_add_tag(
+    datasource_id: &str,
+    database: i64,
+    key: &str,
+    pin_field: &str,
+    op: &str,
+    sqlite: State<'_, SqliteStorage>,
+    redis_indexer: State<'_, RedisIndexer>,
 ) -> Result<Value> {
     let result = redis_indexer.fast_infer(datasource_id, &vec![key]).await;
     let is_add = op.eq("add");
@@ -26,9 +28,15 @@ pub async fn pattern_add_tag(datasource_id: &str,
             let mut databases = sqlite.pool.lock().await;
             let db = databases.get_mut("default").unwrap();
 
-            let rows = sqlx::query("select pin_meta from tbl_redis_custom_tag where pattern = $1 and datasource_id = $2")
+            let rows = sqlx::query(r#"
+            SELECT pin_meta FROM tbl_redis_custom_tag
+            WHERE pattern = $1
+                and datasource_id = $2
+                and database = $3
+            "#)
                 .bind(&normalized)
                 .bind(&datasource_id)
+                .bind(database)
                 .fetch_all(&*db)
                 .await
                 .unwrap();
@@ -47,10 +55,16 @@ pub async fn pattern_add_tag(datasource_id: &str,
                     }
                 }
                 let pin_meta_value = metas.join(";");
-                sqlx::query("update tbl_redis_custom_tag set pin_meta = $1 where pattern = $2 and datasource_id = $3")
+                sqlx::query(r#"
+                UPDATE tbl_redis_custom_tag SET pin_meta = $1
+                WHERE pattern = $2
+                    and datasource_id = $3
+                    and database = $4
+                "#)
                     .bind(&pin_meta_value)
                     .bind(&normalized)
                     .bind(&datasource_id)
+                    .bind(database)
                     .execute(&*db)
                     .await
                     .unwrap();
@@ -59,10 +73,14 @@ pub async fn pattern_add_tag(datasource_id: &str,
                     "fields": &metas
                 }))
             } else {
-                sqlx::query("insert into tbl_redis_custom_tag (pattern, pin_meta, datasource_id) values ($1, $2, $3)")
+                sqlx::query(r#"
+                INSERT INTO tbl_redis_custom_tag (pattern, pin_meta, datasource_id, database)
+                VALUES ($1, $2, $3, $4)
+                "#)
                     .bind(&normalized)
                     .bind(pin_field.to_string())
                     .bind(datasource_id)
+                    .bind(database)
                     .execute(&*db)
                     .await
                     .unwrap();

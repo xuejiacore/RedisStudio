@@ -1,6 +1,5 @@
 /* eslint-disable */
-import React, {useEffect, useRef, useState} from 'react';
-import {CarryOutOutlined} from '@ant-design/icons';
+import React, {Key, useEffect, useRef, useState} from 'react';
 import {Space, TreeDataNode} from 'antd';
 import "./DataSourceTree.less";
 import DirectoryTree from "antd/es/tree/DirectoryTree";
@@ -10,6 +9,7 @@ import {invoke} from "@tauri-apps/api/core";
 import {wrapColor} from "../../utils/Util.ts";
 
 interface DataSourceTreeProp {
+    datasource?: number;
     onSelected: (datasource: number) => void;
 }
 
@@ -18,10 +18,10 @@ function parseTree(node: any): TreeDataNode | undefined {
         const children = node.children.map((c: any) => {
             return parseTree(c);
         });
+        console.log(node.path);
         return {
             title: (<DataSourceGroup name={node.name}/>),
             key: node.path,
-            icon: <CarryOutOutlined/>,
             children: children,
         };
     } else if (node.node_type === 2) {
@@ -37,7 +37,6 @@ function parseTree(node: any): TreeDataNode | undefined {
                     path={node.path}/>
             ),
             key: `ds#${node.id}`,
-            icon: <CarryOutOutlined/>,
         }
     } else {
         return undefined;
@@ -46,6 +45,13 @@ function parseTree(node: any): TreeDataNode | undefined {
 
 const DataSourceTree: React.FC<DataSourceTreeProp> = (props, context) => {
     const [treeData, setTreeData] = useState<TreeDataNode[]>([]);
+    const [expandedKey, setExpandedKey] = useState<Key[]>([]);
+    const [datasource, setDatasource] = useState(props.datasource);
+    const treeExpandedKeysRef = useRef<Key[]>([]);
+
+    useEffect(() => {
+        setDatasource(props.datasource);
+    }, [props.datasource]);
 
     const ref = useRef(null);
     useEffect(() => {
@@ -58,9 +64,13 @@ const DataSourceTree: React.FC<DataSourceTreeProp> = (props, context) => {
                             // @ts-ignore
                             setTreeData(td.children);
                         }
-                    })
+
+                        const expandedKeys = [`ds#${datasource}`];
+                        treeExpandedKeysRef.current = expandedKeys;
+                        setExpandedKey(expandedKeys);
+                    });
                 }
-            })
+            });
         });
 
         if (ref.current) {
@@ -74,7 +84,8 @@ const DataSourceTree: React.FC<DataSourceTreeProp> = (props, context) => {
     }, []);
     const onSelect = (selectedKeys: React.Key[], info: any) => {
         const children = info.node.children;
-        console.log(info);
+        // treeExpandedKeysRef.current = [...new Set([].concat(treeExpandedKeysRef.current, [info.node.key]))];
+        // setExpandedKey(selectedKeys);
         if (!children || children.length > 0) {
             props.onSelected(info.node.title.props.id);
         }
@@ -92,6 +103,21 @@ const DataSourceTree: React.FC<DataSourceTreeProp> = (props, context) => {
                     treeData={treeData}
                     checkable={false}
                     onSelect={onSelect}
+                    defaultExpandParent={true}
+                    expandedKeys={expandedKey}
+                    autoExpandParent={true}
+                    onExpand={(keys, info) => {
+                        console.log(keys, info);
+                        if (!info.expanded) {
+                            const rmkey = info.node.key as string;
+                            const tt = keys.filter((k: Key | string) => {
+                                return !(k as string).startsWith(rmkey) && !(k as string).startsWith("ds#");
+                            });
+                            setExpandedKey([...tt]);
+                        } else {
+                            setExpandedKey(keys);
+                        }
+                    }}
                     // titleRender={onTitleRender}
                     style={{
                         background: "#2B2D30",

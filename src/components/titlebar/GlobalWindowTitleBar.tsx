@@ -64,6 +64,11 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                 listen('datasource/changed', event => {
                     const payload: any = event.payload;
                     if (payload.winId == props.windowId) {
+                        invoke('initialize_datasource_pattern', {
+                            datasource: payload.props.datasourceId
+                        }).then(r => {
+
+                        });
                         setDatasource(payload.props.datasourceId);
                         datasourceRef.current = payload.props.datasourceId;
                         setDatasourceInfo(payload.props.host + ":" + payload.props.port);

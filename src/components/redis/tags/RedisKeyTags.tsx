@@ -6,8 +6,8 @@ import {hash} from "../../../utils/Util.ts";
 interface RedisKeyTagsProp {
     selectedKey?: string,
     datasource?: string,
+    database?: number,
 }
-
 
 const colors = [
     '#3960b7',
@@ -27,7 +27,11 @@ const RedisKeyTags: React.FC<RedisKeyTagsProp> = (props, context) => {
     const [tags, setTags] = useState(<></>);
 
     useEffect(() => {
-        invoke("infer_redis_key_pattern", {key: props.selectedKey, datasource: "datasource01"}).then(r => {
+        invoke("infer_redis_key_pattern", {
+            key: props.selectedKey,
+            datasource: props.datasource,
+            database: props.database
+        }).then(r => {
             const json = JSON.parse(r as string);
             const normalized = json['normalized'];
             if (normalized) {
@@ -37,8 +41,8 @@ const RedisKeyTags: React.FC<RedisKeyTagsProp> = (props, context) => {
                         <Tooltip overlayClassName={'pattern-full-name'} placement="topLeft" color={'#424449'}
                                  title={normalized}>
                             <Tag className={'key-tag'}
-                                 // color={}
-                                style={{background: `linear-gradient(to top, ${colors[hashMod]}40, ${colors[hashMod]}4F)`}}
+                                // color={}
+                                 style={{background: `linear-gradient(to top, ${colors[hashMod]}40, ${colors[hashMod]}4F)`}}
                                  key={'1'}
                                 // onClose={preventDefault}
                                 // onClick={e => showTagVars(c.id)}

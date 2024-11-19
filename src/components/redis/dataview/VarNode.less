@@ -1,0 +1,59 @@
+@import "../../../utils/RedisTypeStyle";
+
+.var-node {
+  font-weight: 500;
+  height: 24px;
+
+  .key-type-prefix {
+    font-weight: bold;
+  }
+
+  .redis-type {
+    color: #d5d5d5;
+    border-radius: 2px;
+    line-height: 16px;
+    height: 16px;
+    padding: 0 3px;
+  }
+
+  .origin-name.vars {
+    font-size: 12px;
+    color: #5c5c5e;
+  }
+
+  .runtime-value.empty {
+    display: none;
+  }
+
+  .redis-type.deleted {
+    background: #646464 !important;
+  }
+
+  .redis-type.hash {
+    background: linear-gradient(to top left, @--typeHashLinearColor, @--typeHashColor);
+  }
+
+  .redis-type.string {
+    background: linear-gradient(to top left, @--typeStringLinearColor, @--typeStringColor);
+  }
+
+  .redis-type.zset {
+    background: linear-gradient(to top left, @--typeZSetLinearColor, @--typeZSetColor);
+  }
+
+  .redis-type.set {
+    background: linear-gradient(to top left, @--typeSetLinearColor, @--typeSetColor);
+  }
+
+  .redis-type.list {
+    background: linear-gradient(to top left, @--typeListLinearColor, @--typeListColor);
+  }
+
+}
+
+
+.ant-tree-node-selected {
+  .var-node {
+
+  }
+}

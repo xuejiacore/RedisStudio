@@ -19,6 +19,7 @@
         "keys_count": "KEYS ({{keyCount}} SCANNED)",
         "data_view": "DATA VIEW ({{count}})",
         "keys_tree": {
+          "scan_continue": "Scan Continue",
           "scan_more_result": "Scan More",
           "scan_no_more_result": "No More Result",
           "stop_scanning": "Cancel Scan"

@@ -92,6 +92,7 @@ function createSystemTables(executeInitSql: (sql: string, bindValues?: unknown[]
         )
     `);
 
+    // table for store analysis result
     executeInitSql(`
         CREATE TABLE IF NOT EXISTS tbl_database_analysis_result
         (
@@ -103,6 +104,47 @@ function createSystemTables(executeInitSql: (sql: string, bindValues?: unknown[]
             create_time          INTEGER, -- create time
             analysis_json_result TEXT,    -- analysis json result
             ver                  INTEGER  -- version
+        )
+    `);
+
+    // table for data view
+    executeInitSql(`
+        CREATE TABLE IF NOT EXISTS tbl_data_view
+        (
+            id         integer                     -- id
+                constraint tbl_data_view_pk
+                    primary key autoincrement,
+            datasource integer not null,           -- datasource id
+            database   integer not null default 0, -- database index
+            name       TEXT    not null,           -- name of data view
+            sort       integer          default 0  -- sort value
+        );
+    `);
+
+    // table for store item of data view
+    executeInitSql(`
+        CREATE TABLE IF NOT EXISTS tbl_data_view_items
+        (
+            id           integer           -- id
+                constraint tbl_data_view_items_pk
+                    primary key autoincrement,
+            data_view_id integer not null, -- data view id
+            key          TEXT    not null, -- key of data view
+            key_type     TEXT    not null, -- key type
+            sort         integer default 0 -- sort value
+        )
+    `);
+
+    // table for store data view's variables
+    executeInitSql(`
+        CREATE TABLE IF NOT EXISTS tbl_data_view_vars
+        (
+            id                integer           -- id
+                constraint tbl_data_view_vars_pk
+                    primary key autoincrement,
+            data_view_item_id integer not null, -- data view item id
+            value             TEXT    not null, -- variable value
+            create_time       INTEGER           -- create time
         )
     `);
 

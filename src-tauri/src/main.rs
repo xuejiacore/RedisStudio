@@ -36,7 +36,7 @@ fn main() {
         .plugin(tauri_plugin_log::Builder::new()
             .level(log::LevelFilter::Info)
             // verbose logs only for the commands module
-            .level_for("tantivy", log::LevelFilter::Info)
+            .level_for("tantivy", log::LevelFilter::Off)
             .format(|out, message, record| {
                 let now = Local::now();
                 let milliseconds = now.timestamp_millis() % 1000;

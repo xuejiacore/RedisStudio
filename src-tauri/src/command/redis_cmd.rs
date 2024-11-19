@@ -543,8 +543,13 @@ async fn execute_get_hash(
     if let Some(result) = redis_indexer.fast_infer(&ds, &vec![&params.key]).await {
         let mut instance = sqlite.pool.lock().await;
         let db = instance.get_mut("default").unwrap();
-        let rows = sqlx::query("select pin_meta from tbl_redis_custom_tag where pattern = $1")
+        let rows = sqlx::query(r#"
+        SELECT pin_meta FROM tbl_redis_custom_tag
+        WHERE pattern = $1
+            and datasource_id = $2
+        "#)
             .bind(&result.normalized())
+            .bind(&ds)
             .fetch_all(&*db)
             .await
             .unwrap();

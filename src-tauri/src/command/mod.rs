@@ -8,10 +8,13 @@ pub mod pattern_manager;
 pub mod common_cmd;
 pub mod datasource_mgr_command;
 pub mod spotlight_command;
+pub mod dataview_mgr_command;
 
 pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
 {
     builder.invoke_handler(tauri::generate_handler![
+            dataview_mgr_command::list_tree_data_views,
+
             datasource_mgr_command::list_flat_datasource,
             datasource_mgr_command::change_active_datasource,
             datasource_mgr_command::query_datasource_detail,
@@ -32,6 +35,7 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             index_search::write_index,
             index_search::infer_redis_key_pattern,
             index_search::record_key_access_history,
+            index_search::initialize_datasource_pattern,
 
             // Pattern Manager
             pattern_manager::pattern_add_tag,

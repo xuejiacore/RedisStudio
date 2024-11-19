@@ -1,11 +1,19 @@
 import {Flex, Splitter} from "antd";
-import React, {useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import DataSourceConfig from "./DataSourceConfig";
 import DataSourceTree from "./DataSourceTree.tsx";
 import {CopyOutlined, MinusOutlined, PlusOutlined} from "@ant-design/icons";
 import "./DataSource.less";
 
-const DataSource: React.FC = () => {
+interface DataSourceProps {
+    datasource?: number;
+}
+const DataSource: React.FC<DataSourceProps> = (props, context) => {
+    const [datasource, setDatasource] = useState(props.datasource);
+
+    useEffect(() => {
+        setDatasource(datasource);
+    }, [props.datasource]);
     const [datasourceId, setDatasourceId] = useState(-1);
     const onDatasourceSelected = (dsId: number) => {
         setDatasourceId(dsId);
@@ -24,7 +32,7 @@ const DataSource: React.FC = () => {
                         <MinusOutlined className={'tool-icon'}/>
                         <CopyOutlined className={'tool-icon'}/>
                     </Flex>
-                    <DataSourceTree onSelected={onDatasourceSelected}/>
+                    <DataSourceTree onSelected={onDatasourceSelected} datasource={datasource}/>
                 </Flex>
             </Splitter.Panel>
             <Splitter.Panel>

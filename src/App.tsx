@@ -98,7 +98,7 @@ const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
                 {
                     label: <><DatasourceIcon style={{width: '15px', color: colorFn(activityKey, 'datasource')}}/></>,
                     key: 'datasource',
-                    children: <><DataSource/></>,
+                    children: <><DataSource datasource={props.datasourceId}/></>,
                 },
             ]}
         />

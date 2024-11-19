@@ -8,6 +8,8 @@ use tauri::{AppHandle, Manager, PhysicalPosition, Runtime, State, TitleBarStyle,
 
 type Result<T> = std::result::Result<T, CmdError>;
 
+// pub fn show_data_view_var
+
 #[tauri::command]
 pub fn show_key_tree_right_menu<R: Runtime>(
     key: Option<String>,

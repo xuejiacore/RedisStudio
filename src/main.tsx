@@ -4,6 +4,7 @@ import App from "./App";
 import "./styles.less";
 import GlobalWindowTitleBar from "./components/titlebar/GlobalWindowTitleBar.tsx";
 import {SysManager} from "./utils/SysManager.ts";
+import {invoke} from "@tauri-apps/api/core";
 
 const windowId = Date.now();
 SysManager.use(db => {
@@ -16,6 +17,14 @@ SysManager.use(db => {
     const dsname = last_datasource.dsname;
     const color = last_datasource.color;
     const id = last_datasource.id;
+
+    if (last_datasource_id) {
+        invoke('initialize_datasource_pattern', {
+            datasource: last_datasource_id
+        }).then(r => {
+
+        });
+    }
     console.log(last_datasource)
 
     ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

@@ -53,10 +53,14 @@ impl RedisIndexer {
     /// * `engines` - pattern inference engines.
     pub async fn initialize_datasource_pattern(&self, datasource: &str) {
         let query_result = {
-            let tantivy_indexer = self.tantivy_indexer.lock().unwrap();
+            let index = {
+                let indexer = self.tantivy_indexer.lock().expect("fail to fetch index.");
+                let idx = indexer.indexes.lock().expect("fail to fetch index.");
+                idx.get(IDX_NAME_KEY_PATTERN).unwrap().clone()
+            };
 
             // 1. read all recorded pattern data in tantivy which own by specify `datasource`.
-            let query_result = tantivy_indexer.search_with_params(IDX_NAME_KEY_PATTERN, |index, search_params| {
+            let query_result = TantivyIndexer::searching_with_params(&index, |index, search_params| {
                 let schema = index.schema();
                 let keyword_pattern = schema.get_field("datasource.keyword").unwrap();
                 let term = Term::from_field_text(keyword_pattern, datasource);
@@ -458,7 +462,7 @@ impl RedisIndexer {
     /// * `key` - key name
     /// * `key_type` - type of key
     /// * `op_type` - operate type, -1: delete, 1: add
-    pub async fn operate_favor(&self, datasource: &str, _database: i64, key: &str, key_type: &str, op_type: i16) {
+    pub async fn operate_favor(&self, datasource: &str, database: i64, key: &str, key_type: &str, op_type: i16) {
         let now = Utc::now();
         let timestamp_millis = now.timestamp_millis();
         let doc_id = Uuid::new_v4().to_string();

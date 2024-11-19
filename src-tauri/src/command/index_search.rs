@@ -4,7 +4,7 @@ use crate::indexer::redis_indexer::RedisIndexer;
 use crate::indexer::tantivy_indexer::{SearchResult, TantivyIndexer};
 use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
-use crate::CmdError;
+use crate::{CmdError, CmdResult};
 use futures::FutureExt;
 use redis::{cmd, RedisResult};
 use regex::Regex;
@@ -43,6 +43,16 @@ impl SearchResultDto {
     fn add(&mut self, scene: String, hits: usize, documents: Vec<Value>) {
         self.results.push(SearchResultItem { scene, hits, documents, elapsed: None });
     }
+}
+
+#[tauri::command]
+pub async fn initialize_datasource_pattern<R: Runtime>(
+    datasource: &str,
+    redis_indexer: State<'_, RedisIndexer>,
+    handle: AppHandle<R>,
+) -> Result<Value> {
+    redis_indexer.initialize_datasource_pattern(datasource).await;
+    Ok(json!({}))
 }
 
 /// search documents by provided query string.
@@ -552,6 +562,7 @@ pub async fn write_index<R: Runtime>(
 #[tauri::command]
 pub async fn infer_redis_key_pattern<R: Runtime>(
     datasource: &str,
+    database: i64,
     key: &str,
     redis_indexer: State<'_, RedisIndexer>,
     _handle: AppHandle<R>,

@@ -102,13 +102,19 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     const onPushpinField = (e: React.MouseEvent<HTMLSpanElement>, field: string) => {
         e.stopPropagation();
         const op = pinnedFields.includes(field) ? 'remove' : 'add';
-        invoke('pattern_add_tag', {datasourceId: 'datasource01', key: key, pinField: field, op: op}).then(r => {
+        invoke('pattern_add_tag', {
+            datasourceId: datasourceRef.current,
+            database: databaseRef.current,
+            key: key,
+            pinField: field,
+            op: op
+        }).then(r => {
             const ret = r as PinResult;
             if (ret.status == 'success') {
                 setPinnedFields(ret.fields);
                 onReload(false);
             }
-        })
+        });
     };
     const onFieldValueChange = (e: UpdateEvent) => {
         console.log('Field changed:', e);

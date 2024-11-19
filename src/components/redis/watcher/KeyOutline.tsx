@@ -280,7 +280,7 @@ const KeyOutline: React.FC<KeyTagsProp> = (props, context) => {
             </Divider>
 
             <Flex gap="4px 0" wrap="wrap">
-                <RedisKeyTags selectedKey={props.selectedKey} datasource={datasource}/>
+                <RedisKeyTags selectedKey={props.selectedKey} datasource={datasource} database={database}/>
             </Flex>
 
             {/* Custom Tags */}

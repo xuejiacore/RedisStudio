@@ -24,6 +24,7 @@ import {invoke} from "@tauri-apps/api/core";
 import {humanNumber} from "../../utils/Util.ts";
 import {SysManager} from "../../utils/SysManager.ts";
 import {useEvent} from "../../utils/TauriUtil.tsx";
+import DataView from "./dataview/DataView.tsx";
 import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
 
 const {Search} = Input;
@@ -82,7 +83,9 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const [deletedKeys, setDeletedKeys] = useState<Set<string>>(set);
     const [treeUniqueId, setTreeUniqueId] = useState(Date.now());
     const [treeData, setTreeData] = useState<CustomDataNode[] | DataNode[]>([]);
-    const [selectedKeys, setSelectedKeys] = useState<Key[]>()
+    const [selectedKeys, setSelectedKeys] = useState<Key[]>();
+    const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
+    const [activeKey, setActiveKey] = useState<string[]>(['tab-data-view']);
     const selectedKeysRef = useRef(selectedKeys);
     const treeDataRef = useRef(treeData);
     const exactlySearch = useRef(true);
@@ -123,6 +126,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         treeDataContext.parentMapping = new Map<string, CustomDataNode>;
         setScannedKeyCount(0);
         setDeletedKeys(new Set<string>);
+        setExpandedKeys([]);
     }
 
     const packageDataNode = (data: CustomDataNode[] | any, array: string[], item: ScanItem, prePath: string, lv: number, context: TreeDataParseContext): number => {
@@ -286,7 +290,10 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         if (payload.finished) {
             setScanning(false);
             scanTaskIdRef.current = undefined;
-            return;
+
+            if (payload.exactly_key) {
+                setExpandedKeys([payload.keys[0]]);
+            }
         }
     });
     useEvent('key-tree/delete', (event) => {
@@ -401,6 +408,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
         expanded: boolean;
         nativeEvent: MouseEvent;
     }) => {
+        setExpandedKeys(expandedKeys);
         const fetchKeyTypeList = info.node.children.slice(0, Math.min(info.node.children.length, MAX_PRELOAD_KEY_SIZE));
         const keys = [];
         for (const child of fetchKeyTypeList) {
@@ -434,6 +442,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     };
 
     const onSearchPressEnter = (e: any) => {
+        setActiveKey(['tab-keys']);
         setScanning(true);
         cursor.current = 0;
         setNoMoreData(false);
@@ -538,6 +547,8 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 checkable={false}
                 height={comHeight}
                 selectedKeys={selectedKeys}
+                expandedKeys={expandedKeys}
+                autoExpandParent={true}
                 onSelect={(selectedKeys: Key[], info: any) => {
                     props.onSelect?.(selectedKeys, info);
                     setSelectedKeys(selectedKeys);
@@ -559,7 +570,8 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                     icon={scanning ? <LoadingOutlined className={'scan-more-icon'}/> :
                         <SearchOutlined className={'scan-more-icon'}/>}
                     onClick={onScanMore}>
-                    {noMoreData ? t('redis.key_tree.sub_tree.keys_tree.scan_no_more_result') : (scanning ? t('redis.key_tree.sub_tree.keys_tree.stop_scanning') : t('redis.key_tree.sub_tree.keys_tree.scan_more_result'))}
+                    {noMoreData ? t('redis.key_tree.sub_tree.keys_tree.scan_no_more_result') :
+                        (scanning ? t('redis.key_tree.sub_tree.keys_tree.stop_scanning') : t('redis.key_tree.sub_tree.keys_tree.scan_more_result'))}
                 </Button>
             </Flex>
         </>);
@@ -620,12 +632,18 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 </div>
 
                 {/* 收藏的树信息 */}
-                <Collapse defaultActiveKey={['1']} ghost accordion={true}
+                <Collapse defaultActiveKey={activeKey}
+                          ghost
+                          accordion={true}
+                          activeKey={activeKey}
+                          onChange={key => {
+                              setActiveKey(key);
+                          }}
                           className={'core-redis-keys-tree'}
                           expandIconPosition={'end'}
                           items={[
                               {
-                                  key: '1',
+                                  key: 'tab-favor',
                                   label: <>
                                       <Flex className={'favor-header'} gap={6}>
                                           <StarOutlined className={'collapse-icon'}/>
@@ -635,17 +653,17 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                                   children: <><FavoriteTree datasource={datasource} database={database}/></>
                               },
                               {
-                                  key: '2',
+                                  key: 'tab-data-view',
                                   label: <>
                                       <Flex className={'view-header'} gap={6}>
                                           <TableOutlined className={'collapse-icon'}/>
                                           <span>{t('redis.key_tree.sub_tree.data_view', {'count': 1})}</span>
                                       </Flex>
                                   </>,
-                                  children: <></>
+                                  children: <><DataView/></>
                               },
                               {
-                                  key: '3',
+                                  key: 'tab-keys',
                                   label: <>
                                       <Flex className={'keys-header'} gap={6}>
                                           <KeyOutlined className={'collapse-icon'}/>
