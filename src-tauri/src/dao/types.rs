@@ -51,3 +51,9 @@ pub struct DataViewDto {
     pub item_sort: i64,
     pub last_var: Option<String>,
 }
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct DataViewHistoryDto {
+    pub history_var: String,
+    pub max_id: i64,
+}

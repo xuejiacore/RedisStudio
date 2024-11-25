@@ -1,0 +1,42 @@
+.var-node-editor {
+  .name-input {
+    background: #303233;
+    border: #3a3d3d;
+    color: #E6E7E7;
+    font-size: 12px;
+    height: 18px;
+    line-height: 18px;
+    border-radius: 2px;
+    width: 80%;
+  }
+
+  .type-selector {
+    padding: 2px 6px;
+    position: fixed;
+    background: #27282D;
+    border-radius: 4px;
+    border: 1px solid rgba(98, 98, 99, 0.37);
+    box-shadow: 0 0 5px 0 #040404;
+    z-index: 10;
+
+    .type-selector-item {
+      width: calc(100% - 8px);
+      padding: 0 4px;
+      .type-desc {
+        font-size: 12px;
+        line-height: 16px;
+        height: 16px;
+        margin-left: 6px;
+      }
+    }
+
+    .type-selector-item:hover {
+      background: #4F5253;
+      border-radius: 4px;
+    }
+  }
+
+  .type-selector.invisible {
+    display: none;
+  }
+}

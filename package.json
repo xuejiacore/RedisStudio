@@ -32,6 +32,7 @@
     "react-infinite-scroll-component": "^6.1.0",
     "react-monaco-editor": "0.47.0",
     "react-split-pane": "^2.0.3",
+    "react-tiny-popover": "^8.1.4",
     "smooth-scrollbar": "^8.8.4",
     "tauri-plugin-context-menu": "^0.7.0",
     "victory": "^37.3.0"

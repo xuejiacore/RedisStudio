@@ -3709,6 +3709,11 @@ react-split-pane@^2.0.3:
     react-dom "^16.2.0"
     styled-components "^2.4.0"
 
+react-tiny-popover@^8.1.4:
+  version "8.1.4"
+  resolved "https://registry.npmmirror.com/react-tiny-popover/-/react-tiny-popover-8.1.4.tgz#4ca8e5e9dcce62e38fb8cde65165f5a743e36b24"
+  integrity sha512-rHNAosGfUwlkOQeTJ+fCX/lHUOuMmgQZVhtRBnU9DqAONgltSv1QIZHeG1FGvZIGg7y7wbV4H6wriDuiSssIfQ==
+
 react@^16.2.0:
   version "16.14.0"
   resolved "https://registry.npmmirror.com/react/-/react-16.14.0.tgz#94d776ddd0aaa37da3eda8fc5b6b18a4c9a3114d"

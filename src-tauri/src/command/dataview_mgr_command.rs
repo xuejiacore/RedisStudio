@@ -1,6 +1,6 @@
 use crate::dao::data_view_dao;
 use crate::storage::sqlite_storage::SqliteStorage;
-use crate::CmdResult;
+use crate::{CmdError, CmdResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::cell::RefCell;
@@ -16,6 +16,7 @@ pub struct DataViewNode {
     /// 3. data view leaf
     node_type: u16,
     id: i64,
+    dv_id: i64,
     name: String,
 
     var: Option<String>,
@@ -33,6 +34,58 @@ pub async fn list_tree_data_views<R: Runtime>(
     handle: AppHandle<R>,
     sqlite: State<'_, SqliteStorage>,
 ) -> CmdResult<Value> {
+    get_data_view_tree(datasource, database, sqlite).await?
+}
+#[tauri::command]
+pub async fn add_new_data_view_item<R: Runtime>(
+    datasource: i64,
+    database: i64,
+    data_view_id: i64,
+    key: String,
+    key_type: Option<String>,
+    handle: AppHandle<R>,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<Value> {
+    data_view_dao::add_data_view_item(data_view_id, key, key_type, sqlite.clone()).await;
+    get_data_view_tree(datasource, database, sqlite).await?
+}
+
+#[tauri::command]
+pub async fn del_data_view_item<R: Runtime>(
+    datasource: i64,
+    database: i64,
+    data_view_item_id: i64,
+    handle: AppHandle<R>,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<Value> {
+    data_view_dao::delete_data_view_item(data_view_item_id, sqlite.clone()).await;
+    get_data_view_tree(datasource, database, sqlite).await?
+}
+
+#[tauri::command]
+pub async fn query_history_vars<R: Runtime>(
+    data_view_id: i64,
+    var_name: String,
+    limit: u32,
+    handle: AppHandle<R>,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<Value> {
+    let t = data_view_dao::query_data_view_var_history(data_view_id, var_name, limit, sqlite).await;
+    match t {
+        Ok(histories) => Ok(json!({
+            "histories": histories,
+        })),
+        Err(_) => Ok(json!({
+            "histories": [],
+        })),
+    }
+}
+
+async fn get_data_view_tree(
+    datasource: i64,
+    database: i64,
+    sqlite: State<'_, SqliteStorage>,
+) -> Result<CmdResult<Value>, CmdError> {
     let result = data_view_dao::query_data_view(datasource, database, sqlite).await?;
 
     let mut dir_map = HashMap::<String, Rc<RefCell<DataViewNode>>>::new();
@@ -45,11 +98,13 @@ pub async fn list_tree_data_views<R: Runtime>(
     dir_map.insert(String::from(""), root_rrc);
 
     for dv in result {
+        let dv_id = dv.dv_id;
         let dv_name = dv.name;
         let dv_p = format!(":{}", dv_name);
         if !dir_map.contains_key(&dv_p) {
             let mut new_dir = DataViewNode::default();
             new_dir.node_type = 1;
+            new_dir.dv_id = dv_id;
             new_dir.path = Some(dv_name.clone());
             new_dir.name = dv_name.clone();
 
@@ -61,6 +116,7 @@ pub async fn list_tree_data_views<R: Runtime>(
         let paths = dv.path.split(":").collect::<Vec<&str>>();
         let node_value = dv.last_var;
         let key_type = dv.key_type;
+        let dv_item_id = dv.data_view_item_id;
         for i in 1..paths.len() + 1 {
             let p = paths[0..i].join(":");
             if !dir_map.contains_key(&p) {
@@ -69,13 +125,17 @@ pub async fn list_tree_data_views<R: Runtime>(
                     let p_node = dir_map.get_mut(&parent).expect("parent not exists");
                     let mut new_dir = DataViewNode::default();
                     new_dir.node_type = match i == paths.len() {
-                        true => 3,
-                        false => 2
+                        true => {
+                            new_dir.id = dv_item_id;
+                            3
+                        }
+                        false => 2,
                     };
                     new_dir.path = Some(p.clone());
                     new_dir.name = String::from(paths[i - 1]);
                     new_dir.var = node_value.clone();
                     new_dir.key_type = Some(key_type.clone());
+                    new_dir.dv_id = dv_id;
 
                     let rrc = Rc::new(RefCell::new(new_dir));
                     p_node.borrow_mut().children.push(rrc.clone());
@@ -85,14 +145,15 @@ pub async fn list_tree_data_views<R: Runtime>(
                     new_dir.node_type = 2;
                     new_dir.path = Some(p.clone());
                     new_dir.name = String::from(paths[i - 1]);
+                    new_dir.dv_id = dv_id;
                     dir_map.insert(p, Rc::new(RefCell::new(new_dir)));
                 }
             }
         }
     }
 
-    match dir_map.get("") {
+    Ok(match dir_map.get("") {
         None => Ok(json!({})),
-        Some(root) => Ok(json!(root))
-    }
+        Some(root) => Ok(json!(root)),
+    })
 }

@@ -10,8 +10,7 @@ import {
     LoadingOutlined,
     PlusOutlined,
     SearchOutlined,
-    StarOutlined,
-    TableOutlined
+    StarOutlined
 } from "@ant-design/icons";
 import DirectoryTree from 'antd/es/tree/DirectoryTree';
 import {redis_invoke} from '../../utils/RustIteractor';
@@ -25,6 +24,7 @@ import {humanNumber} from "../../utils/Util.ts";
 import {SysManager} from "../../utils/SysManager.ts";
 import {useEvent} from "../../utils/TauriUtil.tsx";
 import DataView from "./dataview/DataView.tsx";
+import DataViewHeader from "./dataview/DataViewHeader.tsx";
 import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
 
 const {Search} = Input;
@@ -86,6 +86,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
     const [selectedKeys, setSelectedKeys] = useState<Key[]>();
     const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
     const [activeKey, setActiveKey] = useState<string[]>(['tab-data-view']);
+    const [dataViewCount, setDataViewCount] = useState(0);
     const selectedKeysRef = useRef(selectedKeys);
     const treeDataRef = useRef(treeData);
     const exactlySearch = useRef(true);
@@ -654,13 +655,12 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                               },
                               {
                                   key: 'tab-data-view',
-                                  label: <>
-                                      <Flex className={'view-header'} gap={6}>
-                                          <TableOutlined className={'collapse-icon'}/>
-                                          <span>{t('redis.key_tree.sub_tree.data_view', {'count': 1})}</span>
-                                      </Flex>
-                                  </>,
-                                  children: <><DataView/></>
+                                  label: <DataViewHeader datasource={datasource} database={database}
+                                                         dataViewCount={dataViewCount}/>,
+                                  children: <><DataView datasource={datasource}
+                                                        database={database}
+                                                        windowId={props.windowId}
+                                                        onDataViewCountCallback={setDataViewCount}/></>
                               },
                               {
                                   key: 'tab-keys',

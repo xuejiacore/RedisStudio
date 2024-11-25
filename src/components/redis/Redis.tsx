@@ -34,6 +34,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     const [outlineAction, setOutlineAction] = useState<OutlineAction>();
     const [showAnalysis, setShowAnalysis] = useState(true);
     const [showCommandLine, setShowCommandLine] = useState(false);
+    const [operatorUniqueId, setOperatorUniqueId] = useState(Date.now());
 
     const datasourceRef = useRef(props.datasourceId);
     const databaseRef = useRef(props.selectedDatabase);
@@ -54,32 +55,42 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
         setOutlineAction({type: 'RELOAD'})
     };
 
-    const hashOperator = <HashOperator data={nodeData}
-                                       onFieldClicked={setSelectedField}
-                                       onRowAdd={onRowAdd}
-                                       onReload={onReload}
-                                       datasourceId={datasource}
-                                       selectedDatabase={database}/>;
-    const stringOperator = <StringOperator data={nodeData}
-                                           onReload={onReload}
-                                           datasourceId={datasource}
-                                           selectedDatabase={database}/>;
-    const zsetOperator = <ZSetOperator data={nodeData}
-                                       onFieldClicked={setSelectedField}
-                                       onRowAdd={onRowAdd}
-                                       onReload={onReload}
-                                       datasourceId={datasource}
-                                       selectedDatabase={database}/>;
-    const setOperator = <SetOperator data={nodeData}
-                                     onFieldClicked={setSelectedField}
-                                     onReload={onReload}
-                                     datasourceId={datasource}
-                                     selectedDatabase={database}/>;
-    const listOperator = <ListOperator data={nodeData}
-                                       onFieldClicked={setSelectedField}
-                                       onReload={onReload}
-                                       datasourceId={datasource}
-                                       selectedDatabase={database}/>;
+    const hashOperator = <HashOperator
+        key={operatorUniqueId}
+        data={nodeData}
+        onFieldClicked={setSelectedField}
+        onRowAdd={onRowAdd}
+        onReload={onReload}
+        datasourceId={datasource}
+        selectedDatabase={database}/>;
+    const stringOperator = <StringOperator
+        key={operatorUniqueId}
+        data={nodeData}
+        onReload={onReload}
+        datasourceId={datasource}
+        selectedDatabase={database}/>;
+    const zsetOperator = <ZSetOperator
+        key={operatorUniqueId}
+        data={nodeData}
+        onFieldClicked={setSelectedField}
+        onRowAdd={onRowAdd}
+        onReload={onReload}
+        datasourceId={datasource}
+        selectedDatabase={database}/>;
+    const setOperator = <SetOperator
+        key={operatorUniqueId}
+        data={nodeData}
+        onFieldClicked={setSelectedField}
+        onReload={onReload}
+        datasourceId={datasource}
+        selectedDatabase={database}/>;
+    const listOperator = <ListOperator
+        key={operatorUniqueId}
+        data={nodeData}
+        onFieldClicked={setSelectedField}
+        onReload={onReload}
+        datasourceId={datasource}
+        selectedDatabase={database}/>;
 
     useEffect(() => {
         const lastKeyName = currentKey;

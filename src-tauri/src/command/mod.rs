@@ -14,6 +14,9 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
 {
     builder.invoke_handler(tauri::generate_handler![
             dataview_mgr_command::list_tree_data_views,
+            dataview_mgr_command::add_new_data_view_item,
+            dataview_mgr_command::del_data_view_item,
+            dataview_mgr_command::query_history_vars,
 
             datasource_mgr_command::list_flat_datasource,
             datasource_mgr_command::change_active_datasource,
@@ -56,5 +59,8 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             menu_controller::show_auto_refresh_menu,
             menu_controller::show_add_new_key_menu,
             menu_controller::show_key_tree_right_menu,
+            menu_controller::show_data_view_var,
+            menu_controller::show_data_view_right_click_menu,
+            menu_controller::show_data_view_mgr_menu,
         ])
 }
