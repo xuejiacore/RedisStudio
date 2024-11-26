@@ -1,5 +1,7 @@
 @import "../../../utils/RedisTypeStyle";
 
+@uncertainty-font-color: #6a6a6c;
+
 .var-node {
   font-weight: 500;
   height: 24px;
@@ -14,7 +16,7 @@
 
   .redis-type {
     color: #d5d5d5;
-    border-radius: 2px;
+    border-radius: 3px;
     line-height: 16px;
     height: 16px;
     padding: 0 3px;
@@ -34,6 +36,10 @@
     color: #9f9fa3;
   }
 
+  .origin-name.uncertainty {
+    color: @uncertainty-font-color !important;
+  }
+
   .runtime-value {
     color: #d5d5d5;
     line-height: 16px;
@@ -41,11 +47,15 @@
     padding: 0 3px;
     text-align: center;
     border-radius: 0 0 2px 2px;
-    border-bottom: 1px solid rgba(233, 243, 246, 0.37);
+    border-bottom: 1px solid rgba(233, 243, 246, 0.60);
 
     .history.invisible {
       display: none;
     }
+  }
+
+  .runtime-value.uncertainty {
+    color: @uncertainty-font-color !important;
   }
 
   .runtime-value:hover {

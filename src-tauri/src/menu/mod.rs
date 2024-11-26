@@ -39,6 +39,7 @@ pub const MID_DEL_DV: &str = "show_data_view_mgr_menu/del_data_view";
 // ------------------------------ data view item right menu ------------------------------
 
 pub const MENU_DATA_VIEW_R_CLK: &str = "show_data_view_r_clk_menu";
+pub const MID_DV_EXPAND_ALL: &str = "show_data_view_r_clk_menu/expand_all";
 pub const MID_ADD_DV_ITEM: &str = "show_data_view_r_clk_menu/add_dv_item";
 pub const MID_DEL_DV_ITEM: &str = "show_data_view_r_clk_menu/del_dv_item";
 pub const MID_MOD_DV_ITEM: &str = "show_data_view_r_clk_menu/modify_dv_item";

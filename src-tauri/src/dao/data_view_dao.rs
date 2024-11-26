@@ -1,4 +1,4 @@
-use crate::dao::types::{DataViewDto, DataViewHistoryDto};
+use crate::dao::types::{DataViewDto, DataViewHistoryDto, UnknownKeyTypeDto};
 use crate::dao::DEFAULT_SQLITE_NAME;
 use crate::storage::sqlite_storage::SqliteStorage;
 use crate::{CmdError, CmdResult};
@@ -30,7 +30,7 @@ from tbl_data_view V
                                                from tbl_data_view_vars
                                                group by data_view_item_id, name) B1
                                               on A1.id = B1.data_view_item_id
-                           group by B1.name) V_MAX
+                           group by A1.id, B1.name) V_MAX
                           on VAR.data_view_item_id = V_MAX.item_id
                               and VAR.id = V_MAX.max_id
       group by VAR.data_view_item_id) H
@@ -61,6 +61,17 @@ const DELETE_DATA_VIEW_ITEM: &str = r#"delete from tbl_data_view_items where id 
 const SAVE_DATA_VIEW_ITEM_HISTORY: &str = r#"
 insert into tbl_data_view_vars (data_view_item_id, name, value, create_time)
 values ($1, $2, $3, $4)
+"#;
+
+const QUERY_UNKNOWN_DATA_VIEW_ITEMS: &str = r#"
+select id, key
+from tbl_data_view_items
+where data_view_id = $1
+  and key_type = 'unknown'
+"#;
+
+const UPDATE_UNKNOWN_DATA_VIEW_ITEMS: &str = r#"
+update tbl_data_view_items set key_type = $1 where id = $2
 "#;
 
 /// query data view
@@ -174,4 +185,44 @@ pub async fn save_var_history(
         .await
         .expect("Fail to record var history.");
     Ok(true)
+}
+
+pub async fn query_unknown_keys(
+    data_view_id: i64,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<Vec<UnknownKeyTypeDto>> {
+    let mut mutex = sqlite.pool.lock().await;
+    let map = mutex.deref_mut();
+    let pool = map
+        .get(DEFAULT_SQLITE_NAME)
+        .expect("Could not load system database");
+    let result: Result<Vec<UnknownKeyTypeDto>, Error> =
+        sqlx::query_as(QUERY_UNKNOWN_DATA_VIEW_ITEMS)
+            .bind(data_view_id)
+            .fetch_all(&*pool)
+            .await;
+    match result {
+        Ok(r) => Ok(r),
+        Err(e) => Err(CmdError::Datasource(e.to_string())),
+    }
+}
+
+pub async fn update_unknown_type(
+    data_view_id: i64,
+    id: i64,
+    key_type: &String,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<()> {
+    let mut mutex = sqlite.pool.lock().await;
+    let map = mutex.deref_mut();
+    let pool = map
+        .get(DEFAULT_SQLITE_NAME)
+        .expect("Could not load system database");
+    sqlx::query(UPDATE_UNKNOWN_DATA_VIEW_ITEMS)
+        .bind(key_type)
+        .bind(id)
+        .execute(&*pool)
+        .await
+        .expect("Fail to record var history.");
+    Ok(())
 }

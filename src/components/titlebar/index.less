@@ -147,33 +147,29 @@
       color: #97999b;
       margin-left: 2px;
     }
+
+    .database-status {
+    }
+
+    .database-status.disconnected {
+      fill: #726969;
+      color: #726969;
+    }
+
+    .database-status.connected {
+      fill: #cccdd1;
+    }
   }
 
   .selector:hover {
     background: rgba(255, 255, 255, 0.2);
     border-radius: 4px;
     cursor: pointer;
-  }
 
-  .database-status {
-  }
-
-  @keyframes breathing {
-    0%, 100% {
-      opacity: 1;
+    .database-status.disconnected {
+      fill: #f7f7f7;
+      color: #f7f7f7;
     }
-    50% {
-      opacity: 0.3;
-    }
-  }
-
-  .database-status.disconnected {
-    fill: #726969;
-    color: #726969;
-  }
-
-  .database-status.connected {
-    fill: #cccdd1;
   }
 
   .reconnect-btn.connected {

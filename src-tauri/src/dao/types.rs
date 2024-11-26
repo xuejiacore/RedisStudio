@@ -57,3 +57,9 @@ pub struct DataViewHistoryDto {
     pub history_var: String,
     pub max_id: i64,
 }
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct UnknownKeyTypeDto {
+    pub id: i64,
+    pub key: String,
+}

@@ -95,15 +95,21 @@ pub async fn save_var_history<R: Runtime>(
     data_view_dao::save_var_history(data_view_id, name, value, sqlite.clone()).await
 }
 
+#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub struct QueryTypeKey {
+    key: String,
+    id: i64,
+}
 #[tauri::command]
 pub async fn query_key_exist_and_type<R: Runtime>(
     view_id: i64,
     datasource: i64,
     database: i64,
-    keys: Vec<String>,
+    keys: Vec<QueryTypeKey>,
     current_meta: String,
     handle: AppHandle<R>,
     redis_pool: State<'_, RedisPool>,
+    sqlite: State<'_, SqliteStorage>,
 ) -> CmdResult<Value> {
     let key_len = keys.len();
     let arc = redis_pool
@@ -112,18 +118,43 @@ pub async fn query_key_exist_and_type<R: Runtime>(
     let mut conn = arc.lock().await;
     let mut pipe = redis::pipe();
     keys.iter().for_each(|k| {
-        pipe.cmd("TYPE").arg(k);
+        pipe.cmd("TYPE").arg(&k.key);
     });
     let types: Vec<String> = pipe.query_async(conn.deref_mut()).await.unwrap();
 
     let mut map = HashMap::new();
+    let mut id_map = HashMap::new();
     for idx in 0..key_len {
-        map.insert(keys[idx].clone(), types[idx].clone());
+        let key_info = &keys[idx];
+        let key_name = key_info.key.clone();
+        let key_id = key_info.id;
+        map.insert(key_name, types[idx].clone());
+        id_map.insert(key_id, types[idx].clone());
     }
 
     let meta: Value = serde_json::from_str(&current_meta).expect("incorrect meta data");
-    let payload = json!({"types": map, "meta": meta});
+
+    let cloned_types = map.clone();
+    let payload = json!({"types": cloned_types, "meta": meta, "davaViewId": view_id, "typeByIds": id_map});
     handle.emit("data_view/key_types", &payload).unwrap();
+
+    // complete unknown keys
+    let result = data_view_dao::query_unknown_keys(view_id, sqlite.clone()).await?;
+    if result.len() > 0 {
+        for unknown in result {
+            if let Some(type_name) = id_map.get(&unknown.id) {
+                if !"none".eq(type_name.as_str()) {
+                    data_view_dao::update_unknown_type(
+                        view_id,
+                        unknown.id,
+                        &type_name,
+                        sqlite.clone(),
+                    )
+                    .await?;
+                }
+            }
+        }
+    }
     Ok(payload)
 }
 

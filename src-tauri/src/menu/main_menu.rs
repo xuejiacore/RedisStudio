@@ -216,19 +216,52 @@ async fn process_data_view_right_clk(
     let win_label = context.get("win").expect("could not found source window");
     match menu_id_val {
         menu::MID_ADD_DV_ITEM => {
-            window.emit_to("main", menu_id_val, json!({
-                "winId": win_label
-            })).unwrap();
+            window
+                .emit_to(
+                    "main",
+                    menu_id_val,
+                    json!({
+                        "winId": win_label
+                    }),
+                )
+                .unwrap();
         }
         menu::MID_DEL_DV_ITEM => {
-            window.emit_to("main", menu_id_val, json!({
-                "winId": win_label
-            })).unwrap();
+            window
+                .emit_to(
+                    "main",
+                    menu_id_val,
+                    json!({
+                        "winId": win_label
+                    }),
+                )
+                .unwrap();
         }
         menu::MID_MOD_DV_ITEM => {
-            window.emit_to("main", menu_id_val, json!({
-                "winId": win_label
-            })).unwrap();
+            window
+                .emit_to(
+                    "main",
+                    menu_id_val,
+                    json!({
+                        "winId": win_label
+                    }),
+                )
+                .unwrap();
+        }
+        menu::MID_DV_EXPAND_ALL => {
+            let data_view_id = context
+                .get("data_view_id")
+                .expect("could not found data view id");
+            window
+                .emit_to(
+                    "main",
+                    menu_id_val,
+                    json!({
+                        "winId": win_label,
+                        "dataViewId": data_view_id
+                    }),
+                )
+                .unwrap();
         }
         &_ => {}
     }

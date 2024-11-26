@@ -61,7 +61,6 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             menu_controller::show_auto_refresh_menu,
             menu_controller::show_add_new_key_menu,
             menu_controller::show_key_tree_right_menu,
-            menu_controller::show_data_view_var,
             menu_controller::show_data_view_right_click_menu,
             menu_controller::show_data_view_mgr_menu,
         ])

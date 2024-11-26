@@ -1,9 +1,7 @@
-use crate::dao::data_view_dao;
 use crate::menu::menu_manager::MenuContext;
-use crate::storage::sqlite_storage::SqliteStorage;
-use crate::{menu, CmdError, CmdResult};
+use crate::{menu, CmdError};
 use std::collections::HashMap;
-use tauri::menu::{ContextMenu, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{ContextMenu, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::Theme::Dark;
 use tauri::{
     AppHandle, Manager, PhysicalPosition, Runtime, State, TitleBarStyle, WebviewUrl, Window,
@@ -46,58 +44,10 @@ pub fn show_data_view_mgr_menu<R: Runtime>(
     menu.popup(window).unwrap();
 }
 
-/// show data view variable histories menu
-#[tauri::command]
-pub async fn show_data_view_var<R: Runtime>(
-    data_view_id: i64,
-    var_name: String,
-    limit: u32,
-    window: Window,
-    handle: AppHandle<R>,
-    menu_context: State<'_, MenuContext>,
-    sqlite: State<'_, SqliteStorage>,
-) -> CmdResult<()> {
-    let t = data_view_dao::query_data_view_var_history(data_view_id, var_name, limit, sqlite).await;
-    let app_handle = handle.app_handle();
-    match t {
-        Ok(histories) => {
-            let menus: Vec<Box<dyn IsMenuItem<R>>> = histories
-                .iter()
-                .map(|h| {
-                    let m = MenuItem::with_id(app_handle, "", h, true, None::<&str>).unwrap();
-                    Box::new(m) as Box<dyn IsMenuItem<R>>
-                })
-                .collect();
-
-            let menu_slice: Vec<&dyn IsMenuItem<R>> = menus.iter().map(|m| m.as_ref()).collect();
-            let menu = Menu::with_items(app_handle, &menu_slice).unwrap();
-            menu.popup(window).unwrap();
-        }
-        Err(_) => {
-            let menu = Menu::with_items(
-                app_handle,
-                &[
-                    &MenuItem::with_id(
-                        app_handle,
-                        menu::MID_COPY_KEY_NAME,
-                        "No History",
-                        true,
-                        None::<&str>,
-                    )
-                    .unwrap(),
-                    &PredefinedMenuItem::separator(app_handle).unwrap(),
-                ],
-            )
-            .unwrap();
-            menu.popup(window).unwrap();
-        }
-    }
-    Ok(())
-}
-
 /// show data view right click context menu
 #[tauri::command]
 pub fn show_data_view_right_click_menu<R: Runtime>(
+    data_view_id: Option<i64>,
     win_id: i64,
     window: Window,
     handle: AppHandle<R>,
@@ -105,40 +55,86 @@ pub fn show_data_view_right_click_menu<R: Runtime>(
 ) {
     let mut context = HashMap::new();
     context.insert(String::from("win"), win_id.to_string());
+    let dvid = data_view_id.clone().unwrap_or(0);
+    context.insert(String::from("data_view_id"), dvid.to_string());
+
     menu_context.set_context(menu::MENU_DATA_VIEW_R_CLK, context);
     let app_handle = handle.app_handle();
     let _pkg_info = app_handle.package_info();
-    let menu = Menu::with_items(
-        app_handle,
-        &[
-            &MenuItem::with_id(
-                app_handle,
-                menu::MID_ADD_DV_ITEM,
-                "Add Key",
-                true,
-                None::<&str>,
-            )
-            .unwrap(),
-            &MenuItem::with_id(
-                app_handle,
-                menu::MID_MOD_DV_ITEM,
-                "Edit Key",
-                true,
-                None::<&str>,
-            )
-            .unwrap(),
-            &PredefinedMenuItem::separator(app_handle).unwrap(),
-            &MenuItem::with_id(
-                app_handle,
-                menu::MID_DEL_DV_ITEM,
-                "Delete Key",
-                true,
-                None::<&str>,
-            )
-            .unwrap(),
-        ],
-    )
-    .unwrap();
+
+    let menu = match data_view_id {
+        None => Menu::with_items(
+            app_handle,
+            &[
+                &MenuItem::with_id(
+                    app_handle,
+                    menu::MID_ADD_DV_ITEM,
+                    "Add Key",
+                    true,
+                    None::<&str>,
+                )
+                .unwrap(),
+                &MenuItem::with_id(
+                    app_handle,
+                    menu::MID_MOD_DV_ITEM,
+                    "Edit Key",
+                    true,
+                    None::<&str>,
+                )
+                .unwrap(),
+                &PredefinedMenuItem::separator(app_handle).unwrap(),
+                &MenuItem::with_id(
+                    app_handle,
+                    menu::MID_DEL_DV_ITEM,
+                    "Delete Key",
+                    true,
+                    None::<&str>,
+                )
+                .unwrap(),
+            ],
+        )
+        .unwrap(),
+        Some(vid) => Menu::with_items(
+            app_handle,
+            &[
+                &MenuItem::with_id(
+                    app_handle,
+                    menu::MID_DV_EXPAND_ALL,
+                    "Expand All",
+                    true,
+                    None::<&str>,
+                )
+                .unwrap(),
+                &MenuItem::with_id(
+                    app_handle,
+                    menu::MID_ADD_DV_ITEM,
+                    "Add Key",
+                    true,
+                    None::<&str>,
+                )
+                .unwrap(),
+                &MenuItem::with_id(
+                    app_handle,
+                    menu::MID_MOD_DV_ITEM,
+                    "Edit Key",
+                    true,
+                    None::<&str>,
+                )
+                .unwrap(),
+                &PredefinedMenuItem::separator(app_handle).unwrap(),
+                &MenuItem::with_id(
+                    app_handle,
+                    menu::MID_DEL_DV_ITEM,
+                    "Delete Key",
+                    true,
+                    None::<&str>,
+                )
+                .unwrap(),
+            ],
+        )
+        .unwrap(),
+    };
+
     menu.popup(window).unwrap();
 }
 

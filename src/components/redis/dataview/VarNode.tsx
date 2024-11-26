@@ -1,9 +1,12 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, {forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
 import {Flex, Input} from "antd";
 import "./VarNode.less";
 import {invoke} from "@tauri-apps/api/core";
 import {Popover} from "react-tiny-popover";
-import {useEvent} from "../../../utils/TauriUtil.tsx";
+
+export interface VarNodeRef {
+    updateKeyType: (type: string) => void;
+}
 
 interface VarNodeProps {
     id: number;
@@ -20,7 +23,7 @@ interface VarHistoryItem {
     value: string;
 }
 
-const VarNode: React.FC<VarNodeProps> = (props, context) => {
+const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNodeProps>((props, ref) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [historyVisible, setHistoryVisible] = useState(false);
     const historyInputRef = useRef<any>();
@@ -28,7 +31,19 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
     const [inputValue, setInputValue] = useState('');
     const [keyType, setKeyType] = useState(props.keyType)
     const [typeChar, setTypeChar] = useState(keyType?.substring(0, 1).toUpperCase());
-    const [uncertainty, setUncertainty] = useState('');
+    const [uncertainty, setUncertainty] = useState(props.keyType ? 'uncertainty' : '');
+
+    useImperativeHandle(ref, () => ({
+        updateKeyType: (keyType: string) => {
+            if (keyType !== 'none') {
+                setKeyType(keyType);
+                setTypeChar(keyType.substring(0, 1).toUpperCase());
+                setUncertainty('');
+            } else {
+                setUncertainty('uncertainty');
+            }
+        }
+    }));
 
     let replacement = '';
 
@@ -55,25 +70,6 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
     useEffect(() => {
         replaceValueRef.current = replaceValue;
     }, [replaceValue]);
-    useEvent('data_view/key_types', event => {
-        let payload: any;
-        if (event.payload && (payload = event.payload) && payload.types && originKey.length > 0) {
-            const runtimeKey = originKey.replace(/\{([^}]+)\}/g, (_: any, key: any) => {
-                return payload.meta[key] !== undefined ? payload.meta[key] : `{${key}}`;
-            });
-
-            console.log('originKey = ', originKey, runtimeKey);
-            let type = 'none';
-            if ((type = payload.types[runtimeKey]) && type !== 'none') {
-                console.log(runtimeKey, '类型是', type);
-                setKeyType(type);
-                setTypeChar(type.substring(0, 1).toUpperCase());
-                setUncertainty('');
-            } else {
-                setUncertainty('uncertainty');
-            }
-        }
-    });
 
     const onValueDropdown = (e: React.MouseEvent<HTMLSpanElement>) => {
         e.stopPropagation();
@@ -137,9 +133,9 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
 
             <Popover
                 isOpen={isMenuOpen}
-                positions={['bottom']} // preferred positions by priority
+                positions={['bottom']}
                 align={'start'}
-                onClickOutside={() => setIsMenuOpen(false)} // handle click events outside of the popover/target here!
+                onClickOutside={() => setIsMenuOpen(false)}
                 content={({position, nudgedLeft, nudgedTop}) => <>
                     <Flex className={`data-view-var-history ${historyVisible ? '' : 'invisible'}`}
                           justify="center"
@@ -181,25 +177,29 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
                         <div className={'history-items'}>
                             {
                                 historyItems.map((item, i) => {
-                                    return <Flex className={'data-value-item'} key={i} align={'center'}
-                                                 justify={"center"} gap={4}
-                                                 onClick={e => onHistoryItemSelected(e, item)}>
-                                        <div className={'data-value'}>{item.value}</div>
+                                    return <Flex className={'data-value-item'} key={`${props.viewId}_${props.id}_${i}`}
+                                                 align={'center'}
+                                                 justify={"center"} gap={4}>
+                                        <div className={'data-value'}
+                                             onClick={e => onHistoryItemSelected(e, item)}>
+                                            {item.value}
+                                        </div>
                                     </Flex>
                                 })
                             }
                         </div>
                     </Flex>
                 </>}>
-                <div className={`runtime-value ${empty}`}
+                <div className={`runtime-value ${empty} ${uncertainty}`}
                      onClick={onValueDropdown}>
                     {replaceValue}
                 </div>
             </Popover>
 
-            <div className={`origin-name ${varClass}`}>{props.name}</div>
+            <div className={`origin-name ${varClass} ${uncertainty}`}>{props.name}</div>
         </Flex>
     </>
-}
+});
 
+VarNode.displayName = 'VarNode';
 export default VarNode;

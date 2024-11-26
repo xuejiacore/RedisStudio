@@ -1,17 +1,55 @@
 .data-view-container {
   overflow: hidden;
 
-  .data-view-group {
+  .data-view-group-container {
+    .data-view-group {
+      .group-icon {
+        color: #5fd3f6;
+      }
 
-    .group-icon {
-      color: #5fd3f6;
+      .group-name {
+        color: #efefef;
+        font-size: 12px;
+        font-family: JetBrainsMonoBold, sans-serif;
+      }
     }
 
-    .group-name {
-      color: #efefef;
-      font-size: 12px;
-      font-family: JetBrainsMonoBold, sans-serif;
+    .data-view-group-operator {
+      margin-right: 4px;
+
+      .toolbar-btn {
+        display: none;
+        width: 10px;
+        height: 10px;
+        border-radius: 4px;
+        padding: 3px 4px;
+        color: #6d6e70;
+        background: #393B40;
+      }
     }
   }
 
+}
+
+//.ant-tree-treenode-selected,
+.ant-tree-node-content-wrapper:hover {
+  .data-view-group-container {
+    .data-view-group-operator {
+      .toolbar-btn {
+        display: inline-flex;
+        color: #b67704;
+        background: #2d2d2e;
+      }
+
+      .toolbar-btn:hover {
+        color: #ffa400;
+        background: #1d1f20;
+      }
+
+      .toolbar-btn:active {
+        color: #b67704;
+        background: #2d2d2e;
+      }
+    }
+  }
 }

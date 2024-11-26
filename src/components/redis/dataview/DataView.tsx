@@ -3,7 +3,7 @@ import React, {useEffect, useRef, useState} from "react";
 import DirectoryTree from "antd/es/tree/DirectoryTree";
 import "./DataView.less";
 import DataViewGroup from "./DataViewGroup.tsx";
-import VarNode from "./VarNode.tsx";
+import VarNode, {VarNodeRef} from "./VarNode.tsx";
 import {invoke} from "@tauri-apps/api/core";
 import {DataNode, EventDataNode} from "antd/es/tree";
 import {useEvent} from "../../../utils/TauriUtil.tsx";
@@ -64,12 +64,54 @@ const delNode = (key: string,
     return undefined;
 };
 
+const sortDataView = (a: any, b: any) => {
+    const aIsDir = a!.children.length;
+    const bIsDir = b!.children.length;
+    if (aIsDir && bIsDir) {
+        const aIsDvGroup = a!.title.props.dataViewId ?? 0 > 0;
+        const bIsDvGroup = b!.title.props.dataViewId ?? 0 > 0;
+
+        if (aIsDvGroup && bIsDvGroup) {
+            return a!.title.props.sort - b!.title.props.sort;
+        } else if (aIsDvGroup) {
+            return -1;
+        } else if (bIsDvGroup) {
+            return 1;
+        }
+
+        const aName = a!.title.props.name ?? '';
+        const bName = b!.title.props.name ?? '';
+        if (aName > bName) {
+            return 1;
+        } else if (aName < bName) {
+            return -1;
+        } else {
+            return 0;
+        }
+    } else if (aIsDir) {
+        return -1;
+    } else if (bIsDir) {
+        return 1;
+    } else {
+        const aName = a!.title.props.name ?? '';
+        const bName = b!.title.props.name ?? '';
+        if (aName > bName) {
+            return 1;
+        } else if (aName < bName) {
+            return -1;
+        } else {
+            return 0;
+        }
+    }
+};
+
 const DataView: React.FC<DataViewProps> = (props, context) => {
 
     const [treeData, setTreeData] = useState<DataNode[]>([]);
     const cachedTreeData = useRef<DataNode[]>([]);
     const menuContextNode = useRef(null);
     const dataViewMetaRef = useRef<Map<number, Map<string, string>>>(new Map());
+    const varNodeRefs = useRef<{ [key: string]: VarNodeRef | null }>({});
 
     const onVarNodeEditorCancel = (data: any) => {
         // eslint-disable-next-line
@@ -93,16 +135,13 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
             props.onDataViewCountCallback(treeData.length);
         });
     }
-
-    const collectTreeRuntimeKeys = (viewId: number, nodes: DataNode[], collector: (k: string) => void) => {
+    const collectTreeRuntimeKeys = (viewId: number, nodes: DataNode[], collector: (k: string, id: number) => void) => {
         for (const node of nodes) {
             // @ts-ignore
             const nodeType = node.node_type;
             if (nodeType === 1 || nodeType === 2) {
                 if (node.children) {
                     collectTreeRuntimeKeys(viewId, node.children, collector);
-                } else {
-                    continue;
                 }
             } else if (nodeType === 3) {
                 let runtimeKey = node.key as string;
@@ -114,17 +153,21 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                         return meta.get(key) !== undefined ? meta.get(key) : `{${key}}`;
                     });
                 }
-                collector(runtimeKey);
+                // @ts-ignore
+                collector(runtimeKey, node.id);
+                if (node.children) {
+                    collectTreeRuntimeKeys(viewId, node.children, collector);
+                }
             }
         }
     }
-
-    function queryKeyTypes(vid: number) {
-        const keys = new Set<string>();
+    const queryKeyTypes = (vid: number) => {
+        const keys = new Set<{ key: string, id: number }>();
         const afterFilter = cachedTreeData.current.filter((t: any) => t.dv_id === vid);
-        collectTreeRuntimeKeys(vid, afterFilter, k => {
-            if (!keys.has(k)) {
-                keys.add(k);
+        collectTreeRuntimeKeys(vid, afterFilter, (key, id) => {
+            const tmp = {key, id};
+            if (!keys.has(tmp)) {
+                keys.add(tmp);
             }
         });
 
@@ -134,11 +177,8 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
             database: props.database,
             keys: Array.from(keys),
             currentMeta: JSON.stringify(Object.fromEntries(dataViewMetaRef.current.get(vid)!))
-        }).then(r => {
-            console.log(r);
-        });
+        }).finally();
     }
-
     const onVarChange = (vid: number, key: string, value: string) => {
         let exists = dataViewMetaRef.current.get(vid);
         if (!exists) {
@@ -150,19 +190,21 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
     };
 
     const packageData = (parent: any, nodes: any[]): any[] => {
-        return nodes.map((n: any) => {
+        return nodes.flatMap((n: any) => {
             if (n.node_type == 1) { // Data View Group
                 const varObj: [string, string][] = n.var ? Object.entries(JSON.parse(n.var)) : Object.entries({});
                 const map = new Map<string, string>(varObj);
                 dataViewMetaRef.current.set(n.dv_id, map);
-                return {
-                    title: <DataViewGroup dataViewId={n.dv_id} name={n.name}/>,
+                return [{
+                    title: <DataViewGroup dataViewId={n.dv_id} name={n.name} sort={n.sort} onReload={queryKeyTypes}/>,
                     key: n.path,
                     children: packageData(n, n.children)
-                }
+                }]
             } else if (n.node_type == 2) { // director
-                return {
-                    title: <VarNode origin={n.key}
+                return [{
+                    // @ts-ignore
+                    title: <VarNode ref={(el: any) => varNodeRefs.current[n.id] = el}
+                                    origin={n.key}
                                     id={n.id}
                                     viewId={n.dv_id}
                                     name={n.name}
@@ -170,32 +212,59 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                                     onChange={onVarChange}/>,
                     key: n.path,
                     children: packageData(n, n.children)
-                }
+                }]
             } else if (n.node_type == 3) { // leaf
-                return {
-                    title: <VarNode origin={n.key}
-                                    id={n.id}
-                                    viewId={n.dv_id}
-                                    name={n.name}
-                                    defaultValue={n.var}
-                                    keyType={n.key_type}
-                                    onChange={onVarChange}/>,
-                    key: n.path,
-                    children: packageData(n, n.children)
+                if (n.children.length > 0) {
+                    return [{
+                        title: <VarNode origin={n.key}
+                                        id={n.id}
+                                        viewId={n.dv_id}
+                                        name={n.name}
+                                        defaultValue={n.var}
+                                        onChange={onVarChange}/>,
+                        key: `${n.path}_shade`,
+                        children: packageData(n, n.children)
+                    }, {
+                        title: <VarNode
+                            // @ts-ignore
+                            ref={(el) => varNodeRefs.current[n.id] = el}
+                            origin={n.key}
+                            id={n.id}
+                            viewId={n.dv_id}
+                            name={n.name}
+                            defaultValue={n.var}
+                            keyType={n.key_type}
+                            onChange={onVarChange}/>,
+                        key: n.path,
+                        children: []
+                    }]
+                } else {
+                    return [{
+                        title: <VarNode
+                            // @ts-ignore
+                            ref={(el: any) => varNodeRefs.current[n.id] = el}
+                            origin={n.key}
+                            id={n.id}
+                            viewId={n.dv_id}
+                            name={n.name}
+                            defaultValue={n.var}
+                            keyType={n.key_type}
+                            onChange={onVarChange}/>,
+                        key: n.path,
+                        children: packageData(n, n.children)
+                    }]
                 }
             } else if (n.node_type == 4) { // new key editor
-                return {
+                return [{
                     title: <VarNodeEditor parent={parent}
                                           data={n}
                                           onCancel={onVarNodeEditorCancel}
                                           onSave={onVarNodeEditorSave}/>,
                     key: Date.now(),
                     children: []
-                }
+                }]
             }
-        }).sort((a, b) => {
-            return (b?.children.length ?? 0) - (a?.children.length ?? 0);
-        });
+        }).sort(sortDataView);
     };
 
     useEffect(() => {
@@ -210,6 +279,12 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
         });
     }, [props.datasource, props.database]);
 
+    useEvent('show_data_view_r_clk_menu/expand_all', event => {
+        const payload: any = event.payload;
+        if (payload.winId == props.windowId) {
+            console.log('展开所有', payload);
+        }
+    });
     useEvent('show_data_view_r_clk_menu/add_dv_item', event => {
         const payload: any = event.payload;
         if (payload.winId == props.windowId) {
@@ -218,14 +293,14 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
             const operateNode = findKey(menuContextNode.current!.key, cachedTreeData.current, 0);
             if (operateNode) {
                 if (operateNode.children) {
-                    const name = 'ttttt';
+                    const name = '';
                     const editNodeData = {
                         // eslint-disable-next-line
                         // @ts-ignore
                         dv_id: operateNode.dv_id,
                         key: name,
                         children: [],
-                        key_type: 'zset',
+                        key_type: 'unknown',
                         node_type: 4,
                         name: name,
                         // eslint-disable-next-line
@@ -237,7 +312,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                 }
             }
         }
-    })
+    });
     useEvent('show_data_view_r_clk_menu/del_dv_item', event => {
         const payload: any = event.payload;
         if (payload.winId == props.windowId) {
@@ -257,13 +332,22 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                 })
             }
         }
-    })
+    });
     useEvent('show_data_view_r_clk_menu/modify_dv_item', event => {
         const payload: any = event.payload;
         if (payload.winId == props.windowId) {
             console.log('modify dava view item');
         }
-    })
+    });
+    useEvent('data_view/key_types', event => {
+        let payload: any;
+        if (event.payload && (payload = event.payload) && payload.typeByIds) {
+            for (const id in payload.typeByIds) {
+                const type = payload.typeByIds[id];
+                varNodeRefs.current[id]?.updateKeyType(type);
+            }
+        }
+    });
 
     const calParentHeight = () => (window.innerHeight
         || document.documentElement.clientHeight
@@ -285,7 +369,9 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                     let viewId: number;
                     // @ts-ignore
                     if (info.expanded && (viewId = info.node.title.props.dataViewId) > 0) {
-                        queryKeyTypes(viewId)
+                        setTimeout(() => {
+                            queryKeyTypes(viewId);
+                        }, 350)
                     }
                 }}
                 onClick={(e, n) => {
@@ -305,6 +391,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                         // 点击后打开面板
                         console.log('点击了', props, runtimeKey);
                         // 判断是否包含了变量
+                        //varNodeRefs.current[props.id]?.echo('ces');
                     }
                 }}
                 onRightClick={(info: {
@@ -312,9 +399,11 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                     node: EventDataNode<any>;
                 }) => {
                     menuContextNode.current = info.node;
-                    console.log(info.node.title.props.id);
+
+                    const dataViewId: number = info.node.title.props.dataViewId;
                     invoke('show_data_view_right_click_menu', {
-                        'winId': props.windowId
+                        dataViewId: dataViewId,
+                        winId: props.windowId
                     }).finally()
                 }}
                 style={{
