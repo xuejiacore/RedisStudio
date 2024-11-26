@@ -3,6 +3,7 @@ import {Flex} from "antd";
 import {TableOutlined} from "@ant-design/icons";
 
 interface DataViewGroupProps {
+    dataViewId: number;
     name: string;
 }
 

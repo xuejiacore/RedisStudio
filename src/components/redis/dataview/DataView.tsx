@@ -68,7 +68,8 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
 
     const [treeData, setTreeData] = useState<DataNode[]>([]);
     const cachedTreeData = useRef<DataNode[]>([]);
-    const contextNode = useRef(null);
+    const menuContextNode = useRef(null);
+    const dataViewMetaRef = useRef<Map<number, Map<string, string>>>(new Map());
 
     const onVarNodeEditorCancel = (data: any) => {
         // eslint-disable-next-line
@@ -79,7 +80,6 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
     const onVarNodeEditorSave = (data: any) => {
         const pathArray = data.path.split(":").slice(2);
         const newKeyPath = pathArray.join(":");
-        console.log("保存数据", data, newKeyPath);
         invoke('add_new_data_view_item', {
             datasource: parseInt(props.datasource),
             database: props.database,
@@ -94,23 +94,92 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
         });
     }
 
+    const collectTreeRuntimeKeys = (viewId: number, nodes: DataNode[], collector: (k: string) => void) => {
+        for (const node of nodes) {
+            // @ts-ignore
+            const nodeType = node.node_type;
+            if (nodeType === 1 || nodeType === 2) {
+                if (node.children) {
+                    collectTreeRuntimeKeys(viewId, node.children, collector);
+                } else {
+                    continue;
+                }
+            } else if (nodeType === 3) {
+                let runtimeKey = node.key as string;
+                const containVars = runtimeKey.indexOf("{") >= 0 && runtimeKey.indexOf("}") >= 0;
+                if (containVars) {
+                    const meta = dataViewMetaRef.current.get(viewId) ?? new Map<string, string>();
+                    // @ts-ignore
+                    runtimeKey = runtimeKey.replace(/\{([^}]+)\}/g, (_: any, key: any) => {
+                        return meta.get(key) !== undefined ? meta.get(key) : `{${key}}`;
+                    });
+                }
+                collector(runtimeKey);
+            }
+        }
+    }
+
+    function queryKeyTypes(vid: number) {
+        const keys = new Set<string>();
+        const afterFilter = cachedTreeData.current.filter((t: any) => t.dv_id === vid);
+        collectTreeRuntimeKeys(vid, afterFilter, k => {
+            if (!keys.has(k)) {
+                keys.add(k);
+            }
+        });
+
+        invoke('query_key_exist_and_type', {
+            viewId: vid,
+            datasource: parseInt(props.datasource),
+            database: props.database,
+            keys: Array.from(keys),
+            currentMeta: JSON.stringify(Object.fromEntries(dataViewMetaRef.current.get(vid)!))
+        }).then(r => {
+            console.log(r);
+        });
+    }
+
+    const onVarChange = (vid: number, key: string, value: string) => {
+        let exists = dataViewMetaRef.current.get(vid);
+        if (!exists) {
+            exists = new Map<string, string>();
+            dataViewMetaRef.current.set(vid, exists);
+        }
+        exists.set(key, value);
+        queryKeyTypes(vid);
+    };
+
     const packageData = (parent: any, nodes: any[]): any[] => {
         return nodes.map((n: any) => {
             if (n.node_type == 1) { // Data View Group
+                const varObj: [string, string][] = n.var ? Object.entries(JSON.parse(n.var)) : Object.entries({});
+                const map = new Map<string, string>(varObj);
+                dataViewMetaRef.current.set(n.dv_id, map);
                 return {
-                    title: <DataViewGroup name={n.name}/>,
+                    title: <DataViewGroup dataViewId={n.dv_id} name={n.name}/>,
                     key: n.path,
                     children: packageData(n, n.children)
                 }
             } else if (n.node_type == 2) { // director
                 return {
-                    title: <VarNode id={n.id} viewId={n.dv_id} name={n.name} defaultValue={n.var}/>,
+                    title: <VarNode origin={n.key}
+                                    id={n.id}
+                                    viewId={n.dv_id}
+                                    name={n.name}
+                                    defaultValue={n.var}
+                                    onChange={onVarChange}/>,
                     key: n.path,
                     children: packageData(n, n.children)
                 }
             } else if (n.node_type == 3) { // leaf
                 return {
-                    title: <VarNode id={n.id} viewId={n.dv_id} name={n.name} defaultValue={n.var} keyType={n.key_type}/>,
+                    title: <VarNode origin={n.key}
+                                    id={n.id}
+                                    viewId={n.dv_id}
+                                    name={n.name}
+                                    defaultValue={n.var}
+                                    keyType={n.key_type}
+                                    onChange={onVarChange}/>,
                     key: n.path,
                     children: packageData(n, n.children)
                 }
@@ -146,7 +215,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
         if (payload.winId == props.windowId) {
             // eslint-disable-next-line
             // @ts-ignore
-            const operateNode = findKey(contextNode.current!.key, cachedTreeData.current, 0);
+            const operateNode = findKey(menuContextNode.current!.key, cachedTreeData.current, 0);
             if (operateNode) {
                 if (operateNode.children) {
                     const name = 'ttttt';
@@ -172,9 +241,9 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
     useEvent('show_data_view_r_clk_menu/del_dv_item', event => {
         const payload: any = event.payload;
         if (payload.winId == props.windowId) {
-            console.log('del dava view item', contextNode.current);
+            console.log('del dava view item', menuContextNode.current);
             // @ts-ignore
-            const id = contextNode.current?.title.props.id;
+            const id = menuContextNode.current?.title.props.id;
             if (id > 0) {
                 invoke('del_data_view_item', {
                     datasource: parseInt(props.datasource),
@@ -212,23 +281,41 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                 checkable={false}
                 defaultExpandParent={true}
                 height={comHeight}
-                onSelect={(selectedKeys, info) => {
-                    //console.log(selectedKeys, info);
+                onExpand={(keys, info) => {
+                    let viewId: number;
+                    // @ts-ignore
+                    if (info.expanded && (viewId = info.node.title.props.dataViewId) > 0) {
+                        queryKeyTypes(viewId)
+                    }
                 }}
-                onClick={(e) => {
-                }}
-                onExpand={(selectedKeys, info) => {
+                onClick={(e, n) => {
+                    const title = n.title;
+                    let props;
+                    // @ts-ignore
+                    if (title && (props = title.props) && props.id > 0 && props.origin) {
+                        let runtimeKey = props.origin;
+                        const containVars = props.origin.indexOf("{") >= 0 && props.origin.indexOf("}") >= 0;
+                        if (containVars) {
+                            const meta = dataViewMetaRef.current.get(props.viewId) ?? new Map<string, string>();
+                            runtimeKey = props.origin.replace(/\{([^}]+)\}/g, (_: any, key: any) => {
+                                return meta.get(key) !== undefined ? meta.get(key) : `{${key}}`;
+                            });
+                        }
+
+                        // 点击后打开面板
+                        console.log('点击了', props, runtimeKey);
+                        // 判断是否包含了变量
+                    }
                 }}
                 onRightClick={(info: {
                     event: React.MouseEvent;
                     node: EventDataNode<any>;
                 }) => {
-                    contextNode.current = info.node;
+                    menuContextNode.current = info.node;
                     console.log(info.node.title.props.id);
                     invoke('show_data_view_right_click_menu', {
                         'winId': props.windowId
-                    }).then(r => {
-                    })
+                    }).finally()
                 }}
                 style={{
                     background: "#2B2D30",

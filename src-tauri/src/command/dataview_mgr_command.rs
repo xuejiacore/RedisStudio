@@ -1,12 +1,14 @@
 use crate::dao::data_view_dao;
+use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
 use crate::{CmdError, CmdResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::rc::Rc;
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Emitter, Runtime, State};
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct DataViewNode {
@@ -18,6 +20,7 @@ pub struct DataViewNode {
     id: i64,
     dv_id: i64,
     name: String,
+    key: String,
 
     var: Option<String>,
     key_type: Option<String>,
@@ -81,6 +84,49 @@ pub async fn query_history_vars<R: Runtime>(
     }
 }
 
+#[tauri::command]
+pub async fn save_var_history<R: Runtime>(
+    data_view_id: i64,
+    name: String,
+    value: String,
+    handle: AppHandle<R>,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<bool> {
+    data_view_dao::save_var_history(data_view_id, name, value, sqlite.clone()).await
+}
+
+#[tauri::command]
+pub async fn query_key_exist_and_type<R: Runtime>(
+    view_id: i64,
+    datasource: i64,
+    database: i64,
+    keys: Vec<String>,
+    current_meta: String,
+    handle: AppHandle<R>,
+    redis_pool: State<'_, RedisPool>,
+) -> CmdResult<Value> {
+    let key_len = keys.len();
+    let arc = redis_pool
+        .select_connection(datasource.to_string(), Some(database))
+        .await;
+    let mut conn = arc.lock().await;
+    let mut pipe = redis::pipe();
+    keys.iter().for_each(|k| {
+        pipe.cmd("TYPE").arg(k);
+    });
+    let types: Vec<String> = pipe.query_async(conn.deref_mut()).await.unwrap();
+
+    let mut map = HashMap::new();
+    for idx in 0..key_len {
+        map.insert(keys[idx].clone(), types[idx].clone());
+    }
+
+    let meta: Value = serde_json::from_str(&current_meta).expect("incorrect meta data");
+    let payload = json!({"types": map, "meta": meta});
+    handle.emit("data_view/key_types", &payload).unwrap();
+    Ok(payload)
+}
+
 async fn get_data_view_tree(
     datasource: i64,
     database: i64,
@@ -101,12 +147,14 @@ async fn get_data_view_tree(
         let dv_id = dv.dv_id;
         let dv_name = dv.name;
         let dv_p = format!(":{}", dv_name);
+        let node_value = dv.last_var;
         if !dir_map.contains_key(&dv_p) {
             let mut new_dir = DataViewNode::default();
             new_dir.node_type = 1;
             new_dir.dv_id = dv_id;
             new_dir.path = Some(dv_name.clone());
             new_dir.name = dv_name.clone();
+            new_dir.var = node_value.clone();
 
             let rrc = Rc::new(RefCell::new(new_dir));
             let p_node = dir_map.get_mut("").expect("parent not exists");
@@ -114,9 +162,9 @@ async fn get_data_view_tree(
             dir_map.insert(dv_p, rrc);
         }
         let paths = dv.path.split(":").collect::<Vec<&str>>();
-        let node_value = dv.last_var;
         let key_type = dv.key_type;
         let dv_item_id = dv.data_view_item_id;
+        let key = dv.key;
         for i in 1..paths.len() + 1 {
             let p = paths[0..i].join(":");
             if !dir_map.contains_key(&p) {
@@ -127,6 +175,7 @@ async fn get_data_view_tree(
                     new_dir.node_type = match i == paths.len() {
                         true => {
                             new_dir.id = dv_item_id;
+                            new_dir.key = key.clone();
                             3
                         }
                         false => 2,

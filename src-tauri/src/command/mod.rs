@@ -17,6 +17,8 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             dataview_mgr_command::add_new_data_view_item,
             dataview_mgr_command::del_data_view_item,
             dataview_mgr_command::query_history_vars,
+            dataview_mgr_command::save_var_history,
+            dataview_mgr_command::query_key_exist_and_type,
 
             datasource_mgr_command::list_flat_datasource,
             datasource_mgr_command::change_active_datasource,

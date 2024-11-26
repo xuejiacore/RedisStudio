@@ -3,14 +3,17 @@ import {Flex, Input} from "antd";
 import "./VarNode.less";
 import {invoke} from "@tauri-apps/api/core";
 import {Popover} from "react-tiny-popover";
+import {useEvent} from "../../../utils/TauriUtil.tsx";
 
 interface VarNodeProps {
     id: number;
     viewId: number;
+    origin: string;
     name: string;
     defaultValue?: string;
     keyType?: string;
     editable?: boolean;
+    onChange?: (vid: number, key: string, value: string) => void;
 }
 
 interface VarHistoryItem {
@@ -23,17 +26,26 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
     const historyInputRef = useRef<any>();
     const [historyItems, setHistoryItems] = useState<VarHistoryItem[]>([]);
     const [inputValue, setInputValue] = useState('');
+    const [keyType, setKeyType] = useState(props.keyType)
+    const [typeChar, setTypeChar] = useState(keyType?.substring(0, 1).toUpperCase());
+    const [uncertainty, setUncertainty] = useState('');
 
     let replacement = '';
 
-    const containVars = props.name.indexOf("{") >= 0 && props.name.indexOf("}") >= 0;
+    const originKey = props.origin;
+    const originName = props.name;
+    const containVars = originName.indexOf("{") >= 0 && originName.indexOf("}") >= 0;
     let empty = '';
-    if (props.defaultValue && containVars) {
-        empty = '';
-        const json = JSON.parse(props.defaultValue);
-        replacement = props.name.replace(/\{([^}]+)\}/g, (_, key) => {
-            return json[key] !== undefined ? json[key].toString() : `{${key}}`;
-        });
+    if (containVars) {
+        if (props.defaultValue) {
+            empty = '';
+            const json = JSON.parse(props.defaultValue);
+            replacement = originName.replace(/\{([^}]+)\}/g, (_, key) => {
+                return json[key] !== undefined ? json[key].toString() : `{${key}}`;
+            });
+        } else {
+            replacement = props.name;
+        }
     } else {
         empty = 'empty'
     }
@@ -43,6 +55,25 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
     useEffect(() => {
         replaceValueRef.current = replaceValue;
     }, [replaceValue]);
+    useEvent('data_view/key_types', event => {
+        let payload: any;
+        if (event.payload && (payload = event.payload) && payload.types && originKey.length > 0) {
+            const runtimeKey = originKey.replace(/\{([^}]+)\}/g, (_: any, key: any) => {
+                return payload.meta[key] !== undefined ? payload.meta[key] : `{${key}}`;
+            });
+
+            console.log('originKey = ', originKey, runtimeKey);
+            let type = 'none';
+            if ((type = payload.types[runtimeKey]) && type !== 'none') {
+                console.log(runtimeKey, '类型是', type);
+                setKeyType(type);
+                setTypeChar(type.substring(0, 1).toUpperCase());
+                setUncertainty('');
+            } else {
+                setUncertainty('uncertainty');
+            }
+        }
+    });
 
     const onValueDropdown = (e: React.MouseEvent<HTMLSpanElement>) => {
         e.stopPropagation();
@@ -65,7 +96,8 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
                     setHistoryVisible(true);
                     setTimeout(() => {
                         historyInputRef.current?.focus();
-                    }, 300);
+                        historyInputRef.current?.select();
+                    }, 120);
                 }
             });
         }
@@ -77,14 +109,28 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
         historyInputRef.current.value = replaceValueRef.current;
         setReplaceValue(item.value);
         setIsMenuOpen(false);
+        recordHistory(item.value);
     }
 
     const varClass = containVars ? 'vars' : '';
-    const typeChar = props.keyType?.substring(0, 1).toUpperCase();
+
+    function recordHistory(value: string) {
+        const regex = /\{(.*?)\}/;
+        const match = props.name.match(regex);
+        if (match && match[1]) {
+            const varName = match[1];
+            props.onChange?.(props.viewId, varName, value);
+            invoke('save_var_history', {
+                dataViewId: props.viewId,
+                name: varName,
+                value: value,
+            }).finally();
+        }
+    }
 
     return <>
         <Flex align={"center"} className={'var-node'} gap={4}>
-            <div className={`key-type-prefix redis-type ${props.keyType} uncertainty`}
+            <div className={`key-type-prefix redis-type ${keyType} ${uncertainty}`}
                  style={{display: props.keyType ? undefined : 'none'}}>
                 {typeChar}
             </div>
@@ -118,9 +164,16 @@ const VarNode: React.FC<VarNodeProps> = (props, context) => {
                             onPressEnter={e => {
                                 // eslint-disable-next-line
                                 // @ts-ignore
-                                setReplaceValue(e.target.value);
+                                const value = e.target.value;
+                                setReplaceValue(value);
                                 setHistoryVisible(false);
                                 setIsMenuOpen(false);
+                                recordHistory(value);
+                            }}
+                            onBlur={e => {
+                                setTimeout(() => {
+                                    setIsMenuOpen(false);
+                                }, 100);
                             }}
                             placeholder={'Change Variable ⏎'}
                         />

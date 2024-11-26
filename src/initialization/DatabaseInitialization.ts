@@ -143,6 +143,7 @@ function createSystemTables(executeInitSql: (sql: string, bindValues?: unknown[]
                 constraint tbl_data_view_vars_pk
                     primary key autoincrement,
             data_view_item_id integer not null, -- data view item id
+            name              TEXT    not null, -- variable name
             value             TEXT    not null, -- variable value
             create_time       INTEGER           -- create time
         )
