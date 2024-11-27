@@ -12,7 +12,7 @@ type CustomDataNode = DataNode & {
 
 interface RedisKeyProp {
     node: CustomDataNode
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

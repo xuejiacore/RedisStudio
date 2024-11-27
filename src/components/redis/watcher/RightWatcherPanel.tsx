@@ -13,7 +13,7 @@ interface RightWatcherPanelProp {
     selectedField?: ValueChanged;
     outlineAction?: OutlineAction;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

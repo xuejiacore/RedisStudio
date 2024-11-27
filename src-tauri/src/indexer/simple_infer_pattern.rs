@@ -18,7 +18,7 @@ lazy_static! {
 /// manager of pattern inference engines.
 #[derive(Clone)]
 pub struct PatternInferenceEngines {
-    pub datasource_pattern: Arc<Mutex<HashMap<String, PatternInferenceEngine>>>,
+    pub datasource_pattern: Arc<Mutex<HashMap<i64, PatternInferenceEngine>>>,
 }
 
 impl PatternInferenceEngines {

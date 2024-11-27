@@ -20,7 +20,7 @@ SysManager.use(db => {
 
     if (last_datasource_id) {
         invoke('initialize_datasource_pattern', {
-            datasource: last_datasource_id
+            datasource: parseInt(last_datasource_id)
         }).then(r => {
 
         });
@@ -32,7 +32,7 @@ SysManager.use(db => {
             <div>
                 <GlobalWindowTitleBar windowId={windowId}
                                       datasourceId={id}
-                                      datasource={last_datasource_id}
+                                      datasource={parseInt(last_datasource_id)}
                                       database={last_database}
                                       host={host}
                                       port={port}

@@ -18,7 +18,7 @@ interface AppProp {
 const App: (props: AppProp) => JSX.Element = (props: AppProp) => {
     // change default datasource and database index
     const [activityKey, setActivityKey] = useState("redis");
-    const [datasourceId, setDatasourceId] = useState(props.datasourceId?.toString());
+    const [datasourceId, setDatasourceId] = useState(props.datasourceId);
     const [database, setDatabase] = useState(props.database);
 
     const removeListenerRef = useRef<UnlistenFn>();

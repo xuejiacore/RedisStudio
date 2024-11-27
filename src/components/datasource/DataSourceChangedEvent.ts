@@ -1,5 +1,5 @@
 export interface DataSourceProps {
-    datasourceId: string;
+    datasourceId: number;
     host: string;
     port: number;
     name?: string;

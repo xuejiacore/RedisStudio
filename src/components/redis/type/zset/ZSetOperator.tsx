@@ -14,16 +14,17 @@ import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import {toHexString} from "../../../../utils/Util.ts";
 import SmartData from "../common/SmartData.tsx";
 import {convertTimestampToDateWithMillis} from "../../../../utils/TimeUtil.ts";
+import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
 
 interface ZSetOperatorProp {
-    data: any,
+    data: RedisKeyInfo,
     pinMode?: boolean;
     onFieldClicked: (e: ValueChanged) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onRowAdd?: (keyInfo: any) => void;
     onReload?: () => void;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 
@@ -180,8 +181,8 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
 
     useEffect(() => {
         if (props.data && props.data.keyType == 'zset') {
-            currentKey.current = props.data.key;
-            setKey(props.data.key);
+            currentKey.current = props.data.keyName;
+            setKey(props.data.keyName);
             setKeyType(props.data.keyType);
             setStart(0);
             setLeft(0);
@@ -262,7 +263,7 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
                 cursor = ps > 0 ? right : left;
             }
             redis_invoke("redis_zrange_members", {
-                key: props.data.key,
+                key: props.data.keyName,
                 sorted: sortType,
                 start: cursor,
                 size: ps,
@@ -360,13 +361,6 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
     };
 
     return <>
-        <RedisToolbar keyName={key}
-                      keyType={keyType}
-                      pinMode={props.pinMode}
-                      onClose={props.onClose}
-                      onReload={onReload}
-                      datasourceId={datasource}
-                      selectedDatabase={database}/>
         <Table
             columns={columns}
             size={"small"}
@@ -386,7 +380,7 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
                                 key: record.key,
                                 field: record.member,
                                 value: record.score?.toString(),
-                                redisKey: props.data.key,
+                                redisKey: props.data.keyName,
                                 type: 'FIELD_CLK',
                                 dataType: 'zset'
                             });

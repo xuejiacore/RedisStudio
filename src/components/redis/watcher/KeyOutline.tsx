@@ -18,7 +18,7 @@ interface KeyTagsProp {
     selectedKeyType?: string;
     action?: OutlineAction;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

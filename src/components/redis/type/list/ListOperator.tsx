@@ -12,15 +12,16 @@ import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
 import {emitTo, listen, UnlistenFn} from "@tauri-apps/api/event";
 import {toHexString} from "../../../../utils/Util.ts";
 import SmartData, {UpdateEvent} from "../common/SmartData.tsx";
+import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
 
 interface ListOperatorProp {
-    data: any,
+    data: RedisKeyInfo,
     pinMode?: boolean;
     onFieldClicked: (e: ValueChanged) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 
@@ -145,8 +146,8 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
 
     useEffect(() => {
         if (props.data && props.data.keyType == 'list') {
-            currentKey.current = props.data.key;
-            setKey(props.data.key);
+            currentKey.current = props.data.keyName;
+            setKey(props.data.keyName);
             setKeyType(props.data.keyType);
             setStart(0);
             setSelectedRowKeys([]);
@@ -214,7 +215,7 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
     function queryData() {
         if (start >= 0) {
             redis_invoke("redis_lrange_members", {
-                key: props.data.key,
+                key: props.data.keyName,
                 start: start,
                 size: pageSize,
                 pattern: filterPattern
@@ -288,13 +289,6 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
         }
     }
     return <>
-        <RedisToolbar keyName={key}
-                      keyType={keyType}
-                      pinMode={props.pinMode}
-                      onClose={props.onClose}
-                      onReload={onReload}
-                      datasourceId={datasource}
-                      selectedDatabase={database}/>
         <Table
             columns={columns}
             size={"small"}
@@ -314,7 +308,7 @@ const ListOperator: React.FC<ListOperatorProp> = (props, context) => {
                                 key: record.key,
                                 field: record.idx?.toString(),
                                 value: record.element,
-                                redisKey: props.data.key,
+                                redisKey: props.data.keyName,
                                 type: 'FIELD_CLK',
                                 dataType: 'list'
                             });

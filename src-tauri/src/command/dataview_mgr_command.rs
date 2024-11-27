@@ -113,7 +113,7 @@ pub async fn query_key_exist_and_type<R: Runtime>(
 ) -> CmdResult<Value> {
     let key_len = keys.len();
     let arc = redis_pool
-        .select_connection(datasource.to_string(), Some(database))
+        .select_connection(datasource, Some(database))
         .await;
     let mut conn = arc.lock().await;
     let mut pipe = redis::pipe();
@@ -135,7 +135,8 @@ pub async fn query_key_exist_and_type<R: Runtime>(
     let meta: Value = serde_json::from_str(&current_meta).expect("incorrect meta data");
 
     let cloned_types = map.clone();
-    let payload = json!({"types": cloned_types, "meta": meta, "davaViewId": view_id, "typeByIds": id_map});
+    let payload =
+        json!({"types": cloned_types, "meta": meta, "dataViewId": view_id, "typeByIds": id_map});
     handle.emit("data_view/key_types", &payload).unwrap();
 
     // complete unknown keys

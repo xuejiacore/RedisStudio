@@ -88,7 +88,8 @@ async fn process_type_operator(
         }
         menu::MID_KEY_OP_DELETE => {
             let redis_pool: State<'_, RedisPool> = window.state();
-            let t = redis_pool.select_connection(datasource, database).await;
+            let datasource_num = datasource.parse::<i64>().expect("`datasource` unknown");
+            let t = redis_pool.select_connection(datasource_num, database).await;
             let mut conn = {
                 let mutex = t.lock().await;
                 mutex
@@ -143,8 +144,9 @@ async fn process_key_tree_right_clk(
 
     let database_num: i64 = database.parse::<i64>().expect("unrecognized database");
     let redis_pool: State<'_, RedisPool> = window.state();
+    let datasource_num = datasource.parse::<i64>().expect("`datasource` unknown");
     let t = redis_pool
-        .select_connection(datasource, Some(database_num))
+        .select_connection(datasource_num, Some(database_num))
         .await;
     let mut conn = {
         let mutex = t.lock().await;

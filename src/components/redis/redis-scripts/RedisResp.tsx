@@ -11,7 +11,7 @@ interface RedisRespProp {
     index?: number;
     resp: CmdResultItem;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

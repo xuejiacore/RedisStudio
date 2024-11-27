@@ -25,6 +25,7 @@ import {SysManager} from "../../utils/SysManager.ts";
 import {useEvent} from "../../utils/TauriUtil.tsx";
 import DataView from "./dataview/DataView.tsx";
 import DataViewHeader from "./dataview/DataViewHeader.tsx";
+import {RedisKeyInfo} from "./type-editor/RedisTypeEditor.tsx";
 import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
 
 const {Search} = Input;
@@ -39,10 +40,10 @@ export type CustomDataNode = DataNode & {
 
 interface KeyTreeProp {
     windowId: number;
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
     parentHeight?: number;
-    onSelect?: (selectedKeys: Key[], info: any) => void;
+    onKeySelect?: (keyInfo: RedisKeyInfo) => void;
     onCmdOpen?: React.MouseEventHandler<HTMLDivElement>;
     onAnalysisOpen?: React.MouseEventHandler<HTMLDivElement>;
 }
@@ -342,7 +343,11 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
 
         const keySplits = (newKeyName as string).split(splitSymbol);
         const nodeInfo = findKey(keySplits, afterTree);
-        props.onSelect?.([newKeyName], {node: nodeInfo});
+        props.onKeySelect?.({
+            keyName: newKeyName,
+            // @ts-ignore
+            keyType: nodeInfo!.keyType,
+        })
     });
     useEvent('datasource/info', (event) => {
         const payload: any = event.payload;
@@ -551,7 +556,12 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 expandedKeys={expandedKeys}
                 autoExpandParent={true}
                 onSelect={(selectedKeys: Key[], info: any) => {
-                    props.onSelect?.(selectedKeys, info);
+                    if (info.node.isLeaf) {
+                        props.onKeySelect?.({
+                            keyName: info.node.key,
+                            keyType: info.node.keyType
+                        });
+                    }
                     setSelectedKeys(selectedKeys);
                 }}
                 onRightClick={onKeyTreeRightClick}
@@ -657,10 +667,13 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                                   key: 'tab-data-view',
                                   label: <DataViewHeader datasource={datasource} database={database}
                                                          dataViewCount={dataViewCount}/>,
-                                  children: <><DataView datasource={datasource}
-                                                        database={database}
-                                                        windowId={props.windowId}
-                                                        onDataViewCountCallback={setDataViewCount}/></>
+                                  children: <>
+                                      <DataView datasource={datasource}
+                                                database={database}
+                                                windowId={props.windowId}
+                                                onDataViewCountCallback={setDataViewCount}
+                                                onSelect={props.onKeySelect}/>
+                                  </>
                               },
                               {
                                   key: 'tab-keys',

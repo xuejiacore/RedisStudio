@@ -19,7 +19,7 @@ interface DatasourceItemProp {
     host: string;
     port: number;
     default_database: number;
-    datasourceId: string;
+    datasourceId: number;
     dscolor: string;
 }
 

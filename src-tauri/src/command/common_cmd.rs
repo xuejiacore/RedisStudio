@@ -16,7 +16,7 @@ type Result<T> = std::result::Result<T, CmdError>;
 /// query key favor status by provided key name
 #[tauri::command]
 pub async fn key_favor_status<R: Runtime>(
-    datasource: &str,
+    datasource: i64,
     key: &str,
     handler: AppHandle<R>,
     window: Window<R>,
@@ -26,7 +26,7 @@ pub async fn key_favor_status<R: Runtime>(
     let result = tantivy_indexer.search_with_params(IDX_NAME_FAVOR, |index, params_builder| {
         let schema = index.schema();
         let key_kw_term_query = build_text_term(&schema, "key.keyword", key);
-        let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource);
+        let datasource_term_query = build_text_term(&schema, "datasource.keyword", datasource.to_string().as_str());
         let sub_query = vec![
             (Occur::Must, datasource_term_query),
             (Occur::Must, key_kw_term_query),

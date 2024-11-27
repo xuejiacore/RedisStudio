@@ -21,7 +21,7 @@ interface RedisToolbarProps {
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

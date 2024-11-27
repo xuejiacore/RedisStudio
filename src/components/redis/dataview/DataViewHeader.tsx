@@ -5,7 +5,7 @@ import {useTranslation} from "react-i18next";
 import {invoke} from "@tauri-apps/api/core";
 
 interface DataViewHeaderProps {
-    datasource: string;
+    datasource: number;
     database: number;
     dataViewCount: number;
 }

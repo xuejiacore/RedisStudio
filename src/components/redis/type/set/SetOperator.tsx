@@ -8,15 +8,16 @@ import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFoo
 import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {ValueChanged} from "../../watcher/ValueEditor.tsx";
+import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
 
 interface SetOperatorProp {
-    data: any,
+    data: RedisKeyInfo,
     pinMode?: boolean;
     onFieldClicked: (e: ValueChanged) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 
@@ -83,7 +84,7 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
 
     useEffect(() => {
         if (props.data && props.data.keyType == 'set') {
-            setKey(props.data.key);
+            setKey(props.data.keyName);
             setKeyType(props.data.keyType);
             setStart(0);
             setSelectedRowKeys([]);
@@ -94,7 +95,7 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
     function queryData() {
         if (start >= 0) {
             redis_invoke("redis_sscan", {
-                key: props.data.key,
+                key: props.data.keyName,
                 start: start,
                 size: pageSize,
                 pattern: scanPattern,
@@ -176,13 +177,6 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
         */
     }
     return <>
-        <RedisToolbar keyName={key}
-                      keyType={keyType}
-                      pinMode={props.pinMode}
-                      onClose={props.onClose}
-                      onReload={onReload}
-                      datasourceId={datasource}
-                      selectedDatabase={database}/>
         <Table
             columns={columns}
             size={"small"}
@@ -202,7 +196,7 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
                                 key: record.key,
                                 field: '',
                                 value: record.member,
-                                redisKey: props.data.key,
+                                redisKey: props.data.keyName,
                                 type: 'FIELD_CLK',
                                 dataType: 'list'
                             });

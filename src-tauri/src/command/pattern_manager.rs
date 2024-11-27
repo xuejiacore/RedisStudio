@@ -9,7 +9,7 @@ type Result<T> = std::result::Result<T, CmdError>;
 
 #[tauri::command]
 pub async fn pattern_add_tag(
-    datasource_id: &str,
+    datasource_id: i64,
     database: i64,
     key: &str,
     pin_field: &str,

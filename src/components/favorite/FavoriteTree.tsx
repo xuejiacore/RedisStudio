@@ -67,7 +67,7 @@ const treeData: TreeDataNode[] = [
 ];
 
 interface FavoriteTreeProps {
-    datasource?: string,
+    datasource?: number,
     database?: number
 }
 

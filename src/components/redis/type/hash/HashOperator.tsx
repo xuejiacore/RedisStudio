@@ -14,16 +14,17 @@ import {TableRowSelection} from "antd/es/table/interface";
 import {emitTo, listen, Options, UnlistenFn} from "@tauri-apps/api/event";
 import SmartData, {UpdateEvent} from "../common/SmartData.tsx";
 import {Window} from "@tauri-apps/api/window";
+import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
 
 interface HashOperatorProps {
-    data: any;
+    data: RedisKeyInfo;
     pinMode?: boolean;
     onFieldClicked: (e: ValueChanged) => void;
     onRowAdd?: (keyInfo: any) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 
@@ -403,7 +404,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             }
         } else {
             redis_invoke("redis_get_hash", {
-                key: props.data.key,
+                key: props.data.keyName,
                 cursor: cursor,
                 count: pageSize,
                 pattern: scanPattern
@@ -418,7 +419,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                 setCursor(obj.cursor);
             });
         }
-        setKey(props.data.key);
+        setKey(props.data.keyName);
         // const keyTypeNameFirstChar = props.data.keyType?.substring(0, 1).toUpperCase();
         setKeyType(props.data.keyType);
     }
@@ -441,9 +442,9 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
     // 捕获hash的key值发生了变化，变化后需要重新请求后端数据加载
     useEffect(() => {
         if (props.data && props.data.keyType == 'hash') {
-            if (currentKey.current != props.data.key) {
+            if (currentKey.current != props.data.keyName) {
                 clean();
-                currentKey.current = props.data.key;
+                currentKey.current = props.data.keyName;
                 loadHashData(0);
             }
         }
@@ -526,14 +527,6 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         setFooterAction({type: 'RESET', ts: Date.now()});
     };
     return (<>
-        <RedisToolbar keyName={key}
-                      keyType={keyType}
-                      pinMode={props.pinMode}
-                      onClose={props.onClose}
-                      onReload={() => onReload(true)}
-                      datasourceId={datasource}
-                      selectedDatabase={database}
-        />
         {/*<RedisTableView columns={columns}/>*/}
         <Table
             // key={tableUniqueId}
@@ -558,7 +551,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                                 key: record.key,
                                 field: record.field,
                                 value: record.content,
-                                redisKey: props.data.key,
+                                redisKey: props.data.keyName,
                                 type: 'FIELD_CLK',
                                 dataType: 'hash'
                             });
@@ -573,7 +566,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                             database: databaseRef.current,
                             field: record.field,
                             value: record.content,
-                            key: props.data.key,
+                            key: props.data.keyName,
                         }).then(r => {
 
                         });

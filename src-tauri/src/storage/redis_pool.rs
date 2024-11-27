@@ -1,7 +1,10 @@
 use crate::dao::types::TblDatasource;
 use futures::FutureExt;
 use redis::aio::MultiplexedConnection;
-use redis::{cmd, AsyncConnectionConfig, ConnectionAddr, ConnectionInfo, IntoConnectionInfo, RedisConnectionInfo, RedisResult};
+use redis::{
+    cmd, AsyncConnectionConfig, ConnectionAddr, ConnectionInfo, IntoConnectionInfo,
+    RedisConnectionInfo, RedisResult,
+};
 use sqlx::{Error, Pool, Sqlite};
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -26,7 +29,12 @@ impl RedisProp {
         Self::new(host, 6379, None, None)
     }
 
-    pub fn new<T: AsRef<str>>(host: T, port: u16, password: Option<String>, database: Option<u16>) -> Self {
+    pub fn new<T: AsRef<str>>(
+        host: T,
+        port: u16,
+        password: Option<String>,
+        database: Option<u16>,
+    ) -> Self {
         RedisProp {
             host: host.as_ref().to_string(),
             port,
@@ -51,10 +59,7 @@ impl IntoConnectionInfo for RedisProp {
             password: self.password,
             protocol: Default::default(),
         };
-        Ok(ConnectionInfo {
-            addr,
-            redis,
-        })
+        Ok(ConnectionInfo { addr, redis })
     }
 }
 
@@ -98,20 +103,22 @@ impl DataSourceManager {
             None => None,
             Some(p) => {
                 let dsid = String::from(ds_id.as_ref());
-                let rows: Result<Vec<TblDatasource>, Error> = sqlx::query_as("select * from tbl_datasource where id = $1")
-                    .bind(dsid)
-                    .fetch_all(&*p)
-                    .await;
+                let rows: Result<Vec<TblDatasource>, Error> =
+                    sqlx::query_as("select * from tbl_datasource where id = $1")
+                        .bind(dsid)
+                        .fetch_all(&*p)
+                        .await;
                 match rows {
                     Ok(row) => row.first().map(|t| {
                         let host = t.host.clone();
                         let port = t.port.clone();
                         let password = t.password.clone();
                         let default_database = t.default_database;
-                        let redis_prop = RedisProp::new(host, port.unwrap_or(6379), password, default_database);
+                        let redis_prop =
+                            RedisProp::new(host, port.unwrap_or(6379), password, default_database);
                         redis_prop
                     }),
-                    Err(_) => None
+                    Err(_) => None,
                 }
             }
         }
@@ -128,8 +135,7 @@ impl RedisPool {
     pub fn new<T: FnMut(String, i64) + Send + 'static>(
         data_source_manager: DataSourceManager,
         ping_callback: Arc<Mutex<T>>,
-    ) -> Self
-    {
+    ) -> Self {
         let pool_map = Arc::new(Mutex::new(HashMap::new()));
         let cloned_pool_map = pool_map.clone();
         let redis_pool_instance = Self {
@@ -160,24 +166,33 @@ impl RedisPool {
     pub async fn get_all_connection_infos(&self) -> Vec<String> {
         let mutex = self.pool.lock().await;
         let keys = mutex.keys();
-        let key_string = keys.map(|k| {
-            k.to_string()
-        }).collect::<Vec<String>>();
+        let key_string = keys.map(|k| k.to_string()).collect::<Vec<String>>();
         key_string
     }
 
-    pub async fn get_pool(&self) -> MutexGuard<'_, HashMap<String, Arc<Mutex<MultiplexedConnection>>>>
-    {
+    pub async fn get_pool(
+        &self,
+    ) -> MutexGuard<'_, HashMap<String, Arc<Mutex<MultiplexedConnection>>>> {
         self.pool.lock().await
     }
 
-    pub async fn add_new_connection(&self, datasource_id: String, connection: MultiplexedConnection) {
+    pub async fn add_new_connection(
+        &self,
+        datasource_id: String,
+        connection: MultiplexedConnection,
+    ) {
         let mut mutex = self.pool.lock();
-        mutex.await.insert(datasource_id, Arc::new(Mutex::new(connection)));
+        mutex
+            .await
+            .insert(datasource_id, Arc::new(Mutex::new(connection)));
     }
 
     /** release connection */
-    pub async fn release_connection<T: AsRef<str>>(&self, datasource_id: T, database: Option<i64>) -> bool {
+    pub async fn release_connection<T: AsRef<str>>(
+        &self,
+        datasource_id: T,
+        database: Option<i64>,
+    ) -> bool {
         let ds_id = datasource_id.as_ref();
 
         let exists = {
@@ -219,7 +234,11 @@ impl RedisPool {
         }
     }
 
-    pub async fn try_connect<T: AsRef<str>>(&self, datasource_id: T, selected_db: Option<i64>) -> bool {
+    pub async fn try_connect<T: AsRef<str>>(
+        &self,
+        datasource_id: T,
+        selected_db: Option<i64>,
+    ) -> bool {
         let ds_id = datasource_id.as_ref();
         let mut cached_connection = self.pool.lock().await;
         let ds_prop = self.data_source_manager.lock().await;
@@ -229,8 +248,8 @@ impl RedisPool {
             None => panic!("Fail to find datasource {ds_id}"),
             Some(ds_prop) => match selected_db {
                 None => ds_prop.clone(),
-                Some(db) => ds_prop.select_db(db as u16)
-            }
+                Some(db) => ds_prop.select_db(db as u16),
+            },
         };
 
         let database = redis_prop.default_database.unwrap_or(0);
@@ -242,26 +261,30 @@ impl RedisPool {
                     .set_response_timeout(Duration::from_secs(1))
                     .set_connection_timeout(Duration::from_secs(10));
 
-                match client.get_multiplexed_async_connection_with_config(&conf).await {
+                match client
+                    .get_multiplexed_async_connection_with_config(&conf)
+                    .await
+                {
                     Ok(con) => {
                         cached_connection.insert(with_db_key.clone(), Arc::new(Mutex::new(con)));
                         match cached_connection.get(&with_db_key) {
                             None => panic!("Fail to find datasource {ds_id}"),
-                            Some(_) => true
+                            Some(_) => true,
                         }
                     }
-                    Err(_) => false
+                    Err(_) => false,
                 }
             }
-            Some(_) => true
+            Some(_) => true,
         }
     }
 
-    pub async fn select_connection<T: AsRef<str>>(&self,
-                                                  datasource_id: T,
-                                                  selected_db: Option<i64>,
+    pub async fn select_connection(
+        &self,
+        datasource_id: i64,
+        selected_db: Option<i64>,
     ) -> Arc<Mutex<MultiplexedConnection>> {
-        let ds_id = datasource_id.as_ref();
+        let ds_id = datasource_id.to_string();
         let mut cached_connection = self.pool.lock().await;
         let ds_prop = self.data_source_manager.lock().await;
         let ds = ds_prop.query_prop(&ds_id.to_string()).await;
@@ -269,8 +292,8 @@ impl RedisPool {
             None => panic!("Fail to find datasource {ds_id}"),
             Some(ds_prop) => match selected_db {
                 None => ds_prop.clone(),
-                Some(db) => ds_prop.select_db(db as u16)
-            }
+                Some(db) => ds_prop.select_db(db as u16),
+            },
         };
 
         let database = redis_prop.default_database.unwrap_or(0);
@@ -283,7 +306,10 @@ impl RedisPool {
                     .set_response_timeout(Duration::from_secs(DEFAULT_RESPONSE_TIMEOUT_SECS))
                     .set_connection_timeout(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT_SECS));
 
-                match client.get_multiplexed_async_connection_with_config(&conf).await {
+                match client
+                    .get_multiplexed_async_connection_with_config(&conf)
+                    .await
+                {
                     Ok(con) => {
                         if size == 0 {
                             let mut act = self.active_connection.lock().await;
@@ -294,20 +320,24 @@ impl RedisPool {
                         let cloned = arc.clone();
                         {
                             let mut t = cloned.lock().await;
-                            let _: String = cmd("CLIENT").arg("SETNAME").arg("REDIS_STUDIO")
-                                .query_async(t.deref_mut()).await.unwrap();
+                            let _: String = cmd("CLIENT")
+                                .arg("SETNAME")
+                                .arg("REDIS_STUDIO")
+                                .query_async(t.deref_mut())
+                                .await
+                                .unwrap();
                         }
 
                         cached_connection.insert(with_db_key.clone(), arc);
                         match cached_connection.get(&with_db_key) {
                             None => panic!("Fail to find datasource {ds_id}"),
-                            Some(ds) => Arc::clone(ds)
+                            Some(ds) => Arc::clone(ds),
                         }
                     }
-                    Err(_) => panic!("Fail to connect database.")
+                    Err(_) => panic!("Fail to connect database."),
                 }
             }
-            Some(ds) => Arc::clone(ds)
+            Some(ds) => Arc::clone(ds),
         }
     }
 
@@ -317,17 +347,23 @@ impl RedisPool {
             let cloned = mutex.clone();
             cloned
         };
-        cloned.map(|t| {
-            let cloned = t.clone();
-            let info = cloned.split("#").collect::<Vec<&str>>();
+        cloned
+            .map(|t| {
+                let cloned = t.clone();
+                let info = cloned.split("#").collect::<Vec<&str>>();
 
-            let datasource = info[0].to_string();
-            let database = info[1].parse::<i64>().unwrap_or(0);
-            (datasource, database)
-        }).expect("No active connection.")
+                let datasource = info[0].to_string();
+                let database = info[1].parse::<i64>().unwrap_or(0);
+                (datasource, database)
+            })
+            .expect("No active connection.")
     }
 
-    pub async fn change_active_connection(&self, datasource: Option<String>, database: Option<i64>) {
+    pub async fn change_active_connection(
+        &self,
+        datasource: Option<String>,
+        database: Option<i64>,
+    ) {
         let old = self.get_active_info().await;
         let new_datasource = datasource.unwrap_or(old.0);
         let new_database = database.unwrap_or(old.1);
@@ -362,13 +398,24 @@ impl RedisPool {
             match m.get(key) {
                 None => {}
                 Some(conn) => {
-                    Self::ping(&ping_callback, &mut remove_enabled_key, cloned_key, datasource_id, database, conn).await;
+                    Self::ping(
+                        &ping_callback,
+                        &mut remove_enabled_key,
+                        cloned_key,
+                        datasource_id,
+                        database,
+                        conn,
+                    )
+                    .await;
                 }
             };
         }
     }
 
-    fn evict_dead_connections(cloned_pool_map: &Arc<Mutex<HashMap<String, Arc<Mutex<MultiplexedConnection>>>>>, mut remove_enabled_key: Vec<String>) {
+    fn evict_dead_connections(
+        cloned_pool_map: &Arc<Mutex<HashMap<String, Arc<Mutex<MultiplexedConnection>>>>>,
+        mut remove_enabled_key: Vec<String>,
+    ) {
         if !remove_enabled_key.is_empty() {
             match cloned_pool_map.try_lock() {
                 Ok(mut m) => {
@@ -390,17 +437,15 @@ impl RedisPool {
         conn: &Arc<Mutex<MultiplexedConnection>>,
     ) {
         match conn.try_lock() {
-            Ok(mut conn) => {
-                match cmd("PING").query_async::<String>(conn.deref_mut()).await {
-                    Ok(_) => {}
-                    Err(_) => {
-                        let mut cbk = ping_callback.lock().await;
-                        let callback = cbk.deref_mut();
-                        callback(datasource_id, database.parse::<i64>().unwrap_or(0));
-                        remove_enabled_key.push(cloned_key);
-                    }
+            Ok(mut conn) => match cmd("PING").query_async::<String>(conn.deref_mut()).await {
+                Ok(_) => {}
+                Err(_) => {
+                    let mut cbk = ping_callback.lock().await;
+                    let callback = cbk.deref_mut();
+                    callback(datasource_id, database.parse::<i64>().unwrap_or(0));
+                    remove_enabled_key.push(cloned_key);
                 }
-            }
+            },
             Err(_) => {}
         }
     }

@@ -47,7 +47,7 @@ impl SearchResultDto {
 
 #[tauri::command]
 pub async fn initialize_datasource_pattern<R: Runtime>(
-    datasource: &str,
+    datasource: i64,
     redis_indexer: State<'_, RedisIndexer>,
     handle: AppHandle<R>,
 ) -> Result<Value> {
@@ -561,7 +561,7 @@ pub async fn write_index<R: Runtime>(
 
 #[tauri::command]
 pub async fn infer_redis_key_pattern<R: Runtime>(
-    datasource: &str,
+    datasource: i64,
     database: i64,
     key: &str,
     redis_indexer: State<'_, RedisIndexer>,

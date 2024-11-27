@@ -1,15 +1,15 @@
-import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
 import React, {useEffect, useRef, useState} from "react";
 import ContentEditor from "../../../editor/ContentEditor/ContentEditor.tsx";
 import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
+import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
 
 interface StringOperatorProps {
-    data: any,
+    data: RedisKeyInfo,
     pinMode?: boolean;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onReload?: () => void;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 
@@ -33,10 +33,10 @@ const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
     // 捕获hash的key值发生了变化，变化后需要重新请求后端数据加载
     useEffect(() => {
         if (props.data && props.data.keyType == 'string') {
-            setKey(props.data.key);
+            setKey(props.data.keyName);
             setKeyType(props.data.keyType);
             redis_invoke("redis_get_string", {
-                key: props.data.key,
+                key: props.data.keyName,
             }, props.datasourceId, props.selectedDatabase).then(r => {
                 const obj = JSON.parse(r as string);
                 let languageTmp = "text";
@@ -59,14 +59,6 @@ const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
         }
     }
     return <>
-        <RedisToolbar keyName={key}
-                      keyType={keyType}
-                      pinMode={props.pinMode}
-                      onClose={props.onClose}
-                      onReload={onReload}
-                      datasourceId={datasource}
-                      selectedDatabase={database}/>
-
         <ContentEditor defaultValue={''} value={contentData} pinMode={props.pinMode} language={language}/>
     </>
 };

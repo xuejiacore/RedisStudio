@@ -24,7 +24,7 @@ type Result<T> = std::result::Result<T, CmdError>;
 struct RedisCmd {
     cmd: String,
     #[serde(default)]
-    datasource_id: String,
+    datasource_id: i64,
     #[serde(default)]
     database: i64,
     #[serde(default)]
@@ -36,7 +36,7 @@ impl Default for RedisCmd {
         RedisCmd {
             cmd: String::from(""),
             database: 0,
-            datasource_id: String::from(""),
+            datasource_id: -1,
             param_json: String::from("{}"),
         }
     }
@@ -67,7 +67,7 @@ pub async fn redis_invoke(
 
 #[tauri::command]
 pub async fn database_analysis(
-    datasource: String,
+    datasource: i64,
     database: i64,
     key_pattern: Option<String>,
     scan_count: Option<usize>,
@@ -114,7 +114,7 @@ pub async fn dispatch_redis_cmd(
     if redis_cmd.cmd.eq("redis_key_scan") {
         execute_scan_cmd(datasource_id, database, redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await
     } else {
-        let arc = redis_pool.select_connection(datasource_id.as_str(), Some(database)).await;
+        let arc = redis_pool.select_connection(datasource_id, Some(database)).await;
         let con = arc.lock().await;
         match &redis_cmd.cmd as &str {
             "redis_list_datasource" => json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}]),
@@ -198,7 +198,7 @@ struct RedisAnalysisCmd {
 }
 
 async fn execute_redis_analysis(
-    datasource_id: String,
+    datasource_id: i64,
     database: i64,
     mut redis_pool: State<'_, RedisPool>,
     params: RedisAnalysisCmd,
@@ -530,7 +530,7 @@ struct FieldValue {
 
 async fn execute_get_hash(
     mut connection: MutexGuard<'_, MultiplexedConnection>,
-    ds: String,
+    ds: i64,
     params: HashGetCmd,
     _window: Window,
     redis_indexer: State<'_, RedisIndexer>,
@@ -540,7 +540,7 @@ async fn execute_get_hash(
     let is_pattern_scan = !&params.pattern.is_empty();
 
     let mut pin_field_list = vec![];
-    if let Some(result) = redis_indexer.fast_infer(&ds, &vec![&params.key]).await {
+    if let Some(result) = redis_indexer.fast_infer(ds, &vec![&params.key]).await {
         let mut instance = sqlite.pool.lock().await;
         let db = instance.get_mut("default").unwrap();
         let rows = sqlx::query(r#"
@@ -1036,7 +1036,7 @@ struct ScanCmd {
 }
 
 async fn execute_scan_cmd(
-    datasource_id: String,
+    datasource_id: i64,
     database: i64,
     redis_pool: State<'_, RedisPool>,
     params: ScanCmd,

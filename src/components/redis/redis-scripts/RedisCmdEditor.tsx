@@ -25,7 +25,7 @@ interface RedisCmdEditorProp {
     channel?: CmdOutputChannel;
     onMultiLineSelected?: (startLine: number, endLine: number) => void;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

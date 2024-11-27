@@ -9,7 +9,7 @@ const CommandConst: Command = {
     redis_get_database_info: {cmd: "action"},
 }
 
-function redis_invoke(cmd: keyof Command, payload: any, datasource_id: string, database: number) {
+function redis_invoke(cmd: keyof Command, payload: any, datasource_id: number, database: number) {
     return invoke("redis_invoke", {
         data: JSON.stringify({
             cmd: cmd,

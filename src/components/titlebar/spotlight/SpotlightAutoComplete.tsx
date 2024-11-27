@@ -190,7 +190,6 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
 
     const onSelect = (searchingStatus: boolean, value: any, option: any) => {
         let updateSearchText = true;
-        console.log(`onSelect`, value, option.label);
         if (props.global) {
             const labelKey = option.label.key;
             const isKey = labelKey.startsWith("key\x01");

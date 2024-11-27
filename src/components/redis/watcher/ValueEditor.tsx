@@ -39,7 +39,7 @@ interface UpdateResult {
 interface ValueViewerProp {
     data?: ValueChanged;
 
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

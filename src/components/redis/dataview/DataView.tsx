@@ -9,13 +9,21 @@ import {DataNode, EventDataNode} from "antd/es/tree";
 import {useEvent} from "../../../utils/TauriUtil.tsx";
 import {CustomDataNode} from "../RedisKeyTree.tsx";
 import VarNodeEditor from "./VarNodeEditor.tsx";
+import {RedisKeyInfo} from "../type-editor/RedisTypeEditor.tsx";
 
 interface DataViewProps {
-    datasource: string;
+    datasource: number;
     database: number;
     windowId: number;
 
     onDataViewCountCallback: (cnt: number) => void;
+    onSelect?: (keyInfo: RedisKeyInfo) => void;
+}
+
+interface SelectedKeyInfo {
+    keyName: string;
+    keyType: string;
+    id: number;
 }
 
 const findKey = (key: string,
@@ -108,6 +116,8 @@ const sortDataView = (a: any, b: any) => {
 const DataView: React.FC<DataViewProps> = (props, context) => {
 
     const [treeData, setTreeData] = useState<DataNode[]>([]);
+
+    const selectedKeyInfoRef = useRef<SelectedKeyInfo>();
     const cachedTreeData = useRef<DataNode[]>([]);
     const menuContextNode = useRef(null);
     const dataViewMetaRef = useRef<Map<number, Map<string, string>>>(new Map());
@@ -123,7 +133,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
         const pathArray = data.path.split(":").slice(2);
         const newKeyPath = pathArray.join(":");
         invoke('add_new_data_view_item', {
-            datasource: parseInt(props.datasource),
+            datasource: props.datasource,
             database: props.database,
             dataViewId: data.dv_id,
             key: newKeyPath,
@@ -173,7 +183,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
 
         invoke('query_key_exist_and_type', {
             viewId: vid,
-            datasource: parseInt(props.datasource),
+            datasource: props.datasource,
             database: props.database,
             keys: Array.from(keys),
             currentMeta: JSON.stringify(Object.fromEntries(dataViewMetaRef.current.get(vid)!))
@@ -269,7 +279,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
 
     useEffect(() => {
         invoke('list_tree_data_views', {
-            datasource: parseInt(props.datasource),
+            datasource: props.datasource,
             database: props.database
         }).then((r: any) => {
             cachedTreeData.current = r.children;
@@ -316,12 +326,11 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
     useEvent('show_data_view_r_clk_menu/del_dv_item', event => {
         const payload: any = event.payload;
         if (payload.winId == props.windowId) {
-            console.log('del dava view item', menuContextNode.current);
             // @ts-ignore
             const id = menuContextNode.current?.title.props.id;
             if (id > 0) {
                 invoke('del_data_view_item', {
-                    datasource: parseInt(props.datasource),
+                    datasource: props.datasource,
                     database: props.database,
                     dataViewItemId: id
                 }).then((r: any) => {
@@ -345,6 +354,17 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
             for (const id in payload.typeByIds) {
                 const type = payload.typeByIds[id];
                 varNodeRefs.current[id]?.updateKeyType(type);
+
+                if (selectedKeyInfoRef.current && type !== 'none' && selectedKeyInfoRef.current.id === parseInt(id)) {
+                    const meta = dataViewMetaRef.current.get(payload.dataViewId) ?? new Map<string, string>();
+                    const runtimeKey = varNodeRefs.current[id]?.calculateRuntimeKey(meta);
+                    if (runtimeKey) {
+                        props.onSelect?.({
+                            keyName: runtimeKey,
+                            keyType: type
+                        });
+                    }
+                }
             }
         }
     });
@@ -376,22 +396,25 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                 }}
                 onClick={(e, n) => {
                     const title = n.title;
-                    let props;
+                    let thisProps;
                     // @ts-ignore
-                    if (title && (props = title.props) && props.id > 0 && props.origin) {
-                        let runtimeKey = props.origin;
-                        const containVars = props.origin.indexOf("{") >= 0 && props.origin.indexOf("}") >= 0;
-                        if (containVars) {
-                            const meta = dataViewMetaRef.current.get(props.viewId) ?? new Map<string, string>();
-                            runtimeKey = props.origin.replace(/\{([^}]+)\}/g, (_: any, key: any) => {
-                                return meta.get(key) !== undefined ? meta.get(key) : `{${key}}`;
-                            });
+                    if (title && (thisProps = title.props) && thisProps.id > 0 && thisProps.origin && thisProps.keyType) {
+                        const varNodeRef = varNodeRefs.current[thisProps.id];
+                        if (varNodeRef) {
+                            const enabled = varNodeRef.enabled();
+                            if (enabled) {
+                                const meta = dataViewMetaRef.current.get(thisProps.viewId) ?? new Map<string, string>();
+                                const runtimeKey = varNodeRef?.calculateRuntimeKey(meta);
+                                if (runtimeKey) {
+                                    const selectedKeyInfo = {
+                                        keyName: runtimeKey,
+                                        keyType: thisProps.keyType
+                                    };
+                                    props.onSelect?.(selectedKeyInfo);
+                                    selectedKeyInfoRef.current = {id: thisProps.id, ...selectedKeyInfo};
+                                }
+                            }
                         }
-
-                        // 点击后打开面板
-                        console.log('点击了', props, runtimeKey);
-                        // 判断是否包含了变量
-                        //varNodeRefs.current[props.id]?.echo('ces');
                     }
                 }}
                 onRightClick={(info: {

@@ -6,6 +6,8 @@ import {Popover} from "react-tiny-popover";
 
 export interface VarNodeRef {
     updateKeyType: (type: string) => void;
+    calculateRuntimeKey: (meta: Map<string, string>) => string;
+    enabled: () => boolean;
 }
 
 interface VarNodeProps {
@@ -32,22 +34,40 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
     const [keyType, setKeyType] = useState(props.keyType)
     const [typeChar, setTypeChar] = useState(keyType?.substring(0, 1).toUpperCase());
     const [uncertainty, setUncertainty] = useState(props.keyType ? 'uncertainty' : '');
+    const enabledRef = useRef(uncertainty === 'uncertainty');
+    const originKey = props.origin;
 
     useImperativeHandle(ref, () => ({
-        updateKeyType: (keyType: string) => {
+        updateKeyType: keyType => {
             if (keyType !== 'none') {
                 setKeyType(keyType);
                 setTypeChar(keyType.substring(0, 1).toUpperCase());
                 setUncertainty('');
+                enabledRef.current = true;
             } else {
                 setUncertainty('uncertainty');
+                enabledRef.current = false;
             }
+        },
+        calculateRuntimeKey: meta => {
+            let runtimeKey = originKey;
+            const containVars = originKey.indexOf("{") >= 0 && originKey.indexOf("}") >= 0;
+            if (containVars) {
+                // eslint-disable-next-line
+                // @ts-ignore
+                runtimeKey = originKey.replace(/\{([^}]+)\}/g, (_: any, key: any) => {
+                    return meta.get(key) !== undefined ? meta.get(key) : `{${key}}`;
+                });
+            }
+            return runtimeKey;
+        },
+        enabled: () => {
+            return enabledRef.current;
         }
     }));
 
     let replacement = '';
 
-    const originKey = props.origin;
     const originName = props.name;
     const containVars = originName.indexOf("{") >= 0 && originName.indexOf("}") >= 0;
     let empty = '';
@@ -153,7 +173,6 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
                             autoFocus={true}
                             onKeyDown={e => {
                                 if (e.code === 'Escape') {
-                                    console.log('escape')
                                     setIsMenuOpen(false);
                                 }
                             }}

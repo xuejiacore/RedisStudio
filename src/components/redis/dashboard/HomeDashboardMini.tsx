@@ -8,7 +8,7 @@ import AnalysisDashboard from "./analysis/AnalysisDashboard.tsx";
 
 interface MiniRedisDashboardMiniProps {
     className?: string;
-    datasource: string;
+    datasource: number;
     database: number;
 }
 

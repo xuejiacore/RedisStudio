@@ -2,20 +2,16 @@ import {Col, Row, Splitter} from "antd";
 import React, {Key, useEffect, useRef, useState} from "react";
 import "./index.less";
 import RedisKeyTree, {CustomDataNode} from "./RedisKeyTree";
-import HashOperator from "./type/hash/HashOperator.tsx";
 import RedisScript from "./redis-scripts/RedisScript.tsx";
-import StringOperator from "./type/string/StringOperator.tsx";
 import RightWatcherPanel from "./watcher/RightWatcherPanel.tsx";
 import {ValueChanged} from "./watcher/ValueEditor.tsx";
-import ZSetOperator from "./type/zset/ZSetOperator.tsx";
-import ListOperator from "./type/list/ListOperator.tsx";
-import SetOperator from "./type/set/SetOperator.tsx";
 import {OutlineAction} from "./watcher/KeyOutline.tsx";
 import MiniRedisDashboardMini from "./dashboard/HomeDashboardMini.tsx";
+import RedisTypeEditor, {RedisKeyInfo} from "./type-editor/RedisTypeEditor.tsx";
 
 interface RedisProps {
     windowId: number;
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 
@@ -35,6 +31,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     const [showAnalysis, setShowAnalysis] = useState(true);
     const [showCommandLine, setShowCommandLine] = useState(false);
     const [operatorUniqueId, setOperatorUniqueId] = useState(Date.now());
+    const [currentKeyInfo, setCurrentKeyInfo] = useState<RedisKeyInfo>()
 
     const datasourceRef = useRef(props.datasourceId);
     const databaseRef = useRef(props.selectedDatabase);
@@ -55,71 +52,53 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
         setOutlineAction({type: 'RELOAD'})
     };
 
-    const hashOperator = <HashOperator
-        key={operatorUniqueId}
-        data={nodeData}
-        onFieldClicked={setSelectedField}
-        onRowAdd={onRowAdd}
-        onReload={onReload}
-        datasourceId={datasource}
-        selectedDatabase={database}/>;
-    const stringOperator = <StringOperator
-        key={operatorUniqueId}
-        data={nodeData}
-        onReload={onReload}
-        datasourceId={datasource}
-        selectedDatabase={database}/>;
-    const zsetOperator = <ZSetOperator
-        key={operatorUniqueId}
-        data={nodeData}
-        onFieldClicked={setSelectedField}
-        onRowAdd={onRowAdd}
-        onReload={onReload}
-        datasourceId={datasource}
-        selectedDatabase={database}/>;
-    const setOperator = <SetOperator
-        key={operatorUniqueId}
-        data={nodeData}
-        onFieldClicked={setSelectedField}
-        onReload={onReload}
-        datasourceId={datasource}
-        selectedDatabase={database}/>;
-    const listOperator = <ListOperator
-        key={operatorUniqueId}
-        data={nodeData}
-        onFieldClicked={setSelectedField}
-        onReload={onReload}
-        datasourceId={datasource}
-        selectedDatabase={database}/>;
+    // const hashOperator = <HashOperator
+    //     key={operatorUniqueId}
+    //     data={nodeData}
+    //     onFieldClicked={setSelectedField}
+    //     onRowAdd={onRowAdd}
+    //     onReload={onReload}
+    //     datasourceId={datasource}
+    //     selectedDatabase={database}/>;
+    // const stringOperator = <StringOperator
+    //     key={operatorUniqueId}
+    //     data={nodeData}
+    //     onReload={onReload}
+    //     datasourceId={datasource}
+    //     selectedDatabase={database}/>;
+    // const zsetOperator = <ZSetOperator
+    //     key={operatorUniqueId}
+    //     data={nodeData}
+    //     onFieldClicked={setSelectedField}
+    //     onRowAdd={onRowAdd}
+    //     onReload={onReload}
+    //     datasourceId={datasource}
+    //     selectedDatabase={database}/>;
+    // const setOperator = <SetOperator
+    //     key={operatorUniqueId}
+    //     data={nodeData}
+    //     onFieldClicked={setSelectedField}
+    //     onReload={onReload}
+    //     datasourceId={datasource}
+    //     selectedDatabase={database}/>;
+    // const listOperator = <ListOperator
+    //     key={operatorUniqueId}
+    //     data={nodeData}
+    //     onFieldClicked={setSelectedField}
+    //     onReload={onReload}
+    //     datasourceId={datasource}
+    //     selectedDatabase={database}/>;
 
     useEffect(() => {
-        const lastKeyName = currentKey;
         if (nodeData?.key) {
+            setCurrentKeyInfo({
+                keyName: nodeData.key as string,
+                keyType: nodeData.keyType as string,
+            })
             setCurrentKey(nodeData.key as string);
             setCurrentKeyType(nodeData.keyType as string);
             setShowAnalysis(false);
             setShowCommandLine(false);
-            switch (nodeData.keyType) {
-                case 'hash':
-                    setContent(hashOperator);
-                    break
-                case 'string':
-                    setContent(stringOperator);
-                    break
-                case 'zset':
-                    setContent(zsetOperator);
-                    break
-                case 'list':
-                    setContent(listOperator);
-                    break
-                case 'set':
-                    setContent(setOperator);
-                    break;
-                default:
-                    throw new Error(`Unsupported key type: ${nodeData.keyType}`);
-            }
-
-            // TODO: mark recently access
         }
     }, [nodeData]);
 
@@ -130,9 +109,10 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
             // 如果点击的是非叶子节点，不需要重新渲染操作面板
             return;
         }
-        node.children = [];
-        setSelectedField({type: "KEY_CLK", keyType: node.keyType, dataType: node.keyType, redisKey: node.key});
-        setNodeData(node)
+        setCurrentKeyInfo({
+            keyName: node.key,
+            keyType: node.keyType,
+        });
     }
 
     /* Redis script 操作面板 */
@@ -157,6 +137,11 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                         setShowAnalysis(true);
                         setShowCommandLine(false);
                     }}
+                    onKeySelect={keyInfo => {
+                        setShowAnalysis(false);
+                        setShowCommandLine(false);
+                        setCurrentKeyInfo(keyInfo);
+                    }}
                 />
             </Splitter.Panel>
 
@@ -167,7 +152,12 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                         {showAnalysis ?
                             <MiniRedisDashboardMini className={`mini-dashboard`}
                                                     datasource={datasource}
-                                                    database={database}/> : content}
+                                                    database={database}/> :
+                            <RedisTypeEditor datasource={datasource}
+                                             database={database}
+                                             keyInfo={currentKeyInfo!}
+                                             onFieldClicked={setSelectedField}/>
+                        }
                     </Col>
 
                     {/* 右侧属性面板 */}

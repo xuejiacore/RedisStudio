@@ -6,7 +6,7 @@ import "./RedisScript.less";
 import {useTranslation} from "react-i18next";
 
 interface RedisScriptProps {
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

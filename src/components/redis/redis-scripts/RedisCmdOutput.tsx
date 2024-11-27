@@ -13,7 +13,7 @@ export interface RedisCmdOutputRef {
 }
 
 export interface RedisCmdOutputProp {
-    datasourceId: string;
+    datasourceId: number;
     selectedDatabase: number;
 }
 

@@ -17,7 +17,7 @@ import {useEvent} from "../../utils/TauriUtil.tsx";
 interface TitleBarProp {
     windowId: number,
     datasourceId?: number,
-    datasource: string,
+    datasource: number,
     database: number,
     host?: string,
     port?: number,
@@ -79,7 +79,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
         }
     });
     useEvent("connection/lost", event => {
-        const payload = event.payload as { database: number, datasource: string };
+        const payload = event.payload as { database: number, datasource: number };
 
         if (datasourceRef.current === payload.datasource &&
             databaseRef.current === payload.database) {
