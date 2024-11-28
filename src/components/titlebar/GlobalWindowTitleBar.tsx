@@ -88,7 +88,7 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
     });
     useEvent("datasource/info", event => {
         const payload: any = event.payload;
-        if (payload.datasource === datasourceRef.current) {
+        if (parseInt(payload.datasource) === datasourceRef.current) {
             if (lastStats.current) {
                 const last = lastStats.current;
                 const diff_ts = payload.sample_ts - last.sample_ts - 200;

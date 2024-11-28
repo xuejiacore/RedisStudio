@@ -23,6 +23,7 @@ pub const MID_DELETE_KEY: &str = "show_key_tree_right_menu/delete";
 pub const MENU_OPERATOR_MENU: &str = "show_content_editor_menu";
 
 pub const MID_KEY_OP_ADD_ROW: &str = "show_content_editor_menu/add_row";
+pub const MID_KEY_OP_COPY: &str = "show_content_editor_menu/copy";
 pub const MID_KEY_OP_CP_AS_CMD: &str = "show_content_editor_menu/key_as_cmd";
 pub const MID_KEY_OP_CP_AS_TSV: &str = "show_content_editor_menu/key_as_tsv";
 pub const MID_KEY_OP_CP_AS_CSV: &str = "show_content_editor_menu/key_as_csv";

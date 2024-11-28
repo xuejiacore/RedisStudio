@@ -207,7 +207,7 @@ const SpotlightAutoComplete: React.FC<SpotlightSearchProp> = (props) => {
                 invoke('open_redis_pushpin_window', {
                     keyName,
                     keyType,
-                    datasource: '',
+                    datasource: 0,
                     database: 0
                 }).then(e => {
                     resize_global_height(0, () => {

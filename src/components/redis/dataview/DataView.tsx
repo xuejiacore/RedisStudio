@@ -9,7 +9,7 @@ import {DataNode, EventDataNode} from "antd/es/tree";
 import {useEvent} from "../../../utils/TauriUtil.tsx";
 import {CustomDataNode} from "../RedisKeyTree.tsx";
 import VarNodeEditor from "./VarNodeEditor.tsx";
-import {RedisKeyInfo} from "../type-editor/RedisTypeEditor.tsx";
+import {RedisKeyInfo} from "../type/RedisTypeEditor.tsx";
 
 interface DataViewProps {
     datasource: number;
@@ -216,7 +216,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                     title: <VarNode ref={(el: any) => varNodeRefs.current[n.id] = el}
                                     origin={n.key}
                                     id={n.id}
-                                    viewId={n.dv_id}
+                                    dataViewId={n.dv_id}
                                     name={n.name}
                                     defaultValue={n.var}
                                     onChange={onVarChange}/>,
@@ -228,7 +228,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                     return [{
                         title: <VarNode origin={n.key}
                                         id={n.id}
-                                        viewId={n.dv_id}
+                                        dataViewId={n.dv_id}
                                         name={n.name}
                                         defaultValue={n.var}
                                         onChange={onVarChange}/>,
@@ -240,7 +240,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                             ref={(el) => varNodeRefs.current[n.id] = el}
                             origin={n.key}
                             id={n.id}
-                            viewId={n.dv_id}
+                            dataViewId={n.dv_id}
                             name={n.name}
                             defaultValue={n.var}
                             keyType={n.key_type}
@@ -255,7 +255,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                             ref={(el: any) => varNodeRefs.current[n.id] = el}
                             origin={n.key}
                             id={n.id}
-                            viewId={n.dv_id}
+                            dataViewId={n.dv_id}
                             name={n.name}
                             defaultValue={n.var}
                             keyType={n.key_type}
@@ -391,7 +391,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                     if (info.expanded && (viewId = info.node.title.props.dataViewId) > 0) {
                         setTimeout(() => {
                             queryKeyTypes(viewId);
-                        }, 350)
+                        }, 250)
                     }
                 }}
                 onClick={(e, n) => {
@@ -403,7 +403,7 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                         if (varNodeRef) {
                             const enabled = varNodeRef.enabled();
                             if (enabled) {
-                                const meta = dataViewMetaRef.current.get(thisProps.viewId) ?? new Map<string, string>();
+                                const meta = dataViewMetaRef.current.get(thisProps.dataViewId) ?? new Map<string, string>();
                                 const runtimeKey = varNodeRef?.calculateRuntimeKey(meta);
                                 if (runtimeKey) {
                                     const selectedKeyInfo = {

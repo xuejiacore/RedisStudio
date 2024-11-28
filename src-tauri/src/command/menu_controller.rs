@@ -122,6 +122,7 @@ pub fn show_data_view_right_click_menu<R: Runtime>(
                 )
                 .unwrap(),
                 &PredefinedMenuItem::separator(app_handle).unwrap(),
+                &PredefinedMenuItem::separator(app_handle).unwrap(),
                 &MenuItem::with_id(
                     app_handle,
                     menu::MID_DEL_DV_ITEM,
@@ -142,14 +143,14 @@ pub fn show_data_view_right_click_menu<R: Runtime>(
 pub fn show_key_tree_right_menu<R: Runtime>(
     key: Option<String>,
     keys: Option<Vec<String>>,
-    datasource: String,
+    datasource: i64,
     database: i64,
     handle: AppHandle<R>,
     window: Window,
     menu_context: State<'_, MenuContext>,
 ) {
     let mut context = HashMap::new();
-    context.insert(String::from("datasource"), datasource);
+    context.insert(String::from("datasource"), datasource.to_string());
     context.insert(String::from("database"), database.to_string());
     let mut single_only_bool = true;
     let mut key_size_info = String::from("");
@@ -251,11 +252,12 @@ pub fn show_key_tree_right_menu<R: Runtime>(
 
 #[tauri::command]
 pub fn show_content_editor_menu<R: Runtime>(
-    datasource: String,
+    datasource: i64,
     database: i64,
     key: String,
     field: String,
     value: String,
+    copy_value: Option<String>,
     handle: tauri::AppHandle<R>,
     window: Window,
     menu_context: State<'_, MenuContext>,
@@ -264,12 +266,16 @@ pub fn show_content_editor_menu<R: Runtime>(
 ) {
     let label = window.label();
     let mut context = HashMap::new();
-    context.insert(String::from("datasource"), datasource);
+    context.insert(String::from("datasource"), datasource.to_string());
     context.insert(String::from("database"), database.to_string());
     context.insert(String::from("key"), key);
     context.insert(String::from("field"), field);
     context.insert(String::from("value"), value);
     context.insert(String::from("win"), label.to_string());
+    context.insert(
+        String::from("copy_value"),
+        copy_value.unwrap_or(String::from("")),
+    );
     menu_context.set_context(menu::MENU_OPERATOR_MENU, context);
 
     let app_handle = handle.app_handle();
@@ -277,6 +283,14 @@ pub fn show_content_editor_menu<R: Runtime>(
     let menu = Menu::with_items(
         app_handle,
         &[
+            &MenuItem::with_id(
+                app_handle,
+                menu::MID_KEY_OP_COPY,
+                "Copy",
+                true,
+                None::<&str>,
+            )
+            .unwrap(),
             &MenuItem::with_id(
                 app_handle,
                 menu::MID_KEY_OP_ADD_ROW,

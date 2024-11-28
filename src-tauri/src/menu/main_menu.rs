@@ -86,6 +86,11 @@ async fn process_type_operator(
                 .emit_to(win_label, "operator/add_row", payload)
                 .unwrap();
         }
+        menu::MID_KEY_OP_COPY => {
+            let copy_value = context.get("copy_value").expect("`copy_value` unknown");
+            let handle = window.app_handle();
+            handle.clipboard().write_text(copy_value).unwrap();
+        }
         menu::MID_KEY_OP_DELETE => {
             let redis_pool: State<'_, RedisPool> = window.state();
             let datasource_num = datasource.parse::<i64>().expect("`datasource` unknown");

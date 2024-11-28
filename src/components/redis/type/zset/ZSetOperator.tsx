@@ -1,6 +1,5 @@
 /* eslint-disable */
-import React, {useEffect, useRef, useState} from "react";
-import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
+import React, {forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
 import {Flex, Table} from "antd";
 import {ColumnsType} from "antd/es/table";
 import {useTranslation} from "react-i18next";
@@ -9,20 +8,20 @@ import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFoo
 import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
 import {SortAscendingOutlined, SortDescendingOutlined} from "@ant-design/icons";
-import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
+import {UpdateRequest} from "../../watcher/ValueEditor.tsx";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import {toHexString} from "../../../../utils/Util.ts";
 import SmartData from "../common/SmartData.tsx";
 import {convertTimestampToDateWithMillis} from "../../../../utils/TimeUtil.ts";
-import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
+import {FieldInfo, RedisKeyInfo, RedisOperatorRef} from "../RedisTypeEditor.tsx";
+import {invoke} from "@tauri-apps/api/core";
 
 interface ZSetOperatorProp {
     data: RedisKeyInfo,
     pinMode?: boolean;
-    onFieldClicked: (e: ValueChanged) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
     onRowAdd?: (keyInfo: any) => void;
-    onReload?: () => void;
+    onFieldSelected: (field: FieldInfo) => void;
 
     datasourceId: number;
     selectedDatabase: number;
@@ -45,7 +44,7 @@ interface ZRangeMemberResult {
     right: number
 }
 
-const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
+const ZSetOperator = forwardRef<RedisOperatorRef | undefined, ZSetOperatorProp>((props, ref) => {
     const {t} = useTranslation();
 
     const [datasource, setDatasource] = useState(props.datasourceId);
@@ -59,6 +58,12 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
         datasourceRef.current = props.datasourceId;
         databaseRef.current = props.selectedDatabase;
     }, [props.datasourceId, props.selectedDatabase]);
+
+    useImperativeHandle(ref, () => ({
+        reload: () => {
+            onReload()
+        }
+    }));
 
     const [key, setKey] = useState('');
     const [keyType, setKeyType] = useState('');
@@ -349,9 +354,6 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
     }
 
     const onReload = () => {
-        if (props.onReload) {
-            props.onReload();
-        }
         setFooterAction({type: 'RESET', ts: Date.now()})
         if (start == 0) {
             queryData();
@@ -376,7 +378,7 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
                             e.preventDefault()
                             selectRow(record);
                         } else {
-                            props.onFieldClicked({
+                            props.onFieldSelected({
                                 key: record.key,
                                 field: record.member,
                                 value: record.score?.toString(),
@@ -385,6 +387,30 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
                                 dataType: 'zset'
                             });
                         }
+                    },
+                    onContextMenu: (e) => {
+                        console.log(e.target);
+                        // @ts-ignore
+                        const tableRow = e.target.getElementsByClassName('table-row-data');
+                        let copyText;
+                        if (tableRow && tableRow.length > 0) {
+                            copyText = tableRow[0].innerText
+                        } else {
+                            // @ts-ignore
+                            copyText = e.target.innerText;
+                        }
+
+                        // 调用 Rust 代码显示右键菜单
+                        invoke('show_content_editor_menu', {
+                            x: e.clientX,
+                            y: e.clientY,
+                            datasource: datasourceRef.current,
+                            database: databaseRef.current,
+                            field: record.member,
+                            value: record.score?.toString(),
+                            key: props.data.keyName,
+                            copyValue: copyText,
+                        }).finally();
                     },
                 }
             }}
@@ -405,6 +431,7 @@ const ZSetOperator: React.FC<ZSetOperatorProp> = (props, context) => {
             onRowAdd={props.onRowAdd}
         />
     </>
-}
+});
 
+ZSetOperator.displayName = "ZSetOperator";
 export default ZSetOperator;

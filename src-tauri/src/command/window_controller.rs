@@ -39,7 +39,7 @@ pub async fn open_datasource_window<R: Runtime>(
     x: f64,
     y: f64,
     win_id: i64,
-    datasource_id: String,
+    datasource_id: i64,
     handle: tauri::AppHandle<R>,
     sqlite: State<'_, SqliteStorage>,
 ) -> CmdResult<()> {
@@ -61,9 +61,8 @@ pub async fn open_datasource_window<R: Runtime>(
                 y + log_pos.y - 4f64,
             )))
             .unwrap();
-            let script = format!(
-                "window.loadAllDatasource({win_id}, '{datasource_id}', '{datasource_json}')"
-            );
+            let script =
+                format!("window.loadAllDatasource({win_id}, {datasource_id}, '{datasource_json}')");
             win.eval(script.as_str()).unwrap();
             win.show().unwrap();
             Ok(())
@@ -137,7 +136,7 @@ pub async fn open_database_selector_window<R: Runtime>(
             let database_count = &databases_info[1];
 
             let json_data = json!(key_space_info).to_string();
-            win.eval(format!("window.loadAllDatabase({win_id}, {database}, '{json_data}', '{datasource_id}', {database_count})").as_str()).unwrap();
+            win.eval(format!("window.loadAllDatabase({win_id}, {database}, '{json_data}', {datasource_id}, {database_count})").as_str()).unwrap();
             win.show().unwrap();
         }
     }
@@ -147,7 +146,7 @@ pub async fn open_database_selector_window<R: Runtime>(
 /// open the redis pushpin window, always on the top.
 #[tauri::command]
 pub fn open_redis_pushpin_window<R: Runtime>(
-    datasource: String,
+    datasource: i64,
     database: i64,
     key_name: &str,
     key_type: &str,
@@ -183,7 +182,7 @@ pub fn open_redis_pushpin_window<R: Runtime>(
         .set_position(position)
         .expect("fail to update position");
 
-    if datasource.is_empty() {
+    if datasource <= 0 {
         tauri::async_runtime::block_on(async move {
             redis_pool
                 .get_active_info()
@@ -191,7 +190,7 @@ pub fn open_redis_pushpin_window<R: Runtime>(
                     let datasource = r.0;
                     let database = r.1;
                     let script = format!(
-                        "window.onKeyChange('{}', '{}', '{datasource}', {database})",
+                        "window.onKeyChange('{}', '{}', {datasource}, {database})",
                         key_name, key_type
                     );
                     let eval_script = script.as_str();
@@ -202,7 +201,7 @@ pub fn open_redis_pushpin_window<R: Runtime>(
         });
     } else {
         let script = format!(
-            "window.onKeyChange('{}', '{}', '{datasource}', {database})",
+            "window.onKeyChange('{}', '{}', {datasource}, {database})",
             key_name, key_type
         );
         let eval_script = script.as_str();

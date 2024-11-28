@@ -12,7 +12,7 @@ export interface VarNodeRef {
 
 interface VarNodeProps {
     id: number;
-    viewId: number;
+    dataViewId: number;
     origin: string;
     name: string;
     defaultValue?: string;
@@ -51,6 +51,7 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
         },
         calculateRuntimeKey: meta => {
             let runtimeKey = originKey;
+            console.log('meta = ', meta);
             const containVars = originKey.indexOf("{") >= 0 && originKey.indexOf("}") >= 0;
             if (containVars) {
                 // eslint-disable-next-line
@@ -98,7 +99,7 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
         if (match && match[1]) {
             setInputValue(replaceValueRef.current);
             invoke('query_history_vars', {
-                dataViewId: props.viewId,
+                dataViewId: props.dataViewId,
                 varName: match[1],
                 limit: 10
             }).then((r: any) => {
@@ -135,9 +136,9 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
         const match = props.name.match(regex);
         if (match && match[1]) {
             const varName = match[1];
-            props.onChange?.(props.viewId, varName, value);
+            props.onChange?.(props.dataViewId, varName, value);
             invoke('save_var_history', {
-                dataViewId: props.viewId,
+                dataViewId: props.dataViewId,
                 name: varName,
                 value: value,
             }).finally();
@@ -196,7 +197,7 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
                         <div className={'history-items'}>
                             {
                                 historyItems.map((item, i) => {
-                                    return <Flex className={'data-value-item'} key={`${props.viewId}_${props.id}_${i}`}
+                                    return <Flex className={'data-value-item'} key={`${props.dataViewId}_${props.id}_${i}`}
                                                  align={'center'}
                                                  justify={"center"} gap={4}>
                                         <div className={'data-value'}

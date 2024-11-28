@@ -1,28 +1,26 @@
 /* eslint-disable */
-import React, {useEffect, useRef, useState} from "react";
+import React, {forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
 import {Table} from "antd";
 import {ColumnsType} from "antd/es/table";
 import "./HashOperator.less";
 import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
-import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
 import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
 import {invoke} from "@tauri-apps/api/core";
-import {UpdateRequest, ValueChanged} from "../../watcher/ValueEditor.tsx";
+import {UpdateRequest} from "../../watcher/ValueEditor.tsx";
 import {useTranslation} from "react-i18next";
 import {PushpinFilled} from "@ant-design/icons";
 import {TableRowSelection} from "antd/es/table/interface";
 import {emitTo, listen, Options, UnlistenFn} from "@tauri-apps/api/event";
 import SmartData, {UpdateEvent} from "../common/SmartData.tsx";
 import {Window} from "@tauri-apps/api/window";
-import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
+import {FieldInfo, RedisKeyInfo, RedisOperatorRef} from "../RedisTypeEditor.tsx";
 
 interface HashOperatorProps {
     data: RedisKeyInfo;
     pinMode?: boolean;
-    onFieldClicked: (e: ValueChanged) => void;
     onRowAdd?: (keyInfo: any) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
-    onReload?: () => void;
+    onFieldSelected: (field: FieldInfo) => void;
 
     datasourceId: number;
     selectedDatabase: number;
@@ -55,7 +53,7 @@ interface PinResult {
 /**
  * Hash 类型的操作面板
  */
-const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
+const HashOperator = forwardRef<RedisOperatorRef | undefined, HashOperatorProps>((props, ref) => {
     const {t} = useTranslation();
 
     const [datasource, setDatasource] = useState(props.datasourceId);
@@ -69,6 +67,13 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         datasourceRef.current = props.datasourceId;
         databaseRef.current = props.selectedDatabase;
     }, [props.datasourceId, props.selectedDatabase]);
+
+    useImperativeHandle(ref, () => ({
+        reload: () => {
+            console.log('调用 on reload 方法');
+            onReload(true);
+        },
+    }));
 
     const [pinnedFields, setPinnedFields] = useState<string[]>([]);
     const [dataSource, setDataSource] = useState<DataType[]>([{key: '-'}]);
@@ -509,7 +514,6 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         }
     };
     const onReload = (all: boolean) => {
-        console.log("重新加载数据：", pageChanged, cursor)
         if (all) {
             clean();
         } else {
@@ -520,9 +524,6 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
         } else {
             setPage(1);
             setPageChanged(1);
-        }
-        if (props.onReload) {
-            props.onReload();
         }
         setFooterAction({type: 'RESET', ts: Date.now()});
     };
@@ -547,7 +548,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                             if (record.draft) {
                                 return;
                             }
-                            props.onFieldClicked({
+                            props.onFieldSelected({
                                 key: record.key,
                                 field: record.field,
                                 value: record.content,
@@ -558,6 +559,17 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                         }
                     },
                     onContextMenu: (e) => {
+                        console.log(e.target);
+                        // @ts-ignore
+                        const tableRow = e.target.getElementsByClassName('table-row-data');
+                        let copyText;
+                        if (tableRow && tableRow.length > 0) {
+                            copyText = tableRow[0].innerText
+                        } else {
+                            // @ts-ignore
+                            copyText = e.target.innerText;
+                        }
+
                         // 调用 Rust 代码显示右键菜单
                         invoke('show_content_editor_menu', {
                             x: e.clientX,
@@ -567,9 +579,8 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
                             field: record.field,
                             value: record.content,
                             key: props.data.keyName,
-                        }).then(r => {
-
-                        });
+                            copyValue: copyText,
+                        }).finally();
                     },
                 }
             }}
@@ -593,6 +604,7 @@ const HashOperator: React.FC<HashOperatorProps> = (props, context) => {
             onFilter={onFilter}
         />
     </>)
-}
+});
 
+HashOperator.displayName = "HashOperator";
 export default HashOperator;

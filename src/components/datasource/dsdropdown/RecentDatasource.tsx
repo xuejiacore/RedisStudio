@@ -88,7 +88,7 @@ const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
                                                host={ds.host}
                                                port={ds.port}
                                                default_database={parseInt(ds.default_database)}
-                                               datasourceId={`${ds.id}`}
+                                               datasourceId={ds.id}
                                                dscolor={wrapDatasourceColor(ds.color, ds)}
                                                onClick={onDatasourceChange}
                         />
@@ -96,8 +96,7 @@ const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
                 </div>
             </div>
         </Flex>
-    </>
-        ;
+    </>;
 }
 
 export default RecentDatasource;

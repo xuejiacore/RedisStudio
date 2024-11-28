@@ -3,21 +3,22 @@ import {Tabs} from "antd";
 import "./index.less";
 import KeyOutline, {OutlineAction} from "./KeyOutline.tsx";
 import {EditOutlined, InfoCircleOutlined, TagsOutlined} from "@ant-design/icons";
-import ValueEditor, {ValueChanged} from "./ValueEditor.tsx";
+import ValueEditor from "./ValueEditor.tsx";
 import {useTranslation} from "react-i18next";
 import "../../../utils/i18n.ts";
+import {FieldInfo} from "../type/RedisTypeEditor.tsx";
 
 interface RightWatcherPanelProp {
     currentKey: string;
     keyType: string;
-    selectedField?: ValueChanged;
+    selectedField?: FieldInfo;
     outlineAction?: OutlineAction;
 
     datasourceId: number;
     selectedDatabase: number;
 }
 
-const VALUE_CHANGED_KEY = '2';
+const VALUE_CHANGED_KEY = 'tab-value-editor';
 
 const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
     const {t} = useTranslation();
@@ -35,6 +36,9 @@ const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
         }
         setValueTabDisabled(props.selectedField?.dataType === 'string');
     }, [props.selectedField]);
+    useEffect(() => {
+        setSelectedTabKey('tab-outline');
+    }, [props.currentKey]);
 
     return (<>
         <div className={'right-watcher-panel-container'}>
@@ -48,7 +52,7 @@ const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
                 items={[
                     {
                         label: t('redis.main.right_panel.tabs.outline.name'),
-                        key: '1',
+                        key: 'tab-outline',
                         icon: <TagsOutlined className={'tab-tags'}/>,
                         children: <KeyOutline selectedKeyType={props.keyType}
                                               selectedKey={props.currentKey}
@@ -67,7 +71,7 @@ const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
                     },
                     {
                         label: t('redis.main.right_panel.tabs.info.name'),
-                        key: '3',
+                        key: 'tab-info',
                         icon: <InfoCircleOutlined className={'tab-info'}/>,
                         children: 'Key Information',
                     },

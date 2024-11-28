@@ -1,5 +1,5 @@
-import React, {useEffect, useRef, useState} from "react";
-import RedisToolbar from "../../toolbar/RedisToolbar.tsx";
+/* eslint-disable */
+import React, {forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
 import {Table} from "antd";
 import {ColumnsType} from "antd/es/table";
 import {useTranslation} from "react-i18next";
@@ -7,15 +7,14 @@ import "./SetOperator.less";
 import RedisFooter, {FooterAction, ValueFilterParam} from "../../footer/RedisFooter.tsx";
 import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
 import {TableRowSelection} from "antd/es/table/interface";
-import {ValueChanged} from "../../watcher/ValueEditor.tsx";
-import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
+import {FieldInfo, RedisKeyInfo, RedisOperatorRef} from "../RedisTypeEditor.tsx";
+import {invoke} from "@tauri-apps/api/core";
 
 interface SetOperatorProp {
     data: RedisKeyInfo,
     pinMode?: boolean;
-    onFieldClicked: (e: ValueChanged) => void;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
-    onReload?: () => void;
+    onFieldSelected: (field: FieldInfo) => void;
 
     datasourceId: number;
     selectedDatabase: number;
@@ -31,7 +30,7 @@ interface SetMemberResult {
     total: number
 }
 
-const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
+const SetOperator = forwardRef<RedisOperatorRef | undefined, SetOperatorProp>((props, ref) => {
     const {t} = useTranslation();
 
     const [datasource, setDatasource] = useState(props.datasourceId);
@@ -45,6 +44,12 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
         datasourceRef.current = props.datasourceId;
         databaseRef.current = props.selectedDatabase;
     }, [props.datasourceId, props.selectedDatabase]);
+
+    useImperativeHandle(ref, () => ({
+        reload: () => {
+            onReload();
+        }
+    }))
 
     const [key, setKey] = useState('');
     const [keyType, setKeyType] = useState('');
@@ -164,9 +169,6 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
         }
     };
     const onReload = () => {
-        if (props.onReload) {
-            props.onReload();
-        }
         setFooterAction({type: 'RESET', ts: Date.now()})
         /* TODO: 查询数据
         if (start == 0) {
@@ -192,7 +194,7 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
                             e.preventDefault()
                             selectRow(record);
                         } else {
-                            props.onFieldClicked({
+                            props.onFieldSelected({
                                 key: record.key,
                                 field: '',
                                 value: record.member,
@@ -201,6 +203,19 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
                                 dataType: 'list'
                             });
                         }
+                    },
+                    onContextMenu: (e) => {
+                        // 调用 Rust 代码显示右键菜单
+                        invoke('show_content_editor_menu', {
+                            x: e.clientX,
+                            y: e.clientY,
+                            datasource: datasourceRef.current,
+                            database: databaseRef.current,
+                            field: record.member,
+                            value: record.member,
+                            key: props.data.keyName,
+                            copyValue: record.member,
+                        }).finally();
                     },
                 }
             }}
@@ -218,6 +233,7 @@ const SetOperator: React.FC<SetOperatorProp> = (props, context) => {
             onFilter={onFilter}
         />
     </>
-}
+});
 
+SetOperator.displayName = "SetOperator";
 export default SetOperator;

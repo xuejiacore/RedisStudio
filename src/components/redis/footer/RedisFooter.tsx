@@ -171,11 +171,6 @@ const RedisFooter: React.FC<RedisFooterProps> = (props, context) => {
     };
 
     const handleMouseMove = (e: any) => {
-        if (isDragging) {
-            // const touch = e.touches[0]; // 取第一个触点
-            console.log(e.screenX, e.screenY);
-            // setPosition({x: touch.clientX, y: touch.clientY});
-        }
     };
 
     const handleMouseUp = () => {

@@ -1,19 +1,19 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, {forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
 import ContentEditor from "../../../editor/ContentEditor/ContentEditor.tsx";
 import {redis_invoke} from "../../../../utils/RustIteractor.tsx";
-import {RedisKeyInfo} from "../../type-editor/RedisTypeEditor.tsx";
+import {FieldInfo, RedisKeyInfo, RedisOperatorRef} from "../RedisTypeEditor.tsx";
 
 interface StringOperatorProps {
     data: RedisKeyInfo,
     pinMode?: boolean;
     onClose?: React.MouseEventHandler<HTMLSpanElement>;
-    onReload?: () => void;
+    onFieldSelected: (field: FieldInfo) => void;
 
     datasourceId: number;
     selectedDatabase: number;
 }
 
-const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
+const StringOperator = forwardRef<RedisOperatorRef | undefined, StringOperatorProps>((props, ref) => {
     const [datasource, setDatasource] = useState(props.datasourceId);
     const [database, setDatabase] = useState(props.selectedDatabase);
     const datasourceRef = useRef(datasource);
@@ -25,6 +25,12 @@ const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
         datasourceRef.current = props.datasourceId;
         databaseRef.current = props.selectedDatabase;
     }, [props.datasourceId, props.selectedDatabase]);
+
+    useImperativeHandle(ref, () => ({
+        reload: () => {
+            onReload();
+        }
+    }));
 
     const [key, setKey] = useState('');
     const [keyType, setKeyType] = useState('');
@@ -54,13 +60,12 @@ const StringOperator: React.FC<StringOperatorProps> = (props, context) => {
         }
     }, [props.data]);
     const onReload = () => {
-        if (props.onReload) {
-            props.onReload();
-        }
+
     }
     return <>
         <ContentEditor defaultValue={''} value={contentData} pinMode={props.pinMode} language={language}/>
     </>
-};
+});
 
+StringOperator.displayName = "StringOperator";
 export default StringOperator;

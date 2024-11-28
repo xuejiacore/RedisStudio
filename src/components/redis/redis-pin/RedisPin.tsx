@@ -3,17 +3,13 @@ import React, {useEffect, useRef, useState} from "react";
 import {invoke} from "@tauri-apps/api/core";
 import "./RedisPin.less";
 import "../index.less";
-import HashOperator from "../type/hash/HashOperator.tsx";
 import {useTranslation} from "react-i18next";
 import "../../../utils/i18n.ts";
 import {Flex} from "antd";
-import StringOperator from "../type/string/StringOperator.tsx";
-import ZSetOperator from "../type/zset/ZSetOperator.tsx";
-import ListOperator from "../type/list/ListOperator.tsx";
-import SetOperator from "../type/set/SetOperator.tsx";
 import {ValueChanged} from "../watcher/ValueEditor.tsx";
 import {listen, UnlistenFn} from "@tauri-apps/api/event";
 import {Window} from "@tauri-apps/api/window";
+import RedisTypeEditor from "../type/RedisTypeEditor.tsx";
 
 interface RedisPinProp {
 
@@ -22,7 +18,7 @@ interface RedisPinProp {
 const RedisPin: React.FC<RedisPinProp> = (props, context) => {
     const {t} = useTranslation();
 
-    const [datasource, setDatasource] = useState('');
+    const [datasource, setDatasource] = useState(0);
     const [database, setDatabase] = useState(0);
     const datasourceRef = useRef(datasource);
     const databaseRef = useRef(database);
@@ -32,7 +28,7 @@ const RedisPin: React.FC<RedisPinProp> = (props, context) => {
     const [selectedField, setSelectedField] = useState<ValueChanged>();
 
     // 定义方法
-    const onKeyChange = (keyName: string, keyType: string, datasource: string, database: number) => {
+    const onKeyChange = (keyName: string, keyType: string, datasource: number, database: number) => {
         console.log("keyName = ", keyName, " keyType = ", keyType);
         setDatasource(datasource);
         setDatabase(database);
@@ -102,57 +98,24 @@ const RedisPin: React.FC<RedisPinProp> = (props, context) => {
     };
     const nodeData = {key: currKeyName, keyType: keyType};
 
-    let operator;
-    switch (keyType) {
-        case 'hash':
-            operator = <HashOperator data={nodeData}
-                                     pinMode={true}
-                                     onFieldClicked={emptyCallback}
-                                     onRowAdd={emptyCallback}
-                                     onClose={onWindowClose}
-                                     datasourceId={datasource}
-                                     selectedDatabase={database}/>;
-            break;
-        case 'string':
-            operator = <StringOperator data={nodeData}
-                                       pinMode={true}
-                                       onClose={onWindowClose}
-                                       datasourceId={datasource}
-                                       selectedDatabase={database}/>
-            break;
-        case 'zset':
-            operator = <ZSetOperator data={nodeData}
-                                     pinMode={true}
-                                     onClose={onWindowClose}
-                                     onFieldClicked={setSelectedField}
-                                     datasourceId={datasource}
-                                     selectedDatabase={database}/>;
-            break;
-        case 'set':
-            operator = <SetOperator data={nodeData}
-                                    pinMode={true}
-                                    onClose={onWindowClose}
-                                    onFieldClicked={setSelectedField}
-                                    datasourceId={datasource}
-                                    selectedDatabase={database}/>;
-            break;
-        case 'list':
-            operator = <ListOperator data={nodeData}
-                                     pinMode={true}
-                                     onClose={onWindowClose}
-                                     onFieldClicked={setSelectedField}
-                                     datasourceId={datasource}
-                                     selectedDatabase={database}/>;
-            break;
-    }
-
     return (
         <>
             <Flex className={'redis-push-pin-main'}>
                 <div className={'redis-main-panel'}
                      data-tauri-drag-region="true">
                     <div className={'main-container pinned'} data-tauri-drag-region="true">
-                        {operator}
+                        <RedisTypeEditor
+                            datasource={datasource}
+                            database={database}
+                            pinMode={true}
+                            keyInfo={{
+                                keyName: currKeyName,
+                                keyType: keyType,
+                            }}
+                            onFieldSelected={field => {
+                            }}
+                            onClose={onWindowClose}
+                        />
                     </div>
                 </div>
             </Flex>

@@ -25,7 +25,7 @@ import {SysManager} from "../../utils/SysManager.ts";
 import {useEvent} from "../../utils/TauriUtil.tsx";
 import DataView from "./dataview/DataView.tsx";
 import DataViewHeader from "./dataview/DataViewHeader.tsx";
-import {RedisKeyInfo} from "./type-editor/RedisTypeEditor.tsx";
+import {RedisKeyInfo} from "./type/RedisTypeEditor.tsx";
 import FIELD_SYS_REDIS_SEPARATOR = SysProp.FIELD_SYS_REDIS_SEPARATOR;
 
 const {Search} = Input;

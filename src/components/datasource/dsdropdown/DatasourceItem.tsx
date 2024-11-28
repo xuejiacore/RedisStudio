@@ -7,7 +7,7 @@ export interface Datasource {
     name: string;
     port: number;
     password?: string;
-    datasource: string;
+    datasource: number;
     default_database: number;
     dscolor: string;
     path?: string;
