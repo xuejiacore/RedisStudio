@@ -12,46 +12,49 @@ import {hash} from "../../../utils/Util.ts";
 import {invoke} from "@tauri-apps/api/core";
 
 interface RecentDatasourceProp {
-
+    winId: number;
+    datasourceId: number;
+    onClose?: () => void;
 }
 
 const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
     const containerRef = useRef(null);
     const scrollbarRef = useRef<Scrollbar>();
     const [datasourceList, setDatasourceList] = useState<any[]>([]);
-    const winIdRef = useRef(0);
 
     const loadAllDatasource = (winId: number, selected: string, data: string) => {
-        winIdRef.current = winId;
         setDatasourceList(JSON.parse(data));
     };
 
     useEffect(() => {
         // @ts-ignore
         window.loadAllDatasource = loadAllDatasource;
+        console.log("加载数据源-----------》》");
         if (containerRef.current) {
             scrollbarRef.current = Scrollbar.init(containerRef.current, {
                 damping: 0.1, // 设置滚动的阻尼大小
                 thumbMinSize: 10, // 设置滚动条的最小大小
                 alwaysShowTracks: false
             });
-
-            // 在组件销毁时销毁 Smooth Scrollbar
-            return () => {
-                // @ts-ignore
-                delete window.loadAllDatasource;
-                if (scrollbarRef.current) {
-                    scrollbarRef.current.destroy();
-                }
-            };
         }
+
+        invoke('get_datasource_list', {}).then((r: any) => {
+            setDatasourceList(r);
+        })
+        // 在组件销毁时销毁 Smooth Scrollbar
+        return () => {
+            // @ts-ignore
+            delete window.loadAllDatasource;
+            if (scrollbarRef.current) {
+                scrollbarRef.current.destroy();
+            }
+        };
     }, []);
 
     const onDatasourceChange = (ds: Datasource) => {
-        //setSelectedIndex(index);
-        Window.getByLabel("datasource-dropdown").then(r => r?.hide());
+        props.onClose?.();
         const payload: DataSourceChangedEvent = {
-            winId: winIdRef.current,
+            winId: props.winId,
             props: {
                 datasourceId: ds.datasource,
                 host: ds.host,

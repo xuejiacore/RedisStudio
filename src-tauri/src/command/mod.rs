@@ -51,6 +51,7 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             window_controller::resize_redis_pushpin_window,
             window_controller::on_redis_pushpin_window_shown,
             window_controller::open_datasource_window,
+            window_controller::get_datasource_list,
             window_controller::open_database_selector_window,
 
             spotlight_command::hide_spotlight,

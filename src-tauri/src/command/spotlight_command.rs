@@ -56,7 +56,7 @@ pub fn spotlight_key_shortcut(app: &AppHandle, shortcut: &HotKey, event: GlobalH
             tauri::async_runtime::block_on(async move {
                 let active_info = redis_pool.get_active_info().await;
 
-                redis_pool.try_connect(&active_info.0, Some(active_info.1)).await;
+                redis_pool.try_connect(active_info.0, Some(active_info.1)).await;
                 redis_pool.get_active_info().then(|r| {
                     async move {
                         let datasource = active_info.0;

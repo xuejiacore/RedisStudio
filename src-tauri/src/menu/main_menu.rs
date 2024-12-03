@@ -75,7 +75,6 @@ async fn process_type_operator(
     let value = context.get("value");
 
     let database = database_str.parse::<i64>().map(|t| Some(t)).unwrap_or(None);
-    println!("win = {win_label}, 点击内容：{menu_id}, datasource = {datasource}, key = {key}, field = {field}");
     match menu_id_val {
         menu::MID_KEY_OP_ADD_ROW => {
             let payload = json!({

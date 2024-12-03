@@ -27,7 +27,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     const [outlineAction, setOutlineAction] = useState<OutlineAction>();
     const [showAnalysis, setShowAnalysis] = useState(true);
     const [showCommandLine, setShowCommandLine] = useState(false);
-    const [currentKeyInfo, setCurrentKeyInfo] = useState<RedisKeyInfo>()
+    const [currentKeyInfo, setCurrentKeyInfo] = useState<RedisKeyInfo>();
 
     const datasourceRef = useRef(props.datasourceId);
     const databaseRef = useRef(props.selectedDatabase);
@@ -50,8 +50,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
     };
 
     const onFieldSelected = (fieldInfo: FieldInfo) => {
-        setSelectedField(fieldInfo);
-        console.log('selectedField', fieldInfo);
+        //setSelectedField(fieldInfo);
     }
 
     return (<>
@@ -85,8 +84,7 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                                                     database={database}/> :
                             <RedisTypeEditor datasource={datasource}
                                              database={database}
-                                             keyInfo={currentKeyInfo!}
-                                             onFieldSelected={onFieldSelected}/>
+                                             keyInfo={currentKeyInfo!}/>
                         }
                     </Col>
 
@@ -94,7 +92,6 @@ const Redis: (props: RedisProps) => JSX.Element = (props: RedisProps) => {
                     <Col className={'right-watcher-panel'} span={showAnalysis || showCommandLine ? 0 : 7}>
                         <RightWatcherPanel currentKey={currentKeyInfo?.keyName ?? ''}
                                            keyType={currentKeyType}
-                                           selectedField={selectedField}
                                            outlineAction={outlineAction}
                                            datasourceId={datasource}
                                            selectedDatabase={database}/>

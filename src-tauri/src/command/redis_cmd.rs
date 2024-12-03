@@ -87,7 +87,7 @@ pub async fn database_analysis(
 
 #[tauri::command]
 pub async fn reconnect_redis(
-    datasource: String,
+    datasource: i64,
     database: i64,
     redis_pool: State<'_, RedisPool>,
 ) -> Result<String> {

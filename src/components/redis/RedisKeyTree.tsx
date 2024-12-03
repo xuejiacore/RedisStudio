@@ -554,7 +554,7 @@ const RedisKeyTree: React.FC<KeyTreeProp> = (props, context) => {
                 height={comHeight}
                 selectedKeys={selectedKeys}
                 expandedKeys={expandedKeys}
-                autoExpandParent={true}
+                autoExpandParent={false}
                 onSelect={(selectedKeys: Key[], info: any) => {
                     if (info.node.isLeaf) {
                         props.onKeySelect?.({

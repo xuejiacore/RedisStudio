@@ -6,13 +6,17 @@ import {Col, Divider, Flex, Row, Space} from "antd";
 import DatabaseNumberIcon from "../icons/DatabaseNumberIcon.tsx";
 import {HistoryOutlined, LoadingOutlined, SettingOutlined} from "@ant-design/icons";
 import {invoke} from "@tauri-apps/api/core";
-import {UnlistenFn} from "@tauri-apps/api/event";
 import {DataSourceChangedEvent} from "../datasource/DataSourceChangedEvent.ts";
 import CpuIcon from "../icons/CpuIcon.tsx";
 import ClientsNumIcon from "../icons/ClientNumIcon.tsx";
 import MetricIcon from "../icons/MetricIcon.tsx";
 import {humanNumber, wrapColor} from "../../utils/Util.ts";
 import {useEvent} from "../../utils/TauriUtil.tsx";
+import {Popover} from "react-tiny-popover";
+import DatasourceManagerHeader from "../datasource/dsdropdown/DatasourceManagerHeader.tsx";
+import RecentDatasource from "../datasource/dsdropdown/RecentDatasource.tsx";
+import DatabaseList from "../datasource/dsdbselector/DatabaseList.tsx";
+import "../datasource/dsdropdown/index.less";
 
 interface TitleBarProp {
     windowId: number,
@@ -29,7 +33,8 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
     const [datasource, setDatasource] = useState(props.datasource);
     const [database, setDatabase] = useState(props.database);
 
-
+    const [datasourceDropDown, setDatasourceDropDown] = useState(false);
+    const [databaseDropDown, setDatabaseDropDown] = useState(false);
     const [datasourceName, setDatasourceName] = useState(props.dsname);
     const [datasourceColor, setDatasourceColor] = useState(wrapColor(props.color, props.datasourceId, props.host, props.port));
 
@@ -160,20 +165,51 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                 <Col data-tauri-drag-region style={{background: datasourceBackground}}
                      className={'window-title-bar-left-col'} span={8} offset={0}>
                     <Flex className={'project-selector'} gap={4} align='center' justify={'start'}>
-                        <Space className={'selector'} onClick={onDatasourceClick}>
-                            <div className={'project-icon'} style={{background: datasourceColor}}>BS</div>
-                            <div className={`project-name database-status ${connectedStatus}`}>{datasourceName}</div>
-                            <div className={'down-arrow'}></div>
-                        </Space>
-                        <Space className={'selector'} onClick={onDatabaseSelectorClick}>
-                            <Flex justify={"center"}>
-                                <DatabaseNumberIcon
-                                    className={`database-number-icon database-status ${connectedStatus}`}
-                                    style={{width: 14}}/>
-                                <div className={`database-number database-status ${connectedStatus}`}>{database}</div>
-                            </Flex>
-                            <div className={'down-arrow'}></div>
-                        </Space>
+                        <Popover
+                            isOpen={datasourceDropDown}
+                            positions={['bottom']}
+                            align={'start'}
+                            onClickOutside={() => setDatasourceDropDown(false)}
+                            content={({position, nudgedLeft, nudgedTop}) => <>
+                                <div className={'datasource-dropdown-content'}>
+                                    <div className={'content'}>
+                                        <DatasourceManagerHeader/>
+                                        <RecentDatasource datasourceId={datasource} winId={props.windowId}
+                                                          onClose={() => setDatasourceDropDown(false)}/>
+                                    </div>
+                                </div>
+                            </>
+                            }>
+                            <Space className={'selector'} onClick={e => setDatasourceDropDown((prev) => !prev)}>
+                                <div className={'project-icon'} style={{background: datasourceColor}}>BS</div>
+                                <div
+                                    className={`project-name database-status ${connectedStatus}`}>{datasourceName}</div>
+                                <div className={'down-arrow'}></div>
+                            </Space>
+                        </Popover>
+                        <Popover
+                            isOpen={databaseDropDown}
+                            positions={['bottom']}
+                            align={'start'}
+                            onClickOutside={() => setDatabaseDropDown(false)}
+                            content={({position, nudgedLeft, nudgedTop}) => <>
+                                <div className={'datasource-dropdown-content'}>
+                                    <div className={'content'}>
+                                        <DatabaseList/>
+                                    </div>
+                                </div>
+                            </>}>
+                            <Space className={'selector'} onClick={() => setDatabaseDropDown((prev) => !prev)}>
+                                <Flex justify={"center"}>
+                                    <DatabaseNumberIcon
+                                        className={`database-number-icon database-status ${connectedStatus}`}
+                                        style={{width: 14}}/>
+                                    <div
+                                        className={`database-number database-status ${connectedStatus}`}>{database}</div>
+                                </Flex>
+                                <div className={'down-arrow'}></div>
+                            </Space>
+                        </Popover>
                         <Flex justify={'center'} gap={5}>
                             <div className={`reconnect-btn ${connectedStatus}`} onClick={tryReconnect}>Reconnect</div>
                             <LoadingOutlined className={`connected-spin ${reconnecting ? '' : 'invisible'}`}

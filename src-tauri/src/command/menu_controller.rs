@@ -1,7 +1,7 @@
 use crate::menu::menu_manager::MenuContext;
 use crate::{menu, CmdError};
 use std::collections::HashMap;
-use tauri::menu::{ContextMenu, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{ContextMenu, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::Theme::Dark;
 use tauri::{
     AppHandle, Manager, PhysicalPosition, Runtime, State, TitleBarStyle, WebviewUrl, Window,
@@ -27,7 +27,7 @@ pub fn show_data_view_mgr_menu<R: Runtime>(
                 true,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
             &MenuItem::with_id(
                 app_handle,
                 menu::MID_CONFIG_DV,
@@ -35,18 +35,19 @@ pub fn show_data_view_mgr_menu<R: Runtime>(
                 true,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
             &PredefinedMenuItem::separator(app_handle).unwrap(),
             &MenuItem::with_id(app_handle, menu::MID_DEL_DV, "Delete", true, None::<&str>).unwrap(),
         ],
     )
-    .unwrap();
+        .unwrap();
     menu.popup(window).unwrap();
 }
 
 /// show data view right click context menu
 #[tauri::command]
 pub fn show_data_view_right_click_menu<R: Runtime>(
+    key: String,
     data_view_id: Option<i64>,
     win_id: i64,
     window: Window,
@@ -57,85 +58,33 @@ pub fn show_data_view_right_click_menu<R: Runtime>(
     context.insert(String::from("win"), win_id.to_string());
     let dvid = data_view_id.clone().unwrap_or(0);
     context.insert(String::from("data_view_id"), dvid.to_string());
+    context.insert(String::from("key"), key.clone());
 
     menu_context.set_context(menu::MENU_DATA_VIEW_R_CLK, context);
     let app_handle = handle.app_handle();
     let _pkg_info = app_handle.package_info();
 
-    let menu = match data_view_id {
-        None => Menu::with_items(
-            app_handle,
-            &[
-                &MenuItem::with_id(
-                    app_handle,
-                    menu::MID_ADD_DV_ITEM,
-                    "Add Key",
-                    true,
-                    None::<&str>,
-                )
-                .unwrap(),
-                &MenuItem::with_id(
-                    app_handle,
-                    menu::MID_MOD_DV_ITEM,
-                    "Edit Key",
-                    true,
-                    None::<&str>,
-                )
-                .unwrap(),
-                &PredefinedMenuItem::separator(app_handle).unwrap(),
-                &MenuItem::with_id(
-                    app_handle,
-                    menu::MID_DEL_DV_ITEM,
-                    "Delete Key",
-                    true,
-                    None::<&str>,
-                )
-                .unwrap(),
-            ],
-        )
-        .unwrap(),
-        Some(vid) => Menu::with_items(
-            app_handle,
-            &[
-                &MenuItem::with_id(
-                    app_handle,
-                    menu::MID_DV_EXPAND_ALL,
-                    "Expand All",
-                    true,
-                    None::<&str>,
-                )
-                .unwrap(),
-                &MenuItem::with_id(
-                    app_handle,
-                    menu::MID_ADD_DV_ITEM,
-                    "Add Key",
-                    true,
-                    None::<&str>,
-                )
-                .unwrap(),
-                &MenuItem::with_id(
-                    app_handle,
-                    menu::MID_MOD_DV_ITEM,
-                    "Edit Key",
-                    true,
-                    None::<&str>,
-                )
-                .unwrap(),
-                &PredefinedMenuItem::separator(app_handle).unwrap(),
-                &PredefinedMenuItem::separator(app_handle).unwrap(),
-                &MenuItem::with_id(
-                    app_handle,
-                    menu::MID_DEL_DV_ITEM,
-                    "Delete Key",
-                    true,
-                    None::<&str>,
-                )
-                .unwrap(),
-            ],
-        )
-        .unwrap(),
-    };
+    let is_data_view_dir = true;
+    let key_not_exists = true;
 
+    let mut menus: Vec<Box<dyn IsMenuItem<R>>> = vec![];
+    if is_data_view_dir {
+        menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_DV_EXPAND_ALL, "Expand All", true, None::<&str>).unwrap()));
+    }
+
+    menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_ADD_DV_ITEM, "Add View Item", true, None::<&str>).unwrap()));
+    menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_MOD_DV_ITEM, "Edit Data View", true, None::<&str>).unwrap()));
+
+    if key_not_exists {
+        menus.push(Box::new(PredefinedMenuItem::separator(app_handle).unwrap()));
+        menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_MOD_INIT_ITEM, "New Key", true, None::<&str>).unwrap()));
+    } else {
+        menus.push(Box::new(PredefinedMenuItem::separator(app_handle).unwrap()));
+        menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_DEL_DV_ITEM, "Delete Key", true, None::<&str>).unwrap()));
+    }
+
+    let menu_refs: Vec<&dyn IsMenuItem<R>> = menus.iter().map(|b| &**b).collect();
+    let menu = Menu::with_items(app_handle, &menu_refs).unwrap();
     menu.popup(window).unwrap();
 }
 
@@ -218,7 +167,7 @@ pub fn show_key_tree_right_menu<R: Runtime>(
                 single_only_bool,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
             &MenuItem::with_id(
                 app_handle,
                 menu::MID_DUPLICATE,
@@ -226,7 +175,7 @@ pub fn show_key_tree_right_menu<R: Runtime>(
                 single_only_bool,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
             &MenuItem::with_id(
                 app_handle,
                 menu::MID_KEY_RENAME,
@@ -234,7 +183,7 @@ pub fn show_key_tree_right_menu<R: Runtime>(
                 single_only_bool,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
             &PredefinedMenuItem::separator(app_handle).unwrap(),
             &MenuItem::with_id(
                 app_handle,
@@ -243,10 +192,10 @@ pub fn show_key_tree_right_menu<R: Runtime>(
                 true,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
         ],
     )
-    .unwrap();
+        .unwrap();
     menu.popup(window).unwrap();
 }
 
@@ -290,7 +239,7 @@ pub fn show_content_editor_menu<R: Runtime>(
                 true,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
             &MenuItem::with_id(
                 app_handle,
                 menu::MID_KEY_OP_ADD_ROW,
@@ -298,7 +247,7 @@ pub fn show_content_editor_menu<R: Runtime>(
                 true,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
             &Submenu::with_items(
                 app_handle,
                 "Copy As",
@@ -311,7 +260,7 @@ pub fn show_content_editor_menu<R: Runtime>(
                         true,
                         None::<&str>,
                     )
-                    .unwrap(),
+                        .unwrap(),
                     &MenuItem::with_id(
                         app_handle,
                         menu::MID_KEY_OP_CP_AS_TSV,
@@ -319,7 +268,7 @@ pub fn show_content_editor_menu<R: Runtime>(
                         true,
                         None::<&str>,
                     )
-                    .unwrap(),
+                        .unwrap(),
                     &MenuItem::with_id(
                         app_handle,
                         menu::MID_KEY_OP_CP_AS_CSV,
@@ -327,10 +276,10 @@ pub fn show_content_editor_menu<R: Runtime>(
                         true,
                         None::<&str>,
                     )
-                    .unwrap(),
+                        .unwrap(),
                 ],
             )
-            .unwrap(),
+                .unwrap(),
             &PredefinedMenuItem::separator(app_handle).unwrap(),
             &MenuItem::with_id(
                 app_handle,
@@ -339,24 +288,24 @@ pub fn show_content_editor_menu<R: Runtime>(
                 true,
                 None::<&str>,
             )
-            .unwrap(),
+                .unwrap(),
         ],
     )
-    .unwrap();
+        .unwrap();
     menu.popup(window).unwrap();
 }
 
 /// show add new key menu
 #[tauri::command]
 pub fn show_add_new_key_menu<R: Runtime>(
-    datasource: String,
+    datasource: i64,
     database: i64,
     handle: tauri::AppHandle<R>,
     window: Window,
     menu_context: State<'_, MenuContext>,
 ) {
     let mut context = HashMap::new();
-    context.insert(String::from("datasource"), datasource);
+    context.insert(String::from("datasource"), datasource.to_string());
     context.insert(String::from("database"), database.to_string());
     menu_context.set_context(menu::MENU_ADD_NEW_KEY_MENU, context);
 
@@ -414,7 +363,7 @@ pub fn show_add_new_key_menu<R: Runtime>(
                     true,
                     None::<&str>,
                 )
-                .unwrap(),
+                    .unwrap(),
                 &MenuItem::with_id(app_handle, menu::MID_ADD_HASH, "Hash", true, None::<&str>)
                     .unwrap(),
                 &MenuItem::with_id(app_handle, menu::MID_ADD_LIST, "List", true, None::<&str>)
@@ -434,10 +383,10 @@ pub fn show_add_new_key_menu<R: Runtime>(
                         &MenuItem::new(app_handle, "Raw", true, None::<&str>).unwrap(),
                     ],
                 )
-                .unwrap(),
+                    .unwrap(),
             ],
         )
-        .unwrap();
+            .unwrap();
         menu.popup(window).unwrap();
     }
 }
@@ -462,7 +411,7 @@ pub fn show_auto_refresh_menu<R: Runtime>(handle: AppHandle<R>, window: Window, 
             &MenuItem::new(app_handle, "20s", true, None::<&str>).unwrap(),
         ],
     )
-    .unwrap();
+        .unwrap();
 
     menu.popup(window).unwrap();
 }

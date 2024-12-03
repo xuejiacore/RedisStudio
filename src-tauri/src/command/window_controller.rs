@@ -11,7 +11,7 @@ use futures::FutureExt;
 use redis::cmd;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::ops::DerefMut;
 use std::time::Duration;
 use tauri::{
@@ -34,6 +34,15 @@ enum Error {
     #[error("Monitor with cursor not found")]
     MonitorNotFound,
 }
+#[tauri::command]
+pub async fn get_datasource_list<R: Runtime>(
+    handle: tauri::AppHandle<R>,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<Value> {
+    let datasource = datasource_dao::query_flat_datasource(None, sqlite).await?;
+    Ok(json!(datasource))
+}
+
 #[tauri::command]
 pub async fn open_datasource_window<R: Runtime>(
     x: f64,

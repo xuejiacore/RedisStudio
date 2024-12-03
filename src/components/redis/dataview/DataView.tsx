@@ -424,9 +424,13 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                     menuContextNode.current = info.node;
 
                     const dataViewId: number = info.node.title.props.dataViewId;
+                    const id = info.node.title.props.id;
+                    const meta = dataViewMetaRef.current.get(dataViewId) ?? new Map<string, string>();
+                    const runtimeKey = varNodeRefs.current[id]?.calculateRuntimeKey(meta) ?? '';
                     invoke('show_data_view_right_click_menu', {
                         dataViewId: dataViewId,
-                        winId: props.windowId
+                        winId: props.windowId,
+                        key: runtimeKey
                     }).finally()
                 }}
                 style={{

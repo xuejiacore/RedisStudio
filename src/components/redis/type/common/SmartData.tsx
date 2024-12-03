@@ -31,7 +31,9 @@ const SmartData: React.FC<SmartDataProp> = (props, context) => {
             inputRef.current?.focus();
         }
     }, [editing]);
-    const toggleEdit = () => {
+    const toggleEdit = (e?: any) => {
+        console.log("toggleEdit", e);
+        e?.stopPropagation();
         setEditing(!editing);
     };
     const save = async (blurSave: boolean) => {
@@ -65,8 +67,7 @@ const SmartData: React.FC<SmartDataProp> = (props, context) => {
                     <Tooltip className={'tooltips'} title={'`null` string'} color={'#424449'}>
                         {inputValue}
                     </Tooltip>
-                </div>
-            ;
+                </div>;
         } else {
             const strVal = inputValue.toString();
             const val = convertTimestampToDateWithMillis(strVal);

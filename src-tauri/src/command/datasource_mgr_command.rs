@@ -91,16 +91,15 @@ pub async fn list_treed_datasource<R: Runtime>(
 
 #[tauri::command]
 pub async fn change_active_datasource<R: Runtime>(
-    datasource: String,
+    datasource: i64,
     default_database: i64,
     handle: AppHandle<R>,
     redis_pool: State<'_, RedisPool>,
     sqlite: State<'_, SqliteStorage>,
 ) -> CmdResult<Value> {
-    redis_pool.change_active_connection(Some(datasource.clone()), Some(default_database)).await;
+    redis_pool.change_active_connection(Some(datasource), Some(default_database)).await;
 
-    let datasource_id = datasource.parse().expect("err occur");
-    let datasource_detail = datasource_dao::query_datasource(datasource_id, sqlite).await?;
+    let datasource_detail = datasource_dao::query_datasource(datasource, sqlite).await?;
 
     let resource_path = &handle.path().resolve(SETTING_PATH, BaseDirectory::AppData).unwrap();
     let store = handle.store(&resource_path).unwrap();
@@ -139,12 +138,11 @@ pub async fn add_new_datasource<R: Runtime>(
 
 #[tauri::command]
 pub async fn query_datasource_detail<R: Runtime>(
-    datasource: String,
+    datasource: i64,
     handle: AppHandle<R>,
     sqlite: State<'_, SqliteStorage>,
 ) -> CmdResult<Value> {
-    let datasource_id = datasource.parse::<u16>().expect("Invalidate datasource id.");
-    let datasource_detail = datasource_dao::query_datasource(datasource_id, sqlite).await?;
+    let datasource_detail = datasource_dao::query_datasource(datasource, sqlite).await?;
     let ds_name = datasource_detail.datasource_name;
     let ds_color = datasource_detail.color;
     let ds_id = datasource_detail.id;

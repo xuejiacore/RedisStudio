@@ -7,11 +7,11 @@ import ValueEditor from "./ValueEditor.tsx";
 import {useTranslation} from "react-i18next";
 import "../../../utils/i18n.ts";
 import {FieldInfo} from "../type/RedisTypeEditor.tsx";
+import {useEvent} from "../../../utils/TauriUtil.tsx";
 
 interface RightWatcherPanelProp {
     currentKey: string;
     keyType: string;
-    selectedField?: FieldInfo;
     outlineAction?: OutlineAction;
 
     datasourceId: number;
@@ -24,18 +24,24 @@ const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
     const {t} = useTranslation();
     const [selectedTabKey, setSelectedTabKey] = useState('1');
     const [valueTabDisabled, setValueTabDisabled] = useState(false);
-    useEffect(() => {
-        if (props.selectedField?.type == 'KEY_CLK' && selectedTabKey != '1') {
-            setSelectedTabKey('1');
-        } else if (props.selectedField?.type == 'ADD_ROW' || props.selectedField?.type == 'FIELD_CLK') {
+    const [selectedField, setSelectedField] = useState<FieldInfo>()
+
+    useEvent('redis-type-editor/field-selector', event => {
+        const selectedField = event.payload as FieldInfo;
+        setSelectedField(selectedField);
+        console.log("RightWatcherPanel", selectedField);
+        if (selectedField?.type == 'KEY_CLK' && selectedTabKey != '1') {
+            setSelectedTabKey('tab-outline');
+        } else if (selectedField?.type == 'ADD_ROW' || selectedField?.type == 'FIELD_CLK') {
             setSelectedTabKey(VALUE_CHANGED_KEY);
         } else {
-            if (props.selectedField && props.selectedField.key) {
+            if (selectedField && selectedField.key) {
                 setSelectedTabKey(VALUE_CHANGED_KEY);
             }
         }
-        setValueTabDisabled(props.selectedField?.dataType === 'string');
-    }, [props.selectedField]);
+        setValueTabDisabled(selectedField?.dataType === 'string');
+    });
+
     useEffect(() => {
         setSelectedTabKey('tab-outline');
     }, [props.currentKey]);
@@ -65,7 +71,7 @@ const RightWatcherPanel: React.FC<RightWatcherPanelProp> = (props) => {
                         key: VALUE_CHANGED_KEY,
                         icon: <EditOutlined/>,
                         disabled: valueTabDisabled,
-                        children: <ValueEditor data={props.selectedField}
+                        children: <ValueEditor data={selectedField}
                                                datasourceId={props.datasourceId}
                                                selectedDatabase={props.selectedDatabase}/>
                     },

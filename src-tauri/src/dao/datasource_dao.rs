@@ -42,7 +42,7 @@ pub async fn query_flat_datasource(
 }
 
 pub async fn query_datasource(
-    datasource: u16,
+    datasource: i64,
     sqlite: State<'_, SqliteStorage>,
 ) -> CmdResult<TblDatasource> {
     let mut mutex = sqlite.pool.lock().await;

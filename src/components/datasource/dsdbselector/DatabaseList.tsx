@@ -62,15 +62,11 @@ const DatabaseList: React.FC<DatabaseListProp> = (props, context) => {
                 thumbMinSize: 10, // 设置滚动条的最小大小
                 alwaysShowTracks: false
             });
-
-            // 在组件销毁时销毁 Smooth Scrollbar
-            return () => {
-                if (scrollbarRef.current) {
-                    scrollbarRef.current.destroy();
-                }
-            };
         }
         return () => {
+            if (scrollbarRef.current) {
+                scrollbarRef.current.destroy();
+            }
             // @ts-ignore
             delete window.loadAllDatabase;
         };
@@ -82,7 +78,7 @@ const DatabaseList: React.FC<DatabaseListProp> = (props, context) => {
         const payload: DataSourceChangedEvent = {
             winId: winIdRef.current,
             props: {
-                datasourceId: "1",
+                datasourceId: 0,
                 host: "localhost",
                 port: 6379,
                 database: index,

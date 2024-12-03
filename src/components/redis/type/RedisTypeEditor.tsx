@@ -6,6 +6,7 @@ import ZSetOperator from "./zset/ZSetOperator.tsx";
 import StringOperator from "./string/StringOperator.tsx";
 import ListOperator from "./list/ListOperator.tsx";
 import SetOperator from "./set/SetOperator.tsx";
+import {emit} from "@tauri-apps/api/event";
 
 export interface RedisOperatorRef {
     reload: () => void;
@@ -36,64 +37,43 @@ interface RedisTypeEditorProps {
     database: number;
     keyInfo: RedisKeyInfo;
     pinMode?: boolean;
-    onFieldSelected: (field: FieldInfo) => void;
     onClose?: () => void;
 }
 
 const RedisTypeEditor: React.FC<RedisTypeEditorProps> = forwardRef<RedisTypeEditorRef | undefined, RedisTypeEditorProps>((props, ref) => {
     const typeOperatorRef = useRef<RedisOperatorRef>();
     let operator: React.ReactNode;
+
+    const onFieldSelected = (fieldInfo: FieldInfo) => {
+        if (!props.pinMode) {
+            emit("redis-type-editor/field-selector", fieldInfo).finally();
+        }
+    }
+
+    const operatorProps = {
+        ref: typeOperatorRef,
+        data: props.keyInfo,
+        datasourceId: props.datasource,
+        selectedDatabase: props.database,
+        onFieldSelected: onFieldSelected,
+        pinMode: props.pinMode,
+    }
+
     switch (props.keyInfo.keyType) {
         case 'hash':
-            operator = (
-                <HashOperator
-                    ref={typeOperatorRef}
-                    data={props.keyInfo}
-                    datasourceId={props.datasource}
-                    selectedDatabase={props.database}
-                    onFieldSelected={props.onFieldSelected}
-                    pinMode={props.pinMode}/>)
+            operator = <HashOperator {...operatorProps}/>
             break;
         case 'zset':
-            operator = (
-                <ZSetOperator
-                    ref={typeOperatorRef}
-                    data={props.keyInfo}
-                    datasourceId={props.datasource}
-                    selectedDatabase={props.database}
-                    onFieldSelected={props.onFieldSelected}
-                    pinMode={props.pinMode}/>)
+            operator = <ZSetOperator {...operatorProps}/>
             break;
         case 'list':
-            operator = (
-                <ListOperator
-                    ref={typeOperatorRef}
-                    data={props.keyInfo}
-                    datasourceId={props.datasource}
-                    selectedDatabase={props.database}
-                    onFieldSelected={props.onFieldSelected}
-                    pinMode={props.pinMode}/>)
+            operator = <ListOperator {...operatorProps}/>
             break;
         case 'set':
-            operator = (
-                <SetOperator
-                    ref={typeOperatorRef}
-                    data={props.keyInfo}
-                    datasourceId={props.datasource}
-                    selectedDatabase={props.database}
-                    onFieldSelected={props.onFieldSelected}
-                    pinMode={props.pinMode}/>
-            )
+            operator = <SetOperator {...operatorProps}/>
             break;
         case 'string':
-            operator = (
-                <StringOperator
-                    ref={typeOperatorRef}
-                    data={props.keyInfo}
-                    datasourceId={props.datasource}
-                    selectedDatabase={props.database}
-                    onFieldSelected={props.onFieldSelected}
-                    pinMode={props.pinMode}/>)
+            operator = <StringOperator {...operatorProps}/>
             break
     }
 

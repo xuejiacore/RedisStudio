@@ -98,14 +98,13 @@ impl DataSourceManager {
         }
     }
 
-    pub async fn query_prop<T: AsRef<str>>(&self, ds_id: T) -> Option<RedisProp> {
+    pub async fn query_prop(&self, ds_id: i64) -> Option<RedisProp> {
         match &self.pool {
             None => None,
             Some(p) => {
-                let dsid = String::from(ds_id.as_ref());
                 let rows: Result<Vec<TblDatasource>, Error> =
                     sqlx::query_as("select * from tbl_datasource where id = $1")
-                        .bind(dsid)
+                        .bind(ds_id)
                         .fetch_all(&*p)
                         .await;
                 match rows {
@@ -132,7 +131,7 @@ pub struct RedisPool {
 }
 
 impl RedisPool {
-    pub fn new<T: FnMut(String, i64) + Send + 'static>(
+    pub fn new<T: FnMut(i64, i64) + Send + 'static>(
         data_source_manager: DataSourceManager,
         ping_callback: Arc<Mutex<T>>,
     ) -> Self {
@@ -188,21 +187,19 @@ impl RedisPool {
     }
 
     /** release connection */
-    pub async fn release_connection<T: AsRef<str>>(
+    pub async fn release_connection(
         &self,
-        datasource_id: T,
+        datasource_id: i64,
         database: Option<i64>,
     ) -> bool {
-        let ds_id = datasource_id.as_ref();
-
         let exists = {
             let ds_prop = self.data_source_manager.lock().await;
-            ds_prop.query_prop(ds_id).await
+            ds_prop.query_prop(datasource_id).await
         };
 
         if let Some(_) = exists {
             if let Some(spec_database) = database {
-                let with_db_key = format!("{ds_id}#{spec_database}");
+                let with_db_key = format!("{datasource_id}#{spec_database}");
                 let mut mutex = self.pool.lock().await;
                 let mut removed_connection = mutex.remove(&with_db_key);
                 if let Some(connection) = removed_connection {
@@ -218,7 +215,7 @@ impl RedisPool {
                 let mut rm_keys = vec![];
                 for key in keys {
                     let cloned_key = key.clone();
-                    let ds_prefix = format!("{ds_id}#").to_string();
+                    let ds_prefix = format!("{datasource_id}#").to_string();
                     if cloned_key.starts_with(ds_prefix.as_str()) {
                         rm_keys.push(key.clone());
                     }
@@ -234,18 +231,17 @@ impl RedisPool {
         }
     }
 
-    pub async fn try_connect<T: AsRef<str>>(
+    pub async fn try_connect(
         &self,
-        datasource_id: T,
+        datasource_id: i64,
         selected_db: Option<i64>,
     ) -> bool {
-        let ds_id = datasource_id.as_ref();
         let mut cached_connection = self.pool.lock().await;
         let ds_prop = self.data_source_manager.lock().await;
 
-        let ds = ds_prop.query_prop(&ds_id.to_string()).await;
+        let ds = ds_prop.query_prop(datasource_id).await;
         let redis_prop = match ds {
-            None => panic!("Fail to find datasource {ds_id}"),
+            None => panic!("Fail to find datasource {datasource_id}"),
             Some(ds_prop) => match selected_db {
                 None => ds_prop.clone(),
                 Some(db) => ds_prop.select_db(db as u16),
@@ -253,7 +249,7 @@ impl RedisPool {
         };
 
         let database = redis_prop.default_database.unwrap_or(0);
-        let with_db_key = format!("{ds_id}#{database}");
+        let with_db_key = format!("{datasource_id}#{database}");
         match cached_connection.get(&with_db_key) {
             None => {
                 let client = redis::Client::open(redis_prop).unwrap();
@@ -268,7 +264,7 @@ impl RedisPool {
                     Ok(con) => {
                         cached_connection.insert(with_db_key.clone(), Arc::new(Mutex::new(con)));
                         match cached_connection.get(&with_db_key) {
-                            None => panic!("Fail to find datasource {ds_id}"),
+                            None => panic!("Fail to find datasource {datasource_id}"),
                             Some(_) => true,
                         }
                     }
@@ -287,7 +283,7 @@ impl RedisPool {
         let ds_id = datasource_id.to_string();
         let mut cached_connection = self.pool.lock().await;
         let ds_prop = self.data_source_manager.lock().await;
-        let ds = ds_prop.query_prop(&ds_id.to_string()).await;
+        let ds = ds_prop.query_prop(datasource_id).await;
         let redis_prop = match ds {
             None => panic!("Fail to find datasource {ds_id}"),
             Some(ds_prop) => match selected_db {
@@ -341,7 +337,7 @@ impl RedisPool {
         }
     }
 
-    pub async fn get_active_info(&self) -> (String, i64) {
+    pub async fn get_active_info(&self) -> (i64, i64) {
         let cloned = {
             let mutex = self.active_connection.lock().await;
             let cloned = mutex.clone();
@@ -352,7 +348,7 @@ impl RedisPool {
                 let cloned = t.clone();
                 let info = cloned.split("#").collect::<Vec<&str>>();
 
-                let datasource = info[0].to_string();
+                let datasource = info[0].to_string().parse::<i64>().unwrap();
                 let database = info[1].parse::<i64>().unwrap_or(0);
                 (datasource, database)
             })
@@ -361,7 +357,7 @@ impl RedisPool {
 
     pub async fn change_active_connection(
         &self,
-        datasource: Option<String>,
+        datasource: Option<i64>,
         database: Option<i64>,
     ) {
         let old = self.get_active_info().await;
@@ -383,7 +379,7 @@ impl RedisPool {
     }
 
     /// check all connection's status, collect connections which is unavailable.
-    async fn iter_ping_connections<T: FnMut(String, i64) + Send + 'static>(
+    async fn iter_ping_connections<T: FnMut(i64, i64) + Send + 'static>(
         ping_callback: &Arc<Mutex<T>>,
         mut remove_enabled_key: &mut Vec<String>,
         m: MutexGuard<'_, HashMap<String, Arc<Mutex<MultiplexedConnection>>>>,
@@ -393,7 +389,7 @@ impl RedisPool {
             let cloned_key = key.clone();
             let cloned_for_split = key.clone();
             let info = cloned_for_split.split("#").collect::<Vec<&str>>();
-            let datasource_id = info[0].to_string();
+            let datasource_id = info[0].to_string().parse::<i64>().unwrap_or(0);
             let database = info[1];
             match m.get(key) {
                 None => {}
@@ -428,11 +424,11 @@ impl RedisPool {
         }
     }
 
-    async fn ping<T: FnMut(String, i64) + Send + 'static>(
+    async fn ping<T: FnMut(i64, i64) + Send + 'static>(
         ping_callback: &Arc<Mutex<T>>,
         mut remove_enabled_key: &mut Vec<String>,
         cloned_key: String,
-        datasource_id: String,
+        datasource_id: i64,
         database: &str,
         conn: &Arc<Mutex<MultiplexedConnection>>,
     ) {

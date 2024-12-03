@@ -548,11 +548,12 @@ const HashOperator = forwardRef<RedisOperatorRef | undefined, HashOperatorProps>
                             if (record.draft) {
                                 return;
                             }
+                            const keyName = props.data.keyName;
                             props.onFieldSelected({
                                 key: record.key,
                                 field: record.field,
                                 value: record.content,
-                                redisKey: props.data.keyName,
+                                redisKey: keyName,
                                 type: 'FIELD_CLK',
                                 dataType: 'hash'
                             });
@@ -582,6 +583,9 @@ const HashOperator = forwardRef<RedisOperatorRef | undefined, HashOperatorProps>
                             copyValue: copyText,
                         }).finally();
                     },
+                    onDoubleClick: (e) => {
+                        console.log('onDoubleClick');
+                    }
                 }
             }}
         />
