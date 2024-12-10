@@ -1,4 +1,4 @@
-use crate::dao::types::{DataViewDto, DataViewHistoryDto, UnknownKeyTypeDto};
+use crate::dao::types::{DataViewDto, DataViewHistoryDto, TblDataView, UnknownKeyTypeDto};
 use crate::dao::DEFAULT_SQLITE_NAME;
 use crate::storage::sqlite_storage::SqliteStorage;
 use crate::{CmdError, CmdResult};
@@ -72,6 +72,10 @@ where data_view_id = $1
 
 const UPDATE_UNKNOWN_DATA_VIEW_ITEMS: &str = r#"
 update tbl_data_view_items set key_type = $1 where id = $2
+"#;
+
+const QUERY_DATA_VIEW_BY_ID: &str = r#"
+select * from tbl_data_view where id = $1
 "#;
 
 /// query data view
@@ -225,4 +229,21 @@ pub async fn update_unknown_type(
         .await
         .expect("Fail to record var history.");
     Ok(())
+}
+
+pub async fn query_data_view_by_id(
+    data_view_id: i64,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<Option<TblDataView>> {
+    let mut mutex = sqlite.pool.lock().await;
+    let map = mutex.deref_mut();
+    let pool = map
+        .get(DEFAULT_SQLITE_NAME)
+        .expect("Could not load system database");
+    let result: Result<Vec<TblDataView>, Error> = sqlx::query_as(QUERY_DATA_VIEW_BY_ID)
+        .bind(data_view_id)
+        .fetch_all(&*pool)
+        .await;
+    let dv = result.expect("Unknown data view");
+    Ok(dv.first().cloned())
 }

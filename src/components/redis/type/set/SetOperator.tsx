@@ -215,6 +215,7 @@ const SetOperator = forwardRef<RedisOperatorRef | undefined, SetOperatorProp>((p
                             value: record.member,
                             key: props.data.keyName,
                             copyValue: record.member,
+                            keyType: props.data.keyType,
                         }).finally();
                     },
                 }

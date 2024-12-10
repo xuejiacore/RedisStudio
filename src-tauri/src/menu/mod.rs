@@ -45,4 +45,7 @@ pub const MID_ADD_DV_ITEM: &str = "show_data_view_r_clk_menu/add_dv_item";
 pub const MID_DEL_DV_ITEM: &str = "show_data_view_r_clk_menu/del_dv_item";
 pub const MID_MOD_DV_ITEM: &str = "show_data_view_r_clk_menu/modify_dv_item";
 pub const MID_MOD_INIT_ITEM: &str = "show_data_view_r_clk_menu/init_key_item";
+pub const MID_DEL_KEY_VALUE: &str = "show_data_view_r_clk_menu/delete_key_value";
+pub const MID_DV_COPY_KEY_NAME: &str = "show_data_view_r_clk_menu/copy_key_name";
+pub const MID_DUPLICATE_VALUE: &str = "show_data_view_r_clk_menu/duplicate_key_value";
 

@@ -21,6 +21,7 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             dataview_mgr_command::query_key_exist_and_type,
 
             datasource_mgr_command::list_flat_datasource,
+            datasource_mgr_command::list_database_list,
             datasource_mgr_command::change_active_datasource,
             datasource_mgr_command::query_datasource_detail,
             datasource_mgr_command::list_treed_datasource,
@@ -50,8 +51,6 @@ pub fn register_command(builder: Builder<Wry>) -> Builder<Wry>
             window_controller::close_redis_pushpin_window,
             window_controller::resize_redis_pushpin_window,
             window_controller::on_redis_pushpin_window_shown,
-            window_controller::open_datasource_window,
-            window_controller::get_datasource_list,
             window_controller::open_database_selector_window,
 
             spotlight_command::hide_spotlight,

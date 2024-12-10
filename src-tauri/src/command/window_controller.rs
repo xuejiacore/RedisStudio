@@ -1,17 +1,15 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use crate::dao::datasource_dao;
 use crate::storage::redis_pool::RedisPool;
-use crate::storage::sqlite_storage::SqliteStorage;
 use crate::utils::system::constant::{PIN_WINDOW_MIN_HEIGHT, PIN_WINDOW_MIN_WIDTH};
 use crate::win::pinned_windows::PinnedWindows;
-use crate::{CmdError, CmdResult};
+use crate::CmdError;
 use futures::FutureExt;
 use redis::cmd;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::ops::DerefMut;
 use std::time::Duration;
 use tauri::{
@@ -33,50 +31,6 @@ type TauriError = tauri::Error;
 enum Error {
     #[error("Monitor with cursor not found")]
     MonitorNotFound,
-}
-#[tauri::command]
-pub async fn get_datasource_list<R: Runtime>(
-    handle: tauri::AppHandle<R>,
-    sqlite: State<'_, SqliteStorage>,
-) -> CmdResult<Value> {
-    let datasource = datasource_dao::query_flat_datasource(None, sqlite).await?;
-    Ok(json!(datasource))
-}
-
-#[tauri::command]
-pub async fn open_datasource_window<R: Runtime>(
-    x: f64,
-    y: f64,
-    win_id: i64,
-    datasource_id: i64,
-    handle: tauri::AppHandle<R>,
-    sqlite: State<'_, SqliteStorage>,
-) -> CmdResult<()> {
-    let window = handle.get_webview_window("datasource-dropdown");
-    match window {
-        None => Ok(()),
-        Some(win) => {
-            let datasource = datasource_dao::query_flat_datasource(None, sqlite).await?;
-            let datasource_json = json!(datasource).to_string();
-
-            let main_window = handle.get_webview_window("main").unwrap();
-            let pos = main_window.outer_position().unwrap();
-            let log_pos: LogicalPosition<f64> =
-                LogicalPosition::from_physical(pos, main_window.scale_factor().unwrap());
-            win.set_size(Size::Logical(LogicalSize::new(270f64, 400f64)))
-                .unwrap();
-            win.set_position(Position::Logical(LogicalPosition::new(
-                x + log_pos.x,
-                y + log_pos.y - 4f64,
-            )))
-            .unwrap();
-            let script =
-                format!("window.loadAllDatasource({win_id}, {datasource_id}, '{datasource_json}')");
-            win.eval(script.as_str()).unwrap();
-            win.show().unwrap();
-            Ok(())
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -110,17 +64,16 @@ pub async fn open_database_selector_window<R: Runtime>(
                 x + log_pos.x,
                 y + log_pos.y - 4f64,
             )))
-            .unwrap();
+                .unwrap();
 
-            let arc = redis_pool.select_connection(datasource_id, None).await;
-            let mut connection = arc.lock().await;
+            let mut connection = redis_pool.select_connection(datasource_id, None).await;
 
             // databases key space info.
             let re =
                 Regex::new(r"(?<name>db(?<index>\d+)):keys=(?<keys>\d+),expires=(\d+)").unwrap();
             let keyspace: String = cmd("INFO")
                 .arg("KEYSPACE")
-                .query_async(connection.deref_mut())
+                .query_async(&mut connection)
                 .await
                 .unwrap();
             let key_space_info: Vec<KeySpaceInfo> = keyspace
@@ -139,7 +92,7 @@ pub async fn open_database_selector_window<R: Runtime>(
             let databases_info: Vec<String> = cmd("CONFIG")
                 .arg("GET")
                 .arg("DATABASES")
-                .query_async(connection.deref_mut())
+                .query_async(&mut connection)
                 .await
                 .unwrap();
             let database_count = &databases_info[1];

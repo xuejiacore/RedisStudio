@@ -3,7 +3,6 @@ import React, {useEffect, useRef, useState} from "react";
 import DatabaseItem from "./DatabaseItem.tsx";
 import {Flex} from "antd";
 
-import "./index.less";
 import Scrollbar from "smooth-scrollbar";
 import {Window} from "@tauri-apps/api/window";
 import {emitTo} from "@tauri-apps/api/event";
@@ -11,6 +10,10 @@ import {DataSourceChangedEvent} from "../DataSourceChangedEvent.ts";
 import {invoke} from "@tauri-apps/api/core";
 
 interface DatabaseListProp {
+    datasourceId: number;
+    database: number;
+    winId: number;
+    onClose?: () => void;
 }
 
 interface Database {
@@ -21,41 +24,25 @@ interface Database {
 const DatabaseList: React.FC<DatabaseListProp> = (props, context) => {
     const containerRef = useRef(null);
     const scrollbarRef = useRef<Scrollbar>();
-    const winIdRef = useRef(0);
 
-    const datasourceRef = useRef('');
+    const [datasource, setDatasource] = useState(props.datasourceId);
+    const [database, setDatabase] = useState(props.database);
+
+    const datasourceRef = useRef(datasource);
+    const databaseRef = useRef(database);
+
+    useEffect(() => {
+        datasourceRef.current = props.datasourceId;
+        databaseRef.current = props.database;
+
+        setDatasource(datasourceRef.current);
+        setDatabase(databaseRef.current);
+    }, [props.datasourceId, props.database]);
+
     const [databases, setDatabases] = useState<Database[]>([]);
-    const [selectedIndex, setSelectedIndex] = useState(0);
     const [databaseComs, setDatabaseComs] = useState<React.ReactNode>(<></>);
 
-    const loadAllDatabase = (winId: number, selected: number, data: string, datasource: string, database_count: number) => {
-        datasourceRef.current = datasource;
-        const resp: Database[] = JSON.parse(data);
-        const map = new Map();
-        resp.forEach(d => {
-            map.set(d.index, d);
-        });
-
-        let databases: Database[] = [];
-        for (let i = 0; i < database_count; i++) {
-            let t = map.get(i);
-            if (t) {
-                databases.push(t);
-            } else {
-                databases.push({
-                    index: i,
-                    keys: 0
-                })
-            }
-        }
-
-        winIdRef.current = winId;
-        setSelectedIndex(selected);
-        setDatabases(databases);
-    };
     useEffect(() => {
-        // @ts-ignore
-        window.loadAllDatabase = loadAllDatabase;
         if (containerRef.current) {
             scrollbarRef.current = Scrollbar.init(containerRef.current, {
                 damping: 0.1, // 设置滚动的阻尼大小
@@ -63,20 +50,43 @@ const DatabaseList: React.FC<DatabaseListProp> = (props, context) => {
                 alwaysShowTracks: false
             });
         }
+        invoke('list_database_list', {
+            datasource: datasourceRef.current,
+            database: databaseRef.current,
+        }).then((r: any) => {
+            const resp: Database[] = r.key_space_info;
+            const map = new Map();
+            resp.forEach(d => {
+                map.set(d.index, d);
+            });
+
+            let databases: Database[] = [];
+            for (let i = 0; i < r.database_count; i++) {
+                let t = map.get(i);
+                if (t) {
+                    databases.push(t);
+                } else {
+                    databases.push({
+                        index: i,
+                        keys: 0
+                    })
+                }
+            }
+
+            setDatabases(databases);
+        });
+
         return () => {
             if (scrollbarRef.current) {
                 scrollbarRef.current.destroy();
             }
-            // @ts-ignore
-            delete window.loadAllDatabase;
         };
     }, []);
 
     const onDatabaseSelected = (index: number, keys: number) => {
-        setSelectedIndex(index);
-        Window.getByLabel("datasource-database-selector").then(r => r?.hide());
+        props.onClose?.();
         const payload: DataSourceChangedEvent = {
-            winId: winIdRef.current,
+            winId: props.winId,
             props: {
                 datasourceId: 0,
                 host: "localhost",
@@ -97,14 +107,14 @@ const DatabaseList: React.FC<DatabaseListProp> = (props, context) => {
             return (
                 <DatabaseItem key={d.index}
                               database={d.index}
-                              selected={d.index == selectedIndex}
+                              selected={d.index == databaseRef.current}
                               key_size={d.keys}
                               onClick={e => onDatabaseSelected(d.index, d.keys)}
                 />
             )
         });
         setDatabaseComs(t);
-    }, [databases, selectedIndex]);
+    }, [databases, props.database]);
     return <>
         <Flex className={'database-list'} justify={"start"} align={"start"} vertical>
             <div ref={containerRef} className="scrollbar-container">

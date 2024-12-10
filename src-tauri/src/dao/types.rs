@@ -39,6 +39,15 @@ pub struct TblDatasource {
 }
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct TblDataView {
+    pub id: i64,
+    pub datasource: i64,
+    pub name: String,
+    pub sort: i64,
+    pub database: i64,
+}
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct DataViewDto {
     pub dv_id: i64,
     pub name: String,

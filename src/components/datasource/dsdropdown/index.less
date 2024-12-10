@@ -17,6 +17,36 @@
       margin: 4px 0;
     }
 
+    .database-list {
+      margin: 6px 6px;
+
+      .scrollbar-container {
+        overflow: hidden; /* 隐藏溢出内容，Smooth Scrollbar 将处理滚动 */
+
+        .scrollbar-track {
+          background: transparent;
+
+          .scrollbar-thumb {
+            background: rgba(153, 153, 153, 0.5) !important;
+            width: 3px;
+          }
+        }
+
+        .scrollbar-track.scrollbar-track-y {
+          width: 3px;
+        }
+
+        .scroll-content {
+          height: auto;
+          overflow-x: hidden;
+        }
+      }
+    }
+
+    .database-list:first-child {
+      margin-top: 4px;
+    }
+
     .datasource-list {
       padding: 0 10px;
 
@@ -39,7 +69,9 @@
             width: 3px;
           }
         }
+
         /* 垂直滚动条宽度 */
+
         .scrollbar-track.scrollbar-track-y {
           width: 3px; /* 修改宽度 */
         }

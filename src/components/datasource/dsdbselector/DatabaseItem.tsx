@@ -1,5 +1,6 @@
 import React, {MouseEventHandler} from "react";
 import "./DatabaseItem.less";
+import {Flex} from "antd";
 
 interface DatabaseItemProp {
     database: number;
@@ -10,11 +11,15 @@ interface DatabaseItemProp {
 
 const DatabaseItem: React.FC<DatabaseItemProp> = (props, context) => {
     return <>
-        <div className={`database-item ${props.selected ? 'selected' : ''}`} onClick={props.onClick}>
-            <span className={'selected-item'}>{props.selected ? '✓' : ''}</span>
-            <span className={'database-index'}>DB{props.database}</span>
-            <span className={'key-size'}>{props.key_size}</span>
-        </div>
+        <Flex
+            justify={"space-between"}
+            align={"center"}
+            className={`database-item ${props.selected ? 'selected' : ''}`}
+            onClick={props.onClick}>
+
+            <div className={'database-index'}>DB{props.database}</div>
+            <div className={'key-size'}>{props.key_size}</div>
+        </Flex>
     </>;
 }
 

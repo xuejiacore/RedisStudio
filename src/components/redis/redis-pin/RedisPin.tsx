@@ -29,7 +29,6 @@ const RedisPin: React.FC<RedisPinProp> = (props, context) => {
 
     // 定义方法
     const onKeyChange = (keyName: string, keyType: string, datasource: number, database: number) => {
-        console.log("keyName = ", keyName, " keyType = ", keyType);
         setDatasource(datasource);
         setDatabase(database);
         datasourceRef.current = datasource;
@@ -111,8 +110,6 @@ const RedisPin: React.FC<RedisPinProp> = (props, context) => {
                             keyInfo={{
                                 keyName: currKeyName,
                                 keyType: keyType,
-                            }}
-                            onFieldSelected={field => {
                             }}
                             onClose={onWindowClose}
                         />

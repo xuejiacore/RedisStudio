@@ -70,7 +70,6 @@ const HashOperator = forwardRef<RedisOperatorRef | undefined, HashOperatorProps>
 
     useImperativeHandle(ref, () => ({
         reload: () => {
-            console.log('调用 on reload 方法');
             onReload(true);
         },
     }));
@@ -560,7 +559,6 @@ const HashOperator = forwardRef<RedisOperatorRef | undefined, HashOperatorProps>
                         }
                     },
                     onContextMenu: (e) => {
-                        console.log(e.target);
                         // @ts-ignore
                         const tableRow = e.target.getElementsByClassName('table-row-data');
                         let copyText;
@@ -581,6 +579,7 @@ const HashOperator = forwardRef<RedisOperatorRef | undefined, HashOperatorProps>
                             value: record.content,
                             key: props.data.keyName,
                             copyValue: copyText,
+                            keyType: props.data.keyType,
                         }).finally();
                     },
                     onDoubleClick: (e) => {

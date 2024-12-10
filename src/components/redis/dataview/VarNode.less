@@ -48,6 +48,10 @@
     text-align: center;
     border-radius: 0 0 2px 2px;
     border-bottom: 1px solid rgba(233, 243, 246, 0.60);
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     .history.invisible {
       display: none;
@@ -111,7 +115,7 @@
   border: 1px solid rgba(98, 98, 99, 0.37);
   box-shadow: 0 0 5px 0 #040404;
   padding: 4px;
-  width: 140px;
+  min-width: 140px;
   z-index: 1;
 
   .input-divider {
@@ -147,6 +151,10 @@
         font-size: 12px;
         font-family: JetBrainsMonoBold, sans-serif;
       }
+
+      .data-value.highlight {
+        color: #5dbdf8;
+      }
     }
 
     .data-value-item:hover {
@@ -159,6 +167,9 @@
         background: #4F5253;
         border-radius: 4px;
         cursor: pointer;
+      }
+      .data-value.highlight {
+        color: #67c1fa;
       }
     }
   }

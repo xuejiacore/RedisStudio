@@ -4,7 +4,6 @@ import DatasourceItem, {Datasource} from "./DatasourceItem.tsx";
 import {Flex} from "antd";
 import "./index.less";
 import Scrollbar from "smooth-scrollbar";
-import {Window} from "@tauri-apps/api/window";
 import {DataSourceChangedEvent} from "../DataSourceChangedEvent.ts";
 import {emitTo} from "@tauri-apps/api/event";
 import {DEFAULT_DATASOURCE_COLOR} from "../../../utils/RedisTypeUtil.ts";
@@ -22,14 +21,8 @@ const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
     const scrollbarRef = useRef<Scrollbar>();
     const [datasourceList, setDatasourceList] = useState<any[]>([]);
 
-    const loadAllDatasource = (winId: number, selected: string, data: string) => {
-        setDatasourceList(JSON.parse(data));
-    };
 
     useEffect(() => {
-        // @ts-ignore
-        window.loadAllDatasource = loadAllDatasource;
-        console.log("加载数据源-----------》》");
         if (containerRef.current) {
             scrollbarRef.current = Scrollbar.init(containerRef.current, {
                 damping: 0.1, // 设置滚动的阻尼大小
@@ -38,13 +31,11 @@ const RecentDatasource: React.FC<RecentDatasourceProp> = (props, context) => {
             });
         }
 
-        invoke('get_datasource_list', {}).then((r: any) => {
-            setDatasourceList(r);
+        invoke('list_flat_datasource', {}).then((r: any) => {
+            setDatasourceList(r.datasource);
         })
         // 在组件销毁时销毁 Smooth Scrollbar
         return () => {
-            // @ts-ignore
-            delete window.loadAllDatasource;
             if (scrollbarRef.current) {
                 scrollbarRef.current.destroy();
             }

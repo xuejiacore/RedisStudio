@@ -4,13 +4,17 @@
   .data-view-group-container {
     .data-view-group {
       .group-icon {
-        color: #5fd3f6;
+        fill: #AB85F8;
       }
 
       .group-name {
         color: #efefef;
-        font-size: 12px;
-        font-family: JetBrainsMonoBold, sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
 
@@ -26,6 +30,15 @@
         color: #6d6e70;
         background: #393B40;
       }
+    }
+  }
+
+  .no-data-view-items {
+    color: #4F5253;
+    font-weight: 500;
+
+    .img {
+      width: 50px;
     }
   }
 

@@ -331,6 +331,7 @@ const ListOperator = forwardRef<RedisOperatorRef | undefined, ListOperatorProp>(
                             value: record.element,
                             key: props.data.keyName,
                             copyValue: record.element,
+                            keyType: props.data.keyType,
                         }).finally();
                     },
                 }

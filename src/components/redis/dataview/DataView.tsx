@@ -10,6 +10,8 @@ import {useEvent} from "../../../utils/TauriUtil.tsx";
 import {CustomDataNode} from "../RedisKeyTree.tsx";
 import VarNodeEditor from "./VarNodeEditor.tsx";
 import {RedisKeyInfo} from "../type/RedisTypeEditor.tsx";
+import {Empty, Flex} from "antd";
+import no_data_svg from "../../../assets/images/icons/no-data.svg";
 
 interface DataViewProps {
     datasource: number;
@@ -249,20 +251,31 @@ const DataView: React.FC<DataViewProps> = (props, context) => {
                         children: []
                     }]
                 } else {
-                    return [{
-                        title: <VarNode
-                            // @ts-ignore
-                            ref={(el: any) => varNodeRefs.current[n.id] = el}
-                            origin={n.key}
-                            id={n.id}
-                            dataViewId={n.dv_id}
-                            name={n.name}
-                            defaultValue={n.var}
-                            keyType={n.key_type}
-                            onChange={onVarChange}/>,
-                        key: n.path,
-                        children: packageData(n, n.children)
-                    }]
+                    if (n.name) {
+                        return [{
+                            title: <VarNode
+                                // @ts-ignore
+                                ref={(el: any) => varNodeRefs.current[n.id] = el}
+                                origin={n.key}
+                                id={n.id}
+                                dataViewId={n.dv_id}
+                                name={n.name}
+                                defaultValue={n.var}
+                                keyType={n.key_type}
+                                onChange={onVarChange}/>,
+                            key: n.path,
+                            children: packageData(n, n.children)
+                        }]
+                    } else {
+                        return [{
+                            title: <Flex className={'no-data-view-items'} justify={"center"} align={"center"}>
+                                Click to create data view.
+                            </Flex>,
+                            key: n.path,
+                            children: []
+                        }]
+                    }
+
                 }
             } else if (n.node_type == 4) { // new key editor
                 return [{

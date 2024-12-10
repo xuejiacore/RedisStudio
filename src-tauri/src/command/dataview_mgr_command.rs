@@ -112,15 +112,14 @@ pub async fn query_key_exist_and_type<R: Runtime>(
     sqlite: State<'_, SqliteStorage>,
 ) -> CmdResult<Value> {
     let key_len = keys.len();
-    let arc = redis_pool
+    let mut conn = redis_pool
         .select_connection(datasource, Some(database))
         .await;
-    let mut conn = arc.lock().await;
     let mut pipe = redis::pipe();
     keys.iter().for_each(|k| {
         pipe.cmd("TYPE").arg(&k.key);
     });
-    let types: Vec<String> = pipe.query_async(conn.deref_mut()).await.unwrap();
+    let types: Vec<String> = pipe.query_async(&mut conn).await.unwrap();
 
     let mut map = HashMap::new();
     let mut id_map = HashMap::new();

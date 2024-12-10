@@ -1,5 +1,9 @@
+use crate::dao::data_view_dao::query_data_view_by_id;
 use crate::menu::menu_manager::MenuContext;
-use crate::{menu, CmdError};
+use crate::storage::redis_pool::RedisPool;
+use crate::storage::sqlite_storage::SqliteStorage;
+use crate::{menu, CmdError, CmdResult};
+use redis::cmd;
 use std::collections::HashMap;
 use tauri::menu::{ContextMenu, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::Theme::Dark;
@@ -46,14 +50,16 @@ pub fn show_data_view_mgr_menu<R: Runtime>(
 
 /// show data view right click context menu
 #[tauri::command]
-pub fn show_data_view_right_click_menu<R: Runtime>(
+pub async fn show_data_view_right_click_menu<R: Runtime>(
     key: String,
     data_view_id: Option<i64>,
     win_id: i64,
     window: Window,
     handle: AppHandle<R>,
     menu_context: State<'_, MenuContext>,
-) {
+    redis_pool: State<'_, RedisPool>,
+    sqlite: State<'_, SqliteStorage>,
+) -> CmdResult<()> {
     let mut context = HashMap::new();
     context.insert(String::from("win"), win_id.to_string());
     let dvid = data_view_id.clone().unwrap_or(0);
@@ -64,8 +70,14 @@ pub fn show_data_view_right_click_menu<R: Runtime>(
     let app_handle = handle.app_handle();
     let _pkg_info = app_handle.package_info();
 
+    let view = query_data_view_by_id(data_view_id.unwrap(), sqlite).await
+        .expect("Failed to query data view")
+        .expect("No data view found");
+    let mut connection = redis_pool.select_connection(view.datasource, Some(view.database)).await;
+    let key_exists: bool = cmd("EXISTS").arg(key.clone()).query_async(&mut connection).await
+        .unwrap();
+
     let is_data_view_dir = true;
-    let key_not_exists = true;
 
     let mut menus: Vec<Box<dyn IsMenuItem<R>>> = vec![];
     if is_data_view_dir {
@@ -75,17 +87,23 @@ pub fn show_data_view_right_click_menu<R: Runtime>(
     menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_ADD_DV_ITEM, "Add View Item", true, None::<&str>).unwrap()));
     menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_MOD_DV_ITEM, "Edit Data View", true, None::<&str>).unwrap()));
 
-    if key_not_exists {
+    if !key_exists {
         menus.push(Box::new(PredefinedMenuItem::separator(app_handle).unwrap()));
         menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_MOD_INIT_ITEM, "New Key", true, None::<&str>).unwrap()));
     } else {
         menus.push(Box::new(PredefinedMenuItem::separator(app_handle).unwrap()));
-        menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_DEL_DV_ITEM, "Delete Key", true, None::<&str>).unwrap()));
+        menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_DV_COPY_KEY_NAME, "Copy Key Name", true, None::<&str>).unwrap()));
+        menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_DEL_KEY_VALUE, "Delete Key", true, None::<&str>).unwrap()));
+        menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_DUPLICATE_VALUE, "Duplicate", true, None::<&str>).unwrap()));
     }
+
+    menus.push(Box::new(PredefinedMenuItem::separator(app_handle).unwrap()));
+    menus.push(Box::new(MenuItem::with_id(app_handle, menu::MID_DEL_DV_ITEM, "Delete View", true, None::<&str>).unwrap()));
 
     let menu_refs: Vec<&dyn IsMenuItem<R>> = menus.iter().map(|b| &**b).collect();
     let menu = Menu::with_items(app_handle, &menu_refs).unwrap();
     menu.popup(window).unwrap();
+    Ok(())
 }
 
 #[tauri::command]
@@ -206,6 +224,7 @@ pub fn show_content_editor_menu<R: Runtime>(
     key: String,
     field: String,
     value: String,
+    key_type: String,
     copy_value: Option<String>,
     handle: tauri::AppHandle<R>,
     window: Window,
@@ -221,10 +240,8 @@ pub fn show_content_editor_menu<R: Runtime>(
     context.insert(String::from("field"), field);
     context.insert(String::from("value"), value);
     context.insert(String::from("win"), label.to_string());
-    context.insert(
-        String::from("copy_value"),
-        copy_value.unwrap_or(String::from("")),
-    );
+    context.insert(String::from("copy_value"), copy_value.unwrap_or(String::from("")));
+    context.insert(String::from("key_type"), key_type);
     menu_context.set_context(menu::MENU_OPERATOR_MENU, context);
 
     let app_handle = handle.app_handle();

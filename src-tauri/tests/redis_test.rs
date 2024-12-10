@@ -56,34 +56,31 @@ async fn test_datasource_pool() {
     let mut start = Instant::now();
     {
         start = Instant::now();
-        let c1 = pool.select_connection("datasource01", None);
+        let c1 = pool.select_connection(0, None);
         println!("获得连接耗时：{:?}", start.elapsed());
-        let binding = c1.await;
-        let mut mutex = binding.lock().await;
+        let mut connection = c1.await;
         start = Instant::now();
-        let dbsize: i64 = cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap();
+        let dbsize: i64 = cmd("DBSIZE").query_async(&mut connection).await.unwrap();
         println!("dbsize = {}, 耗时: {:?}", dbsize, start.elapsed());
     }
 
     {
         start = Instant::now();
-        let c1 = pool.select_connection("datasource01", None);
+        let c1 = pool.select_connection(0, None);
         println!("获得连接耗时：{:?}", start.elapsed());
-        let binding = c1.await;
-        let mut mutex = binding.lock().await;
+        let mut connection = c1.await;
         start = Instant::now();
-        let dbsize: i64 = cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap();
+        let dbsize: i64 = cmd("DBSIZE").query_async(&mut connection).await.unwrap();
         println!("dbsize = {}, 耗时: {:?}", dbsize, start.elapsed());
     }
 
     {
         start = Instant::now();
-        let c1 = pool.select_connection("datasource01", None);
+        let c1 = pool.select_connection(0, None);
         println!("获得连接耗时：{:?}", start.elapsed());
-        let binding = c1.await;
-        let mut mutex = binding.lock().await;
+        let mut connection = c1.await;
         start = Instant::now();
-        let dbsize: i64 = cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap();
+        let dbsize: i64 = cmd("DBSIZE").query_async(&mut connection).await.unwrap();
         println!("dbsize = {}, 耗时: {:?}", dbsize, start.elapsed());
     }
 }
@@ -96,7 +93,7 @@ async fn async_test() {
     let client = redis::Client::open("redis://172.31.72.5/10").unwrap();
     let con = client.get_multiplexed_async_connection().await.unwrap();
     println!("创建连接耗时：{:?}", start.elapsed());
-    pool.add_new_connection("test".into(), con).await;
+    //pool.add_new_connection("test".into(), con).await;
 }
 
 #[tokio::test]
@@ -109,12 +106,12 @@ async fn test_db_select() {
         println!("connection lost: {datasource_id}, {database}");
     })));
     {
-        let t = pool.select_connection("datasource01", None).await;
+        let t = pool.select_connection(0, None).await;
         println!("finished");
     }
 
     {
-        let t = pool.select_connection("datasource01", Some(10)).await;
+        let t = pool.select_connection(0, Some(10)).await;
         println!("finished");
     }
 
@@ -287,7 +284,7 @@ pub async fn test_analysis() {
     let props = RedisProp::simple("172.31.65.68");
     dsm.add_prop("datasource01".to_string(), props).await;
     let redis_pool = RedisPool::new(dsm, Arc::new(Mutex::new(|datasource_id, database| {})));
-    let connection = redis_pool.select_connection("datasource01", None).await;
+    let connection = redis_pool.select_connection(0, None).await;
 
     // DO TEST
     let key_pattern = Some("*".to_string());

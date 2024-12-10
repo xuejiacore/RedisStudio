@@ -1,12 +1,16 @@
+use crate::command::redis_cmd::KeySpaceInfo;
 use crate::dao::datasource_dao;
 use crate::storage::redis_pool::RedisPool;
 use crate::storage::sqlite_storage::SqliteStorage;
 use crate::utils::system::{prop, SETTING_PATH};
 use crate::CmdResult;
+use redis::cmd;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::rc::Rc;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
@@ -20,6 +24,51 @@ pub async fn list_flat_datasource<R: Runtime>(
 ) -> CmdResult<Value> {
     let result = datasource_dao::query_flat_datasource(None, sqlite).await?;
     Ok(json!({"datasource": result}))
+}
+
+#[tauri::command]
+pub async fn list_database_list<R: Runtime>(
+    datasource: i64,
+    database: i64,
+    handle: AppHandle<R>,
+    sqlite: State<'_, SqliteStorage>,
+    redis_pool: State<'_, RedisPool>,
+) -> CmdResult<Value> {
+    let mut connection = redis_pool.select_connection(datasource, None).await;
+
+    // databases key space info.
+    let re =
+        Regex::new(r"(?<name>db(?<index>\d+)):keys=(?<keys>\d+),expires=(\d+)").unwrap();
+    let keyspace: String = cmd("INFO")
+        .arg("KEYSPACE")
+        .query_async(&mut connection)
+        .await
+        .unwrap();
+    let key_space_info: Vec<KeySpaceInfo> = keyspace
+        .split("\n")
+        .filter(|line| line.len() > 0 && !line.starts_with("#"))
+        .map(|line| {
+            let cap = re.captures(line).unwrap();
+            let name = String::from(cap.name("name").unwrap().as_str());
+            let index = cap.name("index").unwrap().as_str().parse().unwrap();
+            let keys = cap.name("keys").unwrap().as_str().parse().unwrap();
+            KeySpaceInfo { name, index, keys }
+        })
+        .collect();
+
+    // count of databases.
+    let databases_info: Vec<String> = cmd("CONFIG")
+        .arg("GET")
+        .arg("DATABASES")
+        .query_async(&mut connection)
+        .await
+        .unwrap();
+    let database_count = &databases_info[1];
+    Ok(json!({
+        "database": database,
+        "key_space_info": key_space_info,
+        "database_count": database_count
+    }))
 }
 
 #[derive(Clone, Serialize, Deserialize, Default)]

@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::ops::DerefMut;
 use std::str::from_utf8;
+use std::time::Instant;
 use std::vec::Vec;
 use tauri::{AppHandle, Emitter, State, Window, Wry};
 use tokio::sync::MutexGuard;
@@ -78,8 +79,8 @@ pub async fn database_analysis(
     redis_pool: State<'_, RedisPool>,
 ) -> Result<String> {
     let sep = separator.unwrap_or("[:]".to_string());
-    let mutex = redis_pool.select_connection(datasource, Some(database)).await;
-    redis_util::async_analysis_database(mutex, key_pattern, scan_count, page_size, sep, 2, move |r| {
+    let connection = redis_pool.select_connection(datasource, Some(database)).await;
+    redis_util::async_analysis_database(connection, key_pattern, scan_count, page_size, sep, 2, move |r| {
         app.emit("database/analysis", r).unwrap();
     }).await;
     Ok(json!({}).to_string())
@@ -114,8 +115,7 @@ pub async fn dispatch_redis_cmd(
     if redis_cmd.cmd.eq("redis_key_scan") {
         execute_scan_cmd(datasource_id, database, redis_pool, serde_json::from_str(cmd_data).unwrap(), window).await
     } else {
-        let arc = redis_pool.select_connection(datasource_id, Some(database)).await;
-        let con = arc.lock().await;
+        let mut con = redis_pool.select_connection(datasource_id, Some(database)).await;
         match &redis_cmd.cmd as &str {
             "redis_list_datasource" => json!([{"id": 1,"name": "localhost"},{"id": 2,"name": "127.0.0.1"}]),
             "redis_get_database_info" => execute_get_database_info(con).await,
@@ -144,22 +144,22 @@ struct RenameOrDuplicateCmd {
 }
 
 async fn execute_redis_rename(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: RenameOrDuplicateCmd,
     win: Window,
 ) -> Value {
-    let bytes: Vec<u8> = cmd("DUMP").arg(&params.from_key).query_async(connection.deref_mut())
+    let bytes: Vec<u8> = cmd("DUMP").arg(&params.from_key).query_async(&mut connection)
         .await.expect("Key Not Exists.");
-    let mut ttl: i32 = cmd("TTL").arg(&params.from_key).query_async(connection.deref_mut())
+    let mut ttl: i32 = cmd("TTL").arg(&params.from_key).query_async(&mut connection)
         .await.expect("Fail to Read TTL");
     if ttl < 0 {
         ttl = 0;
     }
-    let result: String = cmd("RESTORE").arg(&params.key).arg(ttl).arg(bytes).query_async(connection.deref_mut())
+    let result: String = cmd("RESTORE").arg(&params.key).arg(ttl).arg(bytes).query_async(&mut connection)
         .await.expect("Fail to Restore Key");
 
     if result.eq("OK") {
-        let del_result: i32 = cmd("DEL").arg(&params.from_key).query_async(connection.deref_mut())
+        let del_result: i32 = cmd("DEL").arg(&params.from_key).query_async(&mut connection)
             .await.expect("Fail to Delete Old Key.");
         if del_result > 0 {
             json!({"success": true, "result": result})
@@ -172,18 +172,18 @@ async fn execute_redis_rename(
 }
 
 async fn execute_redis_duplicate(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: RenameOrDuplicateCmd,
     win: Window,
 ) -> Value {
-    let bytes: Vec<u8> = cmd("DUMP").arg(&params.from_key).query_async(connection.deref_mut())
+    let bytes: Vec<u8> = cmd("DUMP").arg(&params.from_key).query_async(&mut connection)
         .await.expect("Key Not Exists.");
-    let mut ttl: i32 = cmd("TTL").arg(&params.from_key).query_async(connection.deref_mut())
+    let mut ttl: i32 = cmd("TTL").arg(&params.from_key).query_async(&mut connection)
         .await.expect("Fail to Read TTL");
     if ttl < 0 {
         ttl = 0;
     }
-    let result: String = cmd("RESTORE").arg(&params.key).arg(ttl).arg(bytes).query_async(connection.deref_mut())
+    let result: String = cmd("RESTORE").arg(&params.key).arg(ttl).arg(bytes).query_async(&mut connection)
         .await.expect("Fail to Restore Key");
 
     let success = result.eq("OK");
@@ -205,9 +205,8 @@ async fn execute_redis_analysis(
     win: Window,
 ) -> Value {
     let mut cursor = params.cursor;
-    let arc = redis_pool.select_connection(datasource_id, Some(database)).await;
+    let mut connection = redis_pool.select_connection(datasource_id, Some(database)).await;
     tokio::spawn(async move {
-        let mut con = arc.lock().await;
         let mut remain_expect_count = 200;
         let page_size = 200;
         loop {
@@ -222,7 +221,7 @@ async fn execute_redis_analysis(
                 .arg("*")
                 .arg("COUNT")
                 .arg(require_count)
-                .query_async(con.deref_mut())
+                .query_async(&mut connection)
                 .await
                 .unwrap();
 
@@ -263,12 +262,12 @@ struct ExecuteScriptSmd {
 }
 
 async fn execute_redis_command(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: ExecuteScriptSmd,
     _window: Window,
 ) -> Value {
     let script = params.script;
-    let result = execute_batch_redis_command(script.as_str(), &mut connection, |_result| {}).await;
+    let result = execute_batch_redis_command(script.as_str(), connection, |_result| {}).await;
     json!({"success": true, "data": result})
 }
 
@@ -278,30 +277,30 @@ struct CreateNewKey {
     key_type: String,
 }
 async fn execute_redis_new_key(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: CreateNewKey,
     _window: Window,
 ) -> Value {
     match params.key_type.as_str() {
         "string" => {
             let _: String = cmd("SET").arg(params.key).arg("New String")
-                .query_async(connection.deref_mut()).await.unwrap();
+                .query_async(&mut connection).await.unwrap();
         }
         "hash" => {
             let _: i32 = cmd("HSET").arg(params.key).arg("New Field").arg("New Value")
-                .query_async(connection.deref_mut()).await.unwrap();
+                .query_async(&mut connection).await.unwrap();
         }
         "list" => {
             let _: i32 = cmd("LPUSH").arg(params.key).arg("New Element")
-                .query_async(connection.deref_mut()).await.unwrap();
+                .query_async(&mut connection).await.unwrap();
         }
         "zset" => {
             let _: i32 = cmd("ZADD").arg(params.key).arg(0.0).arg("New Member")
-                .query_async(connection.deref_mut()).await.unwrap();
+                .query_async(&mut connection).await.unwrap();
         }
         "set" => {
             let _: i32 = cmd("SADD").arg(params.key).arg("New Member")
-                .query_async(connection.deref_mut()).await.unwrap();
+                .query_async(&mut connection).await.unwrap();
         }
         &_ => {}
     }
@@ -310,7 +309,7 @@ async fn execute_redis_new_key(
 }
 
 async fn update_value(
-    connection: MutexGuard<'_, MultiplexedConnection>,
+    connection: MultiplexedConnection,
     params: UpdateCmd,
     _window: Window,
 ) -> Value {
@@ -324,7 +323,7 @@ async fn update_value(
     }
 }
 
-async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
+async fn update_hash(mut connection: MultiplexedConnection, params: UpdateCmd) -> Value {
     match params.old_field {
         None => {
             let field = params.field.unwrap();
@@ -333,7 +332,7 @@ async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, para
                 .arg(params.key)
                 .arg(field)
                 .arg(value)
-                .query_async(connection.deref_mut())
+                .query_async(&mut connection)
                 .await
                 .unwrap();
         }
@@ -341,14 +340,14 @@ async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, para
             let value: String = cmd("HGET")
                 .arg(&params.key)
                 .arg(old_filed.clone())
-                .query_async(connection.deref_mut())
+                .query_async(&mut connection)
                 .await
                 .unwrap();
 
             let _result: i32 = cmd("HDEL")
                 .arg(&params.key)
                 .arg(old_filed)
-                .query_async(connection.deref_mut())
+                .query_async(&mut connection)
                 .await
                 .unwrap();
 
@@ -357,7 +356,7 @@ async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, para
                 .arg(params.key)
                 .arg(field)
                 .arg(value)
-                .query_async(connection.deref_mut())
+                .query_async(&mut connection)
                 .await
                 .unwrap();
         }
@@ -366,11 +365,11 @@ async fn update_hash(mut connection: MutexGuard<'_, MultiplexedConnection>, para
     json!({"success": true})
 }
 
-async fn update_string(_connection: MutexGuard<'_, MultiplexedConnection>, _params: UpdateCmd) -> Value {
+async fn update_string(_connection: MultiplexedConnection, _params: UpdateCmd) -> Value {
     unimplemented!();
 }
 
-async fn update_zset(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
+async fn update_zset(mut connection: MultiplexedConnection, params: UpdateCmd) -> Value {
     let new_score: f64 = params.field.unwrap().parse().unwrap();
     let member = params.value.unwrap();
     if params.old_value.is_some() {
@@ -379,7 +378,7 @@ async fn update_zset(mut connection: MutexGuard<'_, MultiplexedConnection>, para
         let old_value_result: RedisResult<f64> = cmd("ZSCORE")
             .arg(&params.key)
             .arg(&member)
-            .query_async(connection.deref_mut())
+            .query_async(&mut connection)
             .await;
         if old_value_result.is_ok() {
             let curr_score = old_value_result.unwrap();
@@ -388,7 +387,7 @@ async fn update_zset(mut connection: MutexGuard<'_, MultiplexedConnection>, para
                     .arg(&params.key)
                     .arg(new_score)
                     .arg(&member)
-                    .query_async(connection.deref_mut()).await;
+                    .query_async(&mut connection).await;
                 let is_success = update_result.is_ok();
                 json!({"success": is_success})
             } else {
@@ -402,11 +401,11 @@ async fn update_zset(mut connection: MutexGuard<'_, MultiplexedConnection>, para
     }
 }
 
-async fn update_set(_connection: MutexGuard<'_, MultiplexedConnection>, _params: UpdateCmd) -> Value {
+async fn update_set(_connection: MultiplexedConnection, _params: UpdateCmd) -> Value {
     unimplemented!();
 }
 
-async fn update_list(mut connection: MutexGuard<'_, MultiplexedConnection>, params: UpdateCmd) -> Value {
+async fn update_list(mut connection: MultiplexedConnection, params: UpdateCmd) -> Value {
     let index = params.field.unwrap();
     let new_value = params.value.unwrap();
     let mut ignore_value_check = true;
@@ -417,7 +416,7 @@ async fn update_list(mut connection: MutexGuard<'_, MultiplexedConnection>, para
         let old_val_result: RedisResult<String> = cmd("LINDEX")
             .arg(&params.key)
             .arg(&index)
-            .query_async(connection.deref_mut())
+            .query_async(&mut connection)
             .await;
         if old_val_result.is_ok() {
             let old_val = old_val_result.unwrap();
@@ -426,7 +425,7 @@ async fn update_list(mut connection: MutexGuard<'_, MultiplexedConnection>, para
                     .arg(&params.key)
                     .arg(&index)
                     .arg(&new_value)
-                    .query_async(connection.deref_mut())
+                    .query_async(&mut connection)
                     .await;
 
                 let is_success = lset_result.is_ok();
@@ -454,9 +453,9 @@ pub struct KeySpaceInfo {
 }
 
 async fn execute_get_database_info(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
 ) -> Value {
-    let server_info: String = cmd("INFO").arg("SERVER").query_async(connection.deref_mut()).await.unwrap();
+    let server_info: String = cmd("INFO").arg("SERVER").query_async(&mut connection).await.unwrap();
     let ver_reg = Regex::new(r"redis_version:(?<version>[0-9.]+)").unwrap();
     let redis_version = ver_reg
         .captures(server_info.as_str())
@@ -467,7 +466,7 @@ async fn execute_get_database_info(
 
     // databases key space info.
     let re = Regex::new(r"(?<name>db(?<index>\d+)):keys=(?<keys>\d+),expires=(\d+)").unwrap();
-    let keyspace: String = cmd("INFO").arg("KEYSPACE").query_async(connection.deref_mut()).await.unwrap();
+    let keyspace: String = cmd("INFO").arg("KEYSPACE").query_async(&mut connection).await.unwrap();
     let key_space_info: Vec<KeySpaceInfo> = keyspace
         .split("\n")
         .filter(|line| line.len() > 0 && !line.starts_with("#"))
@@ -480,7 +479,7 @@ async fn execute_get_database_info(
         })
         .collect();
 
-    let memory_info: String = cmd("INFO").arg("MEMORY").query_async(connection.deref_mut()).await.unwrap();
+    let memory_info: String = cmd("INFO").arg("MEMORY").query_async(&mut connection).await.unwrap();
     let used_memory_human_reg = Regex::new(r"used_memory_human:(?<usage>.*)").unwrap();
     let used_memory_human = used_memory_human_reg
         .captures(memory_info.as_str())
@@ -489,13 +488,13 @@ async fn execute_get_database_info(
         .unwrap()
         .as_str();
 
-    let dbsize: i64 = cmd("DBSIZE").query_async(connection.deref_mut()).await.unwrap();
+    let dbsize: i64 = cmd("DBSIZE").query_async(&mut connection).await.unwrap();
 
     // count of databases.
     let databases_info: Vec<String> = cmd("CONFIG")
         .arg("GET")
         .arg("DATABASES")
-        .query_async(connection.deref_mut())
+        .query_async(&mut connection)
         .await
         .unwrap();
     let database_count = &databases_info[1];
@@ -529,7 +528,7 @@ struct FieldValue {
 }
 
 async fn execute_get_hash(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     ds: i64,
     params: HashGetCmd,
     _window: Window,
@@ -564,7 +563,7 @@ async fn execute_get_hash(
                 let mget_result: Vec<Option<String>> = cmd("HMGET")
                     .arg(&params.key)
                     .arg(&pin_fields)
-                    .query_async(connection.deref_mut())
+                    .query_async(&mut connection)
                     .await
                     .unwrap();
                 for (idx, field) in pin_fields.iter().enumerate() {
@@ -587,7 +586,7 @@ async fn execute_get_hash(
             .arg(&params.pattern)
             .arg("COUNT")
             .arg(&params.count)
-            .query_async(connection.deref_mut())
+            .query_async(&mut connection)
             .await
             .unwrap();
         let mut field_values: Vec<FieldValue> = result
@@ -610,8 +609,8 @@ async fn execute_get_hash(
         }
     }
 
-    let length: i32 = cmd("HLEN").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
-    let ttl: i32 = cmd("TTL").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
+    let length: i32 = cmd("HLEN").arg(&params.key).query_async(&mut connection).await.unwrap();
+    let ttl: i32 = cmd("TTL").arg(&params.key).query_async(&mut connection).await.unwrap();
     json!({
         "field_values": data_result,
         "length": length,
@@ -622,11 +621,11 @@ async fn execute_get_hash(
 }
 
 async fn execute_get_string(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: GetStringCmd,
     _window: Window,
 ) -> Value {
-    let result: String = cmd("GET").arg(&params.key).query_async(connection.deref_mut()).await.unwrap();
+    let result: String = cmd("GET").arg(&params.key).query_async(&mut connection).await.unwrap();
     json!({
         "content": result
     })
@@ -639,7 +638,7 @@ struct KeyInfoParam {
 }
 
 async fn execute_key_info(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: KeyInfoParam,
     _window: Window,
 ) -> Value {
@@ -650,7 +649,7 @@ async fn execute_key_info(
     let mut exists_val = 0;
     let key_type = &params.key_type;
 
-    let con_ref = &mut *connection;
+    let con_ref = &mut connection;
     let mut exists_cmd0 = cmd("EXISTS");
     let cloned_conn = &mut con_ref.clone();
     let exists_cmd = exists_cmd0.arg(&params.key).query_async::<i32>(cloned_conn);
@@ -727,7 +726,7 @@ struct TypeCmd {
 }
 
 async fn execute_type_cmd(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: TypeCmd,
     _window: Window,
 ) -> Value {
@@ -736,7 +735,7 @@ async fn execute_type_cmd(
     params.keys.iter().for_each(|k| {
         pipe.cmd("TYPE").arg(k);
     });
-    let types: Vec<String> = pipe.query_async(connection.deref_mut()).await.unwrap();
+    let types: Vec<String> = pipe.query_async(&mut connection).await.unwrap();
     let mut map = HashMap::new();
     for idx in 0..cloned_keys.len() {
         let key = &cloned_keys[idx];
@@ -765,7 +764,7 @@ struct MemberScoreValue {
 }
 
 async fn execute_zrange_members(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: ZRangeParam,
     _window: Window,
 ) -> Value {
@@ -798,7 +797,7 @@ async fn execute_zrange_members(
 
     let data_len: i32 = redis::cmd("ZCARD")
         .arg(&params.key)
-        .query_async(connection.deref_mut()).await
+        .query_async(&mut connection).await
         .unwrap();
     let mut nomore = false;
     loop {
@@ -813,7 +812,7 @@ async fn execute_zrange_members(
             .arg(start)
             .arg(end)
             .arg("WITHSCORES")
-            .query_async(connection.deref_mut()).await
+            .query_async(&mut connection).await
             .unwrap();
 
         let cnt = result.len();
@@ -923,7 +922,7 @@ struct ListMemberScoreValue {
 }
 
 async fn execute_lrange_members(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: LRangeParam,
     _window: Window,
 ) -> Value {
@@ -935,7 +934,7 @@ async fn execute_lrange_members(
     let mut start = params.start;
     let data_len: i32 = redis::cmd("LLEN")
         .arg(&params.key)
-        .query_async(connection.deref_mut()).await
+        .query_async(&mut connection).await
         .unwrap();
     let mut filter_pattern = Regex::new("").unwrap();
     if is_pattern_scan {
@@ -948,7 +947,7 @@ async fn execute_lrange_members(
             .arg(&params.key)
             .arg(start)
             .arg(start + params.size - 1)
-            .query_async(connection.deref_mut()).await
+            .query_async(&mut connection).await
             .unwrap();
 
         let cnt = result.len();
@@ -998,7 +997,7 @@ struct SScanParam {
 }
 
 async fn execute_sscan(
-    mut connection: MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     params: SScanParam,
     _window: Window,
 ) -> Value {
@@ -1012,12 +1011,12 @@ async fn execute_sscan(
     let data: Vec<Vec<String>> = scan_cmd
         .arg("COUNT")
         .arg(&params.size)
-        .query_async(connection.deref_mut()).await
+        .query_async(&mut connection).await
         .unwrap();
 
     let total: i32 = cmd("SCARD")
         .arg(&params.key)
-        .query_async(connection.deref_mut()).await
+        .query_async(&mut connection).await
         .unwrap();
     if let Some(members) = data.get(1) {
         json!({"data": members, "total": total})
@@ -1048,9 +1047,8 @@ async fn execute_scan_cmd(
     let force_scan = params.force_scan.unwrap_or(false);
     if !force_scan {
         let exists: i32 = {
-            let arc = redis_pool.select_connection(datasource_id.clone(), Some(database)).await;
-            let mut mutex = arc.lock().await;
-            cmd("EXISTS").arg(&pure_key).query_async(mutex.deref_mut()).await.unwrap()
+            let mut connection = redis_pool.select_connection(datasource_id.clone(), Some(database)).await;
+            cmd("EXISTS").arg(&pure_key).query_async(&mut connection).await.unwrap()
         };
 
         if exists == 1 {
@@ -1062,9 +1060,8 @@ async fn execute_scan_cmd(
         }
     }
 
-    let arc = redis_pool.select_connection(datasource_id, Some(database)).await;
+    let mut con = redis_pool.select_connection(datasource_id, Some(database)).await;
     tokio::spawn(async move {
-        let mut con = arc.lock().await;
         // 使用 scan_match 方法迭代匹配指定模式的键
         let pattern = params.pattern.as_str(); // 匹配以 "my_prefix:" 开头的键
         let mut remain_expect_count = params.count.unwrap_or(200);
@@ -1082,7 +1079,7 @@ async fn execute_scan_cmd(
                 .arg(pattern)
                 .arg("COUNT")
                 .arg(require_count)
-                .query_async(con.deref_mut())
+                .query_async(&mut con)
                 .await
                 .unwrap();
 
@@ -1215,12 +1212,12 @@ impl FromRedisValue for VisibleRedisResp {
     }
 }
 
-async fn run_redis_command(single_command: &str, connection: &mut MutexGuard<'_, MultiplexedConnection>) -> VisibleRedisResp {
+async fn run_redis_command(single_command: &str, connection: &mut MultiplexedConnection) -> VisibleRedisResp {
     let parse_result = parse_command(single_command.trim());
     let cmd_formatted = parse_result.0;
     let cmd_str = parse_result.1;
     let cmd = parse_result.2;
-    match cmd.query_async::<VisibleRedisResp>(connection.deref_mut()).await {
+    match cmd.query_async::<VisibleRedisResp>(connection).await {
         Ok(mut res) => {
             res.origin_cmd = Some(cmd_formatted.to_string());
             res.cmd = Some(cmd_str);
@@ -1244,7 +1241,7 @@ async fn run_redis_command(single_command: &str, connection: &mut MutexGuard<'_,
 
 async fn execute_batch_redis_command<F>(
     script: &str,
-    connection: &mut MutexGuard<'_, MultiplexedConnection>,
+    mut connection: MultiplexedConnection,
     mut result_consumer: F,
 ) -> Vec<VisibleRedisResp>
 where
@@ -1255,7 +1252,7 @@ where
     let mut index = 0;
     for single_cmd in each_command {
         if !single_cmd.trim().is_empty() {
-            let mut resp = run_redis_command(single_cmd, connection).await;
+            let mut resp = run_redis_command(single_cmd, &mut connection).await;
             resp.index = Some(index);
             index = index + 1;
             result_consumer(resp.clone());

@@ -1,6 +1,7 @@
 import React from "react";
 import {Flex} from "antd";
-import {ReloadOutlined, TableOutlined} from "@ant-design/icons";
+import {ReloadOutlined} from "@ant-design/icons";
+import DataViewIcon from "../../icons/DataViewIcon.tsx";
 
 interface DataViewGroupProps {
     dataViewId: number;
@@ -18,7 +19,7 @@ const DataViewGroup: React.FC<DataViewGroupProps> = (props, context) => {
     return <>
         <Flex className={'data-view-group-container'} justify={'space-between'}>
             <Flex gap={4} className={'data-view-group'}>
-                <TableOutlined className={'group-icon'}/>
+                <DataViewIcon className={'group-icon'} style={{width: 16}}/>
                 <span className={'group-name'}>{props.name}</span>
             </Flex>
             <div className={'data-view-group-operator'} onClick={onReloadClick}>

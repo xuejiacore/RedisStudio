@@ -4,7 +4,6 @@ use crate::storage::redis_pool::RedisPool;
 use redis::{cmd, AsyncCommands};
 use serde_json::json;
 use std::collections::HashMap;
-use std::ops::DerefMut;
 use tauri::menu::MenuEvent;
 use tauri::{Emitter, Manager, State, Window};
 use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -53,9 +52,9 @@ fn process_add_new_key(
             "window.onCreateNewKey('{}', '{}', {})",
             key_type, datasource, database
         )
-        .as_str(),
+            .as_str(),
     )
-    .unwrap();
+        .unwrap();
     win.show().unwrap();
 }
 
@@ -71,8 +70,9 @@ async fn process_type_operator(
     let datasource = context.get("datasource").expect("`datasource` unknown");
     let database_str = context.get("database").expect("`database` unknown");
     let key = context.get("key").expect("`key` unknown");
+    let key_type = context.get("key_type").expect("`key_type` unknown");
     let field = context.get("field").expect("`field` unknown");
-    let value = context.get("value");
+    let value = context.get("value").expect("`value` unknown");
 
     let database = database_str.parse::<i64>().map(|t| Some(t)).unwrap_or(None);
     match menu_id_val {
@@ -90,18 +90,46 @@ async fn process_type_operator(
             let handle = window.app_handle();
             handle.clipboard().write_text(copy_value).unwrap();
         }
+        menu::MID_KEY_OP_CP_AS_CMD => {
+            let copy_content = match key_type.as_str() {
+                "hash" => format!("HMSET {} {} {}", key, field, value),
+                "set" => format!("SADD {} {}", key, field),
+                &_ => todo!()
+            };
+            let handle = window.app_handle();
+            handle.clipboard().write_text(copy_content).unwrap();
+        }
+        menu::MID_KEY_OP_CP_AS_TSV => {
+            let copy_content = match key_type.as_str() {
+                "hash" => format!("{}\t{}\t{}", key, field, value),
+                "set" => format!("{}\t{}", key, field),
+                &_ => todo!()
+            };
+            let handle = window.app_handle();
+            handle.clipboard().write_text(copy_content).unwrap();
+        }
+        menu::MID_KEY_OP_CP_AS_CSV => {
+            let copy_content = match key_type.as_str() {
+                "hash" => format!("{},{},{}", key, field, value),
+                "set" => format!("{},{}SADD testset m2#2", key, field),
+                &_ => todo!()
+            };
+            let handle = window.app_handle();
+            handle.clipboard().write_text(copy_content).unwrap();
+        }
         menu::MID_KEY_OP_DELETE => {
             let redis_pool: State<'_, RedisPool> = window.state();
             let datasource_num = datasource.parse::<i64>().expect("`datasource` unknown");
-            let t = redis_pool.select_connection(datasource_num, database).await;
-            let mut conn = {
-                let mutex = t.lock().await;
-                mutex
+            let mut conn = redis_pool.select_connection(datasource_num, database).await;
+
+            let mut cmd = match key_type.as_str() {
+                "hash" => cmd("HDEL").arg(key).arg(field).clone(),
+                "list" => cmd("LREM").arg(key).arg(field).clone(),
+                &_ => todo!()
             };
-            let del_result: i32 = cmd("HDEL")
-                .arg(key)
-                .arg(field)
-                .query_async(conn.deref_mut())
+
+            let del_result: i32 = cmd
+                .query_async(&mut conn)
                 .await
                 .expect("");
             let success = del_result == 1;
@@ -149,13 +177,9 @@ async fn process_key_tree_right_clk(
     let database_num: i64 = database.parse::<i64>().expect("unrecognized database");
     let redis_pool: State<'_, RedisPool> = window.state();
     let datasource_num = datasource.parse::<i64>().expect("`datasource` unknown");
-    let t = redis_pool
+    let mut conn = redis_pool
         .select_connection(datasource_num, Some(database_num))
         .await;
-    let mut conn = {
-        let mutex = t.lock().await;
-        mutex
-    };
 
     for key in keys {
         match menu_id_val {
@@ -166,7 +190,7 @@ async fn process_key_tree_right_clk(
             menu::MID_DELETE_KEY => {
                 let result: i32 = cmd("DEL")
                     .arg(key)
-                    .query_async(conn.deref_mut())
+                    .query_async(&mut conn)
                     .await
                     .unwrap();
                 let success = result > 0;
@@ -176,7 +200,7 @@ async fn process_key_tree_right_clk(
             menu::MID_KEY_RENAME => {
                 let type_str: String = cmd("TYPE")
                     .arg(key)
-                    .query_async(conn.deref_mut())
+                    .query_async(&mut conn)
                     .await
                     .expect("Key not exists.");
                 let win = window.get_webview_window("modify-key-win").unwrap();
@@ -185,15 +209,15 @@ async fn process_key_tree_right_clk(
                         "window.onKeyModify('{}', '{}', '{}', {}, 'modify')",
                         key, type_str, datasource, database
                     )
-                    .as_str(),
+                        .as_str(),
                 )
-                .unwrap();
+                    .unwrap();
                 win.show().unwrap();
             }
             menu::MID_DUPLICATE => {
                 let type_str: String = cmd("TYPE")
                     .arg(key)
-                    .query_async(conn.deref_mut())
+                    .query_async(&mut conn)
                     .await
                     .expect("Key not exists.");
                 let win = window.get_webview_window("modify-key-win").unwrap();
@@ -202,9 +226,9 @@ async fn process_key_tree_right_clk(
                         "window.onKeyModify('{}', '{}', '{}', {}, 'duplicate')",
                         key, type_str, datasource, database
                     )
-                    .as_str(),
+                        .as_str(),
                 )
-                .unwrap();
+                    .unwrap();
                 win.show().unwrap();
             }
             &_ => todo!(),
@@ -268,6 +292,11 @@ async fn process_data_view_right_clk(
                     }),
                 )
                 .unwrap();
+        }
+        menu::MID_DV_COPY_KEY_NAME => {
+            let win_label = context.get("key").expect("could get key");
+            let handle = window.app_handle();
+            handle.clipboard().write_text(win_label).unwrap();
         }
         &_ => {}
     }

@@ -130,32 +130,33 @@ async fn prepare_datasource_manager(cloned_app_handler: AppHandle, connect_proto
             let redis_pool: State<RedisPool> = cloned_app_handler.state();
             let keys = redis_pool.get_all_connection_infos().await;
 
-            let mut processed = HashSet::<String>::new();
-            let pool = redis_pool.get_pool().await;
+            let mut processed = HashSet::<i64>::new();
+            let pool = redis_pool.get_all_keys().await;
             for db_key in keys {
                 let datasource = db_key.split("#")
                     .collect::<Vec<&str>>()
                     .get(0)
-                    .expect("unrecognized pattern").to_string();
+                    .expect("unrecognized pattern")
+                    .to_string()
+                    .parse::<i64>()
+                    .expect("unrecognized datasource");
 
                 if processed.contains(&datasource) {
                     continue;
                 }
 
-                if let Some(arc) = pool.get(&db_key) {
-                    if let Ok(mut connection) = arc.try_lock() {
-                        let result = cmd("INFO").query_async::<String>(connection.deref_mut()).await;
-                        if let Ok(info) = result {
-                            if let Some(i) = redis_util::parse_redis_info(info) {
-                                let now = Utc::now();
-                                let timestamp_millis = now.timestamp_millis();
-                                let payload = json!({"datasource": &datasource, "info": i, "sample_ts": timestamp_millis});
-                                cloned_app_handler.emit("datasource/info", payload).unwrap();
-                            }
-                        }
-                        processed.insert(datasource);
+                let mut conn = redis_pool.select_connection(datasource, None).await;
+
+                let result = cmd("INFO").query_async::<String>(&mut conn).await;
+                if let Ok(info) = result {
+                    if let Some(i) = redis_util::parse_redis_info(info) {
+                        let now = Utc::now();
+                        let timestamp_millis = now.timestamp_millis();
+                        let payload = json!({"datasource": &datasource, "info": i, "sample_ts": timestamp_millis});
+                        cloned_app_handler.emit("datasource/info", payload).unwrap();
                     }
                 }
+                processed.insert(datasource);
             }
         }
     });

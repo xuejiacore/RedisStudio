@@ -5,10 +5,7 @@ use redis::cmd;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::ops::DerefMut;
-use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::Mutex;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Info {
@@ -258,7 +255,7 @@ pub struct AnalysisResult {
 /// * `scan_count` - scan count limit
 /// * `callback` - report snippet
 pub async fn async_analysis_database<F, S>(
-    connection: Arc<Mutex<MultiplexedConnection>>,
+    mut connection: MultiplexedConnection,
     key_pattern: Option<String>,
     scan_count: Option<usize>,
     page_size: usize,
@@ -271,14 +268,13 @@ where
     S: AsRef<str>,
 {
     let current_db_size = {
-        let mut mutex = connection.lock().await;
-        cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap_or(0usize)
+        cmd("DBSIZE").query_async(&mut connection).await.unwrap_or(0usize)
     };
     let scan_total = std::cmp::min(current_db_size, scan_count.unwrap_or(current_db_size));
 
     let match_pattern = key_pattern.unwrap_or("*".to_string());
     let regex = Regex::new(separator.as_ref()).unwrap_or(Regex::new(":").unwrap());
-    let cloned_connection = connection.clone();
+    let mut cloned_connection = connection.clone();
     let ch = tokio::sync::mpsc::channel::<Vec<String>>(128);
     let sender = ch.0;
 
@@ -295,8 +291,7 @@ where
         result.start_time = start_time;
         // query key types
         result.dbsize = {
-            let mut mutex = cloned_connection.lock().await;
-            cmd("DBSIZE").query_async(mutex.deref_mut()).await.unwrap()
+            cmd("DBSIZE").query_async(&mut cloned_connection).await.unwrap()
         };
 
         loop {
@@ -315,21 +310,14 @@ where
 
                 // query key types
                 let types: Vec<String> = {
-                    let mut mutex = cloned_connection.lock().await;
-                    type_pipeline.query_async(mutex.deref_mut()).await.unwrap()
+                    type_pipeline.query_async(&mut cloned_connection).await.unwrap()
                 };
 
                 // query key memory
-                let memories: Vec<usize> = {
-                    let mut mutex = cloned_connection.lock().await;
-                    memory_pipeline.query_async(mutex.deref_mut()).await.unwrap()
-                };
+                let memories: Vec<usize> = memory_pipeline.query_async(&mut cloned_connection).await.unwrap();
 
                 // query key TTL
-                let ttls: Vec<i64> = {
-                    let mut mutex = cloned_connection.lock().await;
-                    ttl_pipeline.query_async(mutex.deref_mut()).await.unwrap()
-                };
+                let ttls: Vec<i64> = ttl_pipeline.query_async(&mut cloned_connection).await.unwrap();
 
                 result.scan_total += count;
                 for idx in 0..cloned_keys.len() {
@@ -429,7 +417,7 @@ where
 
 /// scan keys by provided count total and page size.
 async fn scan_keys_and_emit(
-    connection: Arc<Mutex<MultiplexedConnection>>,
+    mut connection: MultiplexedConnection,
     sender: Sender<Vec<String>>,
     scan_count: usize,
     page_size: usize,
@@ -444,9 +432,8 @@ async fn scan_keys_and_emit(
     loop {
         let remain = std::cmp::min(page_size + scanned, scan_count) - scanned;
         let (new_cursor, results): (u64, Vec<String>) = {
-            let mut mutex = connection.lock().await;
             cmd("SCAN").arg(cursor).arg("MATCH").arg(key_pattern).arg("COUNT").arg(remain)
-                .query_async(mutex.deref_mut())
+                .query_async(&mut connection)
                 .await
                 .unwrap()
         };

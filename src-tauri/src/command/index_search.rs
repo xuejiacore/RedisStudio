@@ -180,26 +180,26 @@ async fn search_from_tantivy<R: Runtime>(
                     Err(_) => {}
                 }
             })
-            .then(|result| async {
-                match result {
-                    Ok(data) => {
-                        let hits = &data.hits;
-                        let documents = &data.documents;
-                        let elapsed = timer.elapsed().as_millis();
-                        let dto = SearchResultItem {
-                            scene: "key_pattern".to_string(),
-                            hits: *hits,
-                            documents: documents.clone(),
-                            elapsed: Some(elapsed),
-                        };
+                .then(|result| async {
+                    match result {
+                        Ok(data) => {
+                            let hits = &data.hits;
+                            let documents = &data.documents;
+                            let elapsed = timer.elapsed().as_millis();
+                            let dto = SearchResultItem {
+                                scene: "key_pattern".to_string(),
+                                hits: *hits,
+                                documents: documents.clone(),
+                                elapsed: Some(elapsed),
+                            };
 
-                        handle.emit("spotlight/search-result", dto).unwrap();
-                        Ok(data)
+                            handle.emit("spotlight/search-result", dto).unwrap();
+                            Ok(data)
+                        }
+                        Err(e) => Err(e),
                     }
-                    Err(e) => Err(e),
-                }
-            })
-            .await
+                })
+                .await
         }
         None => Err(TantivyError::FieldNotFound(String::from(
             "index not exists.",
@@ -245,21 +245,21 @@ async fn list_database<R: Runtime>(
                 .collect();
             key_space_info
         }
-        .then(|data| async {
-            let hits = &data.len();
-            let documents = &data;
-            let elapsed = timer.elapsed().as_millis();
-            let dto = SearchResultItem {
-                scene: "database".to_string(),
-                hits: *hits,
-                documents: documents.clone(),
-                elapsed: Some(elapsed),
-            };
+            .then(|data| async {
+                let hits = &data.len();
+                let documents = &data;
+                let elapsed = timer.elapsed().as_millis();
+                let dto = SearchResultItem {
+                    scene: "database".to_string(),
+                    hits: *hits,
+                    documents: documents.clone(),
+                    elapsed: Some(elapsed),
+                };
 
-            handle.emit("spotlight/search-result", dto).unwrap();
-            Some(data)
-        })
-        .await
+                handle.emit("spotlight/search-result", dto).unwrap();
+                Some(data)
+            })
+            .await
     } else {
         None
     }
@@ -305,7 +305,7 @@ async fn recently_search<R: Runtime>(
             .with_limit_offset(5, 0)
             .with_query(Box::new(query));
     })
-    .await;
+        .await;
 
     async {
         match result {
@@ -344,26 +344,26 @@ async fn recently_search<R: Runtime>(
             Err(_) => None,
         }
     }
-    .then(|r| async {
-        match r {
-            None => None,
-            Some(values) => {
-                let elapsed = timer.elapsed().as_millis();
-                let hits = &values.len();
-                let documents = &values;
-                let dto = SearchResultItem {
-                    scene: "recently".to_string(),
-                    hits: *hits,
-                    documents: documents.clone(),
-                    elapsed: Some(elapsed),
-                };
+        .then(|r| async {
+            match r {
+                None => None,
+                Some(values) => {
+                    let elapsed = timer.elapsed().as_millis();
+                    let hits = &values.len();
+                    let documents = &values;
+                    let dto = SearchResultItem {
+                        scene: "recently".to_string(),
+                        hits: *hits,
+                        documents: documents.clone(),
+                        elapsed: Some(elapsed),
+                    };
 
-                handle.emit("spotlight/search-result", dto).unwrap();
-                Some(values)
+                    handle.emit("spotlight/search-result", dto).unwrap();
+                    Some(values)
+                }
             }
-        }
-    })
-    .await
+        })
+        .await
 }
 
 fn build_text_term(schema: &Schema, field_name: &str, field_value: &str) -> Box<dyn Query> {
@@ -386,18 +386,16 @@ async fn datasource_search<R: Runtime>(
                 Ok(r) => {
                     let elapsed = timer.elapsed().as_millis();
                     let connected_ds = {
-                        let m = redis_pool.get_pool().await;
-                        m.keys()
-                            .map(|k| {
-                                let datasource = k
-                                    .split("#")
-                                    .collect::<Vec<&str>>()
-                                    .get(0)
-                                    .expect("unrecognized pattern")
-                                    .to_string();
-                                datasource
-                            })
-                            .collect::<HashSet<String>>()
+                        let m = redis_pool.get_all_keys().await;
+                        m.into_iter().map(|k| {
+                            let datasource = k
+                                .split("#")
+                                .collect::<Vec<&str>>()
+                                .get(0)
+                                .expect("unrecognized pattern")
+                                .to_string();
+                            datasource
+                        }).collect::<HashSet<String>>()
                     };
 
                     let documents = r
@@ -544,7 +542,7 @@ async fn search_favor(
             .with_limit_offset(5, 0)
             .with_query(Box::new(query));
     })
-    .await;
+        .await;
 
     match result {
         Ok(search_result) => {
@@ -609,7 +607,7 @@ pub async fn infer_redis_key_pattern<R: Runtime>(
         None => Ok(json!({
             "recognized": false
         })
-        .to_string()),
+            .to_string()),
         Some(infer_result) => {
             let pattern = &infer_result.recognized_pattern;
             let normalized = infer_result.normalized();
@@ -618,7 +616,7 @@ pub async fn infer_redis_key_pattern<R: Runtime>(
                 "pattern": pattern,
                 "normalized": normalized
             })
-            .to_string())
+                .to_string())
         }
     }
 }

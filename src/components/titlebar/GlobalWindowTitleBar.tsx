@@ -112,21 +112,6 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
 
     const datasourceBackground = `linear-gradient(to right, ${datasourceColor}00, ${datasourceColor}50 25%, ${datasourceColor}00)`;
 
-    const onDatasourceClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        // 获取触发事件的元素
-        const targetElement = event.currentTarget as HTMLDivElement;
-        // 获取元素的位置和尺寸
-        const rect = targetElement.getBoundingClientRect();
-        // 计算左下角的坐标
-        const leftBottomX = rect.left;
-        const leftBottomY = rect.top + rect.height;
-        invoke('open_datasource_window', {
-            datasourceId: datasourceRef.current,
-            winId: props.windowId,
-            x: leftBottomX,
-            y: leftBottomY
-        }).finally();
-    };
     const onDatabaseSelectorClick = (event: React.MouseEvent<HTMLDivElement>) => {
         // 获取触发事件的元素
         const targetElement = event.currentTarget as HTMLDivElement;
@@ -195,15 +180,23 @@ const GlobalWindowTitleBar: React.FC<TitleBarProp> = (props, context) => {
                             content={({position, nudgedLeft, nudgedTop}) => <>
                                 <div className={'datasource-dropdown-content'}>
                                     <div className={'content'}>
-                                        <DatabaseList/>
+                                        <DatabaseList datasourceId={datasourceRef.current}
+                                                      winId={props.windowId}
+                                                      database={databaseRef.current}
+                                                      onClose={() => setDatabaseDropDown(false)}/>
                                     </div>
                                 </div>
                             </>}>
-                            <Space className={'selector'} onClick={() => setDatabaseDropDown((prev) => !prev)}>
+                            <Space className={'selector'} onClick={e => setDatabaseDropDown((prev) => !prev)}>
                                 <Flex justify={"center"}>
                                     <DatabaseNumberIcon
                                         className={`database-number-icon database-status ${connectedStatus}`}
-                                        style={{width: 14}}/>
+                                        onClick={e => {
+                                            setTimeout(() => {
+                                                setDatabaseDropDown((prev) => !prev)
+                                            }, 80);
+                                        }}
+                                        style={{width: 12}}/>
                                     <div
                                         className={`database-number database-status ${connectedStatus}`}>{database}</div>
                                 </Flex>

@@ -410,6 +410,7 @@ const ZSetOperator = forwardRef<RedisOperatorRef | undefined, ZSetOperatorProp>(
                             value: record.score?.toString(),
                             key: props.data.keyName,
                             copyValue: copyText,
+                            keyType: props.data.keyType,
                         }).finally();
                     },
                 }

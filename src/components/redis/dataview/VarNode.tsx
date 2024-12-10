@@ -3,6 +3,7 @@ import {Flex, Input} from "antd";
 import "./VarNode.less";
 import {invoke} from "@tauri-apps/api/core";
 import {Popover} from "react-tiny-popover";
+import {formatTimestamp} from "../../../utils/TimeUtil.ts";
 
 export interface VarNodeRef {
     updateKeyType: (type: string) => void;
@@ -23,6 +24,7 @@ interface VarNodeProps {
 
 interface VarHistoryItem {
     value: string;
+    highlight: boolean;
 }
 
 const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNodeProps>((props, ref) => {
@@ -51,7 +53,6 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
         },
         calculateRuntimeKey: meta => {
             let runtimeKey = originKey;
-            console.log('meta = ', meta);
             const containVars = originKey.indexOf("{") >= 0 && originKey.indexOf("}") >= 0;
             if (containVars) {
                 // eslint-disable-next-line
@@ -92,6 +93,22 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
         replaceValueRef.current = replaceValue;
     }, [replaceValue]);
 
+    function injectBuildInVar(arrays: VarHistoryItem[]) {
+        if (props.name.indexOf("{yyyyMMdd}") >= 0) {
+            const today = formatTimestamp(Date.now(), 'YYYYMMDD');
+            const cnt = arrays.filter((s: any) => {
+                if (s.value === today) {
+                    s.highlight = true;
+                    return true;
+                }
+                return false;
+            });
+            if (cnt.length <= 0) {
+                arrays.unshift({value: today, highlight: true});
+            }
+        }
+    }
+
     const onValueDropdown = (e: React.MouseEvent<HTMLSpanElement>) => {
         e.stopPropagation();
         const regex = /\{(.*?)\}/;
@@ -109,6 +126,7 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
                     const arrays = r.histories.map((h: string) => {
                         return {value: h}
                     });
+                    injectBuildInVar(arrays);
                     setHistoryItems(arrays);
                     setHistoryVisible(true);
                     setTimeout(() => {
@@ -197,10 +215,11 @@ const VarNode: React.FC<VarNodeProps> = forwardRef<VarNodeRef | undefined, VarNo
                         <div className={'history-items'}>
                             {
                                 historyItems.map((item, i) => {
-                                    return <Flex className={'data-value-item'} key={`${props.dataViewId}_${props.id}_${i}`}
+                                    return <Flex className={`data-value-item`}
+                                                 key={`${props.dataViewId}_${props.id}_${i}`}
                                                  align={'center'}
                                                  justify={"center"} gap={4}>
-                                        <div className={'data-value'}
+                                        <div className={`data-value ${item.highlight ? 'highlight' : ''}`}
                                              onClick={e => onHistoryItemSelected(e, item)}>
                                             {item.value}
                                         </div>
